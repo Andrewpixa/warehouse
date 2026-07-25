@@ -22,9 +22,9 @@ import java.util.Set;
  *
  * 权限模型：
  * 1. URL_PERM_MAP 将接口路径映射到所需权限码（与 sys_permission 种子数据的操作级权限码一致，
- *    如 user:view / user:create / user:update / user:delete）。
+ *    如 user:view / user:create / user:update / user:delete / sales:return）。
  * 2. LOGIN_ONLY_PATHS 为"登录即可用"的接口（个人中心、首页看板等），不做权限码校验。
- * 3. 未细分权限码的业务模块（进货、销售、序列号等）按模块级 module:* 校验。
+ * 3. 所有业务模块均为操作级权限码；用户持有 module:* 通配权限码时可放行该模块全部操作。
  * 4. 超级管理员（type=0）直接放行。
  * @Author: sunlee
  * @Date: 2026/01/15 21:01
@@ -169,17 +169,63 @@ public class SaTokenConfigure implements WebMvcConfigurer {
         URL_PERM_MAP.put("/performance/salesRanking", "performance:view");
         URL_PERM_MAP.put("/performance/goodsRanking", "performance:view");
 
-        // ===== 未细分权限码的模块，按模块级校验 =====
-        URL_PERM_MAP.put("/inport/", "inport:*");
-        URL_PERM_MAP.put("/outport/", "outport:*");
-        URL_PERM_MAP.put("/sales/", "sales:*");
-        URL_PERM_MAP.put("/retail/", "retail:*");
-        URL_PERM_MAP.put("/salesback/", "salesback:*");
-        URL_PERM_MAP.put("/retailback/", "retailback:*");
-        URL_PERM_MAP.put("/report/", "report:*");
-        URL_PERM_MAP.put("/category/", "category:*");
-        URL_PERM_MAP.put("/serialNumber/", "serialNumber:*");
-        URL_PERM_MAP.put("/operationLog/", "operationLog:*");
+        // ===== 进货（操作级权限码；outport 为老退货流程的只读历史查询，归入 inport:view）=====
+        URL_PERM_MAP.put("/inport/loadAllInport", "inport:view");
+        URL_PERM_MAP.put("/inport/loadAllOrders", "inport:view");
+        URL_PERM_MAP.put("/inport/loadOrderDetail", "inport:view");
+        URL_PERM_MAP.put("/inport/loadReturnAddRecords", "inport:view");
+        URL_PERM_MAP.put("/inport/addInport", "inport:create");
+        URL_PERM_MAP.put("/inport/batchAddInport", "inport:create");
+        URL_PERM_MAP.put("/inport/addToOrder", "inport:create");
+        URL_PERM_MAP.put("/inport/updateInport", "inport:update");
+        URL_PERM_MAP.put("/inport/deleteInport", "inport:delete");
+        URL_PERM_MAP.put("/inport/returnSingleGoods", "inport:return");
+        URL_PERM_MAP.put("/inport/returnOrder", "inport:return");
+        URL_PERM_MAP.put("/outport/loadAllOutport", "inport:view");
+        // ===== 销售（salesback 同理为只读历史查询）=====
+        URL_PERM_MAP.put("/sales/loadAllSales", "sales:view");
+        URL_PERM_MAP.put("/sales/loadAllOrders", "sales:view");
+        URL_PERM_MAP.put("/sales/loadOrderDetail", "sales:view");
+        URL_PERM_MAP.put("/sales/loadReturnAddRecords", "sales:view");
+        URL_PERM_MAP.put("/sales/addSales", "sales:create");
+        URL_PERM_MAP.put("/sales/batchAddSales", "sales:create");
+        URL_PERM_MAP.put("/sales/addToOrder", "sales:create");
+        URL_PERM_MAP.put("/sales/updateSales", "sales:update");
+        URL_PERM_MAP.put("/sales/deleteSales", "sales:delete");
+        URL_PERM_MAP.put("/sales/returnSingleGoods", "sales:return");
+        URL_PERM_MAP.put("/sales/returnOrder", "sales:return");
+        URL_PERM_MAP.put("/salesback/loadAllSalesback", "sales:view");
+        // ===== 零售（retailback 同理为只读历史查询）=====
+        URL_PERM_MAP.put("/retail/loadAllRetail", "retail:view");
+        URL_PERM_MAP.put("/retail/loadAllOrders", "retail:view");
+        URL_PERM_MAP.put("/retail/loadOrderDetail", "retail:view");
+        URL_PERM_MAP.put("/retail/loadReturnAddRecords", "retail:view");
+        URL_PERM_MAP.put("/retail/addRetail", "retail:create");
+        URL_PERM_MAP.put("/retail/batchAddRetail", "retail:create");
+        URL_PERM_MAP.put("/retail/addToOrder", "retail:create");
+        URL_PERM_MAP.put("/retail/updateRetail", "retail:update");
+        URL_PERM_MAP.put("/retail/deleteRetail", "retail:delete");
+        URL_PERM_MAP.put("/retail/returnSingleGoods", "retail:return");
+        URL_PERM_MAP.put("/retail/returnOrder", "retail:return");
+        URL_PERM_MAP.put("/retailback/loadAllRetailback", "retail:view");
+        // ===== 报表（5 个分析接口统一 report:view，前缀匹配）=====
+        URL_PERM_MAP.put("/report/", "report:view");
+        // ===== 商品分类 =====
+        URL_PERM_MAP.put("/category/loadAllCategory", "category:view");
+        URL_PERM_MAP.put("/category/loadAllCategoryForSelect", "category:view");
+        URL_PERM_MAP.put("/category/addCategory", "category:create");
+        URL_PERM_MAP.put("/category/updateCategory", "category:update");
+        URL_PERM_MAP.put("/category/deleteCategory", "category:delete");
+        // ===== 序列号 =====
+        URL_PERM_MAP.put("/serialNumber/loadAllSerialNumber", "serialNumber:view");
+        URL_PERM_MAP.put("/serialNumber/getAvailableSerialNumbers", "serialNumber:view");
+        URL_PERM_MAP.put("/serialNumber/addSerialNumber", "serialNumber:create");
+        URL_PERM_MAP.put("/serialNumber/batchAddSerialNumber", "serialNumber:create");
+        URL_PERM_MAP.put("/serialNumber/batchInport", "serialNumber:create");
+        URL_PERM_MAP.put("/serialNumber/updateSerialNumber", "serialNumber:update");
+        URL_PERM_MAP.put("/serialNumber/deleteSerialNumber", "serialNumber:delete");
+        // ===== 操作日志 =====
+        URL_PERM_MAP.put("/operationLog/loadAllOperationLog", "operationLog:view");
     }
 
     @Override
@@ -299,8 +345,7 @@ public class SaTokenConfigure implements WebMvcConfigurer {
         if (colon > 0 && permissions.contains(required.substring(0, colon) + ":*")) {
             return true;
         }
-        // 所需为模块级权限（如 inport:*）：用户拥有该模块任一权限即可
-        // （兼容进货/销售等未细分权限码的模块）
+        // 所需为模块级权限（如 inport:*，保留给将来按模块整授的场景）：用户拥有该模块任一权限即可
         if (required.endsWith(":*")) {
             String module = required.substring(0, required.length() - 2);
             for (String perm : permissions) {

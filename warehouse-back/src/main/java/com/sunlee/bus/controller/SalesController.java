@@ -71,6 +71,15 @@ public class SalesController {
     @RequestMapping("addSales")
     public ResultObj addSales(SalesVo salesVo) {
         try {
+            if (salesVo.getGoodsid() == null) {
+                return ResultObj.error("商品ID不能为空");
+            }
+            if (salesVo.getNumber() == null || salesVo.getNumber() <= 0) {
+                return ResultObj.error("销售数量必须大于0");
+            }
+            if (salesVo.getSaleprice() == null || salesVo.getSaleprice().compareTo(java.math.BigDecimal.ZERO) <= 0) {
+                return ResultObj.error("销售价格必须大于0");
+            }
             User user = (User) WebUtils.getSession().getAttribute("user");
             salesVo.setOperateperson(user.getName());
             salesVo.setSalestime(new Date());
@@ -82,10 +91,37 @@ public class SalesController {
         }
     }
 
+    /**
+     * 校验批量明细：商品、数量>0、价格>0。负数量经原子库存SQL会反向变成凭空加库存，必须在入口处拦截
+     * @return 校验失败时的错误信息，null 表示通过
+     */
+    private String checkOrderItems(List<Sales> list) {
+        if (list == null || list.isEmpty()) {
+            return "销售明细不能为空";
+        }
+        for (int i = 0; i < list.size(); i++) {
+            Sales item = list.get(i);
+            if (item.getGoodsid() == null) {
+                return "第" + (i + 1) + "行商品ID不能为空";
+            }
+            if (item.getNumber() == null || item.getNumber() <= 0) {
+                return "第" + (i + 1) + "行销售数量必须大于0";
+            }
+            if (item.getSaleprice() == null || item.getSaleprice().compareTo(java.math.BigDecimal.ZERO) <= 0) {
+                return "第" + (i + 1) + "行销售价格必须大于0";
+            }
+        }
+        return null;
+    }
+
     @OperationLog(type = "添加", module = "商品销售", description = "''")
     @RequestMapping("batchAddSales")
     public ResultObj batchAddSales(@RequestBody List<Sales> list) {
         try {
+            String checkError = checkOrderItems(list);
+            if (checkError != null) {
+                return new ResultObj(Constast.ERROR, checkError);
+            }
             User user = (User) WebUtils.getSession().getAttribute("user");
             Date now = new Date();
             // 生成订单号：UUID 前缀（高并发安全）
@@ -203,6 +239,10 @@ public class SalesController {
     @RequestMapping("addToOrder")
     public ResultObj addToOrder(@RequestBody List<Sales> list) {
         try {
+            String checkError = checkOrderItems(list);
+            if (checkError != null) {
+                return new ResultObj(Constast.ERROR, checkError);
+            }
             User user = (User) WebUtils.getSession().getAttribute("user");
             Date now = new Date();
             for (Sales sales : list) {

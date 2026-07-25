@@ -96,9 +96,36 @@ public class InportController {
         }
     }
 
+    /**
+     * 校验批量明细：商品、数量>0、价格>0。负数量经原子库存SQL会反向执行（进货负数变扣库存），必须在入口处拦截
+     * @return 校验失败时的错误信息，null 表示通过
+     */
+    private String checkOrderItems(List<Inport> list) {
+        if (list == null || list.isEmpty()) {
+            return "进货明细不能为空";
+        }
+        for (int i = 0; i < list.size(); i++) {
+            Inport item = list.get(i);
+            if (item.getGoodsid() == null) {
+                return "第" + (i + 1) + "行商品ID不能为空";
+            }
+            if (item.getNumber() == null || item.getNumber() <= 0) {
+                return "第" + (i + 1) + "行进货数量必须大于0";
+            }
+            if (item.getInportprice() == null || item.getInportprice() <= 0) {
+                return "第" + (i + 1) + "行进货价格必须大于0";
+            }
+        }
+        return null;
+    }
+
     @RequestMapping("batchAddInport")
     public ResultObj batchAddInport(@RequestBody List<Inport> list) {
         try {
+            String checkError = checkOrderItems(list);
+            if (checkError != null) {
+                return new ResultObj(Constast.ERROR, checkError);
+            }
             User user = (User) WebUtils.getSession().getAttribute("user");
             Date now = new Date();
             // 生成订单号：年月日时分秒 + 4位序号
@@ -217,6 +244,10 @@ public class InportController {
     @RequestMapping("addToOrder")
     public ResultObj addToOrder(@RequestBody List<Inport> list) {
         try {
+            String checkError = checkOrderItems(list);
+            if (checkError != null) {
+                return new ResultObj(Constast.ERROR, checkError);
+            }
             User user = (User) WebUtils.getSession().getAttribute("user");
             Date now = new Date();
             for (Inport inport : list) {
