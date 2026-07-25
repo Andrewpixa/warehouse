@@ -115,6 +115,26 @@ public class StocktakeController {
     @RequestMapping("saveStocktakeItems")
     public ResultObj saveStocktakeItems(@RequestBody List<StocktakeItem> items) {
         try {
+            if (items == null || items.isEmpty()) {
+                return ResultObj.error("盘点明细不能为空");
+            }
+            // 只有进行中(status=0)的盘点单允许修改明细，已提交/已取消的单据属于归档数据，禁止篡改
+            Integer stocktakeId = items.get(0).getStocktakeId();
+            Stocktake stocktake = stocktakeService.getById(stocktakeId);
+            if (stocktake == null) {
+                return ResultObj.error("盘点单不存在");
+            }
+            if (stocktake.getStatus() != 0) {
+                return ResultObj.error("盘点单已提交或已取消，不能再修改明细");
+            }
+            for (StocktakeItem item : items) {
+                if (!stocktakeId.equals(item.getStocktakeId())) {
+                    return ResultObj.error("存在不属于该盘点单的明细，已拒绝");
+                }
+                if (item.getActualNum() != null && item.getActualNum() < 0) {
+                    return ResultObj.error("实际盘点数量不能为负数");
+                }
+            }
             for (StocktakeItem item : items) {
                 if (item.getActualNum() != null) {
                     item.setDiffNum(item.getActualNum() - item.getSystemNum());

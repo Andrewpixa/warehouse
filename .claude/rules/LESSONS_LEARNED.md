@@ -1,5 +1,20 @@
 # 经验教训（运行验证后记录）
 
+## 2026-07-25 第四批修复（开单校验/业务权限码/会员等级/盘点单锁）
+
+### 行为变更
+- **批量开单/加单入口全部补数量与价格校验**：Sales/Retail/Inport 的 batchAdd*/addToOrder（及单条 addSales/addRetail）在入口处拒绝 number<=0、price 为 null 或 <=0，返回"第N行XX数量必须大于0"式行号消息。负数数量此前会经 decreaseStock(-n) 变成加库存，属于资损级漏洞。
+- **业务模块权限码种子已落地远程库**：`mysql/migration-20260723b.sql` 已于 2026-07-25 在共享远程库执行（26 条权限码 id 168-193 + 角色授权，幂等）。SaTokenConfigure 中 inport/sales/retail/report/category/serialNumber/operationLog 全部改为操作级权限码，outport/salesback/retailback 只读历史查询分别归入 inport:view/sales:view/retail:view。同时修复角色授权漂移：销售员补菜单 155/156/157/161/166/167 与 goods:view、采购员补 goods:view（否则开单页 403）。
+- **会员等级改读 bus_member_level_rule**：recharge/consume 后按 level_value 降序取首个达标规则，conditionType 1=满足其一 2=同时满足；规则表为空才回退硬编码 500/2000/5000。验证判别值：种子规则下充值 600 仍为 1 级（旧硬编码会给 2 级），累计 1000 升 2 级。
+- **已提交/已取消盘点单禁止改明细**：saveStocktakeItems 对 status!=0 直接拒绝；明细 actualNum<0 与跨单 stocktakeId 也拒绝。进行中的单走原有更新逻辑不变。
+
+### 环境坑（运行验证才踩到）
+- **Windows mysql.exe 客户端默认 GBK**：直接 source UTF-8 迁移脚本报 `Incorrect string value: '\x80\xE5...'`（1366），必须加 `--default-character-set=utf8mb4`。
+- **SA-Token 权限在登录时缓存进 session**：sys_role_permission 授权变更后，已登录用户必须重新登录才生效——回归验证权限时必须重新走一遍登录。
+- **权限拦截先于路由匹配**：报表接口返回 404 = 权限已通过但路径不对；返回 `{"code":-1,"msg":"无权限访问此接口"}`（HTTP 200，ResultObj 约定）= 权限拒绝。诊断时按此顺序判断。
+- `mvn spring-boot:run ... | tail -30` 的输出文件在进程退出前是空的（tail 缓冲），判断启动是否完成直接探测端口，别看输出文件。
+- 报表 querySalesAnalysis 的 `<choose>` 无 `<otherwise>`：不传 type 参数会 500"SQL String cannot be empty"。前端总会传 type，属潜在健壮性问题，本次未修。
+
 ## 2026-07-23 第二/三批修复（账实错误 + 并发一致性）
 
 ### 退货流程统一（行为变更）

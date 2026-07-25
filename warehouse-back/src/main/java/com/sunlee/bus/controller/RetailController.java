@@ -63,6 +63,15 @@ public class RetailController {
     @RequestMapping("addRetail")
     public ResultObj addRetail(RetailVo retailVo) {
         try {
+            if (retailVo.getGoodsid() == null) {
+                return ResultObj.error("商品ID不能为空");
+            }
+            if (retailVo.getNumber() == null || retailVo.getNumber() <= 0) {
+                return ResultObj.error("零售数量必须大于0");
+            }
+            if (retailVo.getRetailprice() == null || retailVo.getRetailprice() <= 0) {
+                return ResultObj.error("零售价格必须大于0");
+            }
             User user = (User) WebUtils.getSession().getAttribute("user");
             retailVo.setOperateperson(user.getName());
             retailVo.setRetailtime(new Date());
@@ -74,10 +83,37 @@ public class RetailController {
         }
     }
 
+    /**
+     * 校验批量明细：商品、数量>0、价格>0。负数量经原子库存SQL会反向变成凭空加库存，必须在入口处拦截
+     * @return 校验失败时的错误信息，null 表示通过
+     */
+    private String checkOrderItems(List<Retail> list) {
+        if (list == null || list.isEmpty()) {
+            return "零售明细不能为空";
+        }
+        for (int i = 0; i < list.size(); i++) {
+            Retail item = list.get(i);
+            if (item.getGoodsid() == null) {
+                return "第" + (i + 1) + "行商品ID不能为空";
+            }
+            if (item.getNumber() == null || item.getNumber() <= 0) {
+                return "第" + (i + 1) + "行零售数量必须大于0";
+            }
+            if (item.getRetailprice() == null || item.getRetailprice() <= 0) {
+                return "第" + (i + 1) + "行零售价格必须大于0";
+            }
+        }
+        return null;
+    }
+
     @OperationLog(type = "添加", module = "散客零售", description = "''")
     @RequestMapping("batchAddRetail")
     public ResultObj batchAddRetail(@RequestBody List<Retail> list) {
         try {
+            String checkError = checkOrderItems(list);
+            if (checkError != null) {
+                return new ResultObj(Constast.ERROR, checkError);
+            }
             User user = (User) WebUtils.getSession().getAttribute("user");
             Date now = new Date();
             // 生成订单号：RO + 时间戳
@@ -191,6 +227,10 @@ public class RetailController {
     @RequestMapping("addToOrder")
     public ResultObj addToOrder(@RequestBody List<Retail> list) {
         try {
+            String checkError = checkOrderItems(list);
+            if (checkError != null) {
+                return new ResultObj(Constast.ERROR, checkError);
+            }
             User user = (User) WebUtils.getSession().getAttribute("user");
             Date now = new Date();
             for (Retail retail : list) {
