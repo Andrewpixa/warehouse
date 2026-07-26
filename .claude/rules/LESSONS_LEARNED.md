@@ -1,5 +1,31 @@
 # 经验教训（运行验证后记录）
 
+## 2026-07-26 菜单结构调整（盘点/序列号移入仓储管理）
+
+- **本系统没有 sys_menu 表**：菜单和按钮权限都在 `sys_permission`，靠 `type='menu'/'permission'` 区分，前端菜单树由后端按 pid/ordernum 从该表构建。调整菜单 = UPDATE pid/ordernum，菜单 id 不变则权限码（挂在菜单 id 下）和 sys_role_permission 授权零影响。
+- **菜单/权限在登录时缓存进 SA-Token session**：改完 sys_permission 后已登录用户必须重新登录才能看到新菜单树（验证时每次都重新走登录流程）。
+- 远程库标题漂移已按"以数据库为准"对齐：种子 warehouse.sql 的 154 改为「人员管理」、18 改为「人员信息」。
+- node.exe 占用 8888 时 curl 也可能正常返回（本次 captcha/登录全部 200），之前的"node 占用返回 500"不是稳定现象，判断后端归属仍以 tasklist + 实际响应为准。
+
+## 2026-07-26 多仓库/库位/调拨/分仓预警（一期，未做运行时验证）
+
+### 架构决策（改代码前必读）
+- **分仓库存双写模型**：`bus_goods_stock`（goodsid+warehouse_id 唯一）是账实源头，`bus_goods.number` 保留为总库存冗余缓存。所有变动统一走 `IGoodsStockService.increase/decrease`：先原子改分仓（decrease 带 `number>=n` 守卫，upsert 处理首入），同事务同步总缓存。decrease 总缓存返回 0 时抛"账实异常"回滚——双写不一致宁可暴露也不放过。
+- **一期数量只到仓粒度**：`location_id` 在单据/调拨明细上仅作拣货指引，不参与扣减（`bus_goods_stock` 唯一键无 location 列）。做库位级库存是二期决策。
+- **单据必落仓**：Inport/Sales/Retail 的 save/batchSave/addToOrder 一律 `resolveWarehouseId`（null 落默认仓 id=1）后再动库存，退货/编辑差量按**原单行 warehouseId** 回滚——不允许"开单落 A 仓、退货回默认仓"。
+- **编辑单据双禁**：禁止换商品、禁止换仓库（换仓等于跨仓错账，与换商品同理）；`warehouseId` 为 null 的更新请求不触发换仓校验（兼容老前端不传仓的场景）。
+- **盘点/调拨并发**：盘点提交（status 0→1）、调拨发出（0→1）/收货（1→2）/取消（current→3）全部走条件 UPDATE 原子认领，返回 0 = 状态已变，抛错拒绝。调拨在途取消要回补源仓。
+- **分仓预警**：`bus_warehouse_warn_rule` 有规则才做分仓预警（stock JOIN rule 且 number<dangernum）；无规则商品仍走 `loadAllWarning` 总量预警。铃铛接口 = 两个查询合并，分仓项带 warehouseName 标。
+
+### 前端坑
+- `request.ts` 会把非 JSON 的 POST 对象转 form 表单——嵌套明细结构（如调拨单 items 数组）必须 `JSON.stringify(data)` + 显式 `Content-Type: application/json`，否则后端 `@RequestBody` 拿不到。
+- POS 页仓库下切换要二次确认并清空购物车（库存快照 maxNumber 是按旧仓取的）；`onWarehouseChange` 里存 `prevWarehouse` 供用户取消时还原，不能用"找另一个仓"猜原值。
+- `loadGoodsForPOS`/`loadGoodsByProviderId` 传了 warehouseId 后，返回的 `goods.number` 就是该仓库存——POS 页的库存上限/置灰逻辑零改动直接生效，这是"读方不动"设计红利的体现。
+
+### 环境坑
+- 本机 8888 端口可能被 node.exe 等其他进程占用且 curl 返回 500——启动后端前先 `netstat -ano | findstr :8888` + `tasklist` 确认占用者是不是 Java。
+- test profile 用环境变量连远程库，本机 127.0.0.1 无 warehouse 库且 root 密码未知，本地无法替代验证；远程库写操作（迁移脚本）必须用户批准后执行。
+
 ## 2026-07-25 第四批修复（开单校验/业务权限码/会员等级/盘点单锁）
 
 ### 行为变更
