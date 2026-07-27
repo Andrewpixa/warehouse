@@ -7,9 +7,14 @@
           <template #header>
             <div class="panel-header">
               <span class="panel-title">商品选择</span>
-              <el-select v-model="selectedProvider" placeholder="选择供应商" filterable style="width: 200px" @change="onProviderChange">
-                <el-option v-for="p in providers" :key="p.id" :label="p.providername" :value="p.id" />
-              </el-select>
+              <div style="display: flex; gap: 8px">
+                <el-select v-model="selectedWarehouse" placeholder="选择仓库" style="width: 140px" @change="onWarehouseChange">
+                  <el-option v-for="w in warehouses" :key="w.id" :label="w.name" :value="w.id" />
+                </el-select>
+                <el-select v-model="selectedProvider" placeholder="选择供应商" filterable style="width: 200px" @change="onProviderChange">
+                  <el-option v-for="p in providers" :key="p.id" :label="p.providername" :value="p.id" />
+                </el-select>
+              </div>
             </div>
           </template>
 
@@ -184,6 +189,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { batchAddInport } from '@/api/inport'
 import { loadAllProviderForSelect } from '@/api/provider'
 import { loadGoodsByProviderId } from '@/api/goods'
+import { loadAllWarehouseForSelect } from '@/api/warehouse'
 import { batchInportSerialNumbers } from '@/api/serialNumber'
 import SerialNumberInput from '@/components/SerialNumberInput.vue'
 
@@ -206,6 +212,8 @@ interface CartItem {
 const providers = ref<any[]>([])
 const allGoodsList = ref<GoodsItem[]>([])
 const selectedProvider = ref<number | null>(null)
+const warehouses = ref<any[]>([])
+const selectedWarehouse = ref<number | null>(null)
 const searchKeyword = ref('')
 const cartItems = ref<CartItem[]>([])
 const paytype = ref('现金')
@@ -297,6 +305,23 @@ async function onProviderChange(newVal: number | null) {
     currentPage.value = 1
     loadGoods()
   }
+}
+
+// 切换仓库：购物车快照失效，需清空购物车并按新仓重新加载商品
+let prevWarehouse: number | null = null
+async function onWarehouseChange() {
+  if (cartItems.value.length > 0) {
+    try {
+      await ElMessageBox.confirm('切换仓库将清空当前购物车，是否继续？', '提示', { type: 'warning' })
+    } catch {
+      selectedWarehouse.value = prevWarehouse
+      return
+    }
+    cartItems.value = []
+  }
+  prevWarehouse = selectedWarehouse.value
+  currentPage.value = 1
+  loadGoods()
 }
 
 // 添加到购物车
@@ -406,6 +431,7 @@ async function handleSubmit() {
       number: item.number,
       inportprice: item.inportprice,
       paytype: paytype.value,
+      warehouseId: selectedWarehouse.value,
       remark: remark.value
     }))
 
@@ -419,7 +445,8 @@ async function handleSubmit() {
             await batchInportSerialNumbers({
               goodsId: item.goodsid,
               serialNumbers: serials,
-              inportId: res.data?.id || 0
+              inportId: res.data?.id || 0,
+              warehouseId: selectedWarehouse.value
             })
           } catch (e) {
             console.error('序列号入库失败:', e)
@@ -450,7 +477,7 @@ async function loadGoods() {
 
   goodsLoading.value = true
   try {
-    const res: any = await loadGoodsByProviderId(selectedProvider.value, 1)
+    const res: any = await loadGoodsByProviderId(selectedProvider.value, 1, selectedWarehouse.value || undefined)
     allGoodsList.value = res.data || []
   } catch (error) {
     console.error('加载商品失败:', error)
@@ -461,8 +488,13 @@ async function loadGoods() {
 
 onMounted(async () => {
   try {
-    const [pRes] = await Promise.all([loadAllProviderForSelect()])
+    const [pRes, wRes] = await Promise.all([loadAllProviderForSelect(), loadAllWarehouseForSelect()])
     providers.value = (pRes as any).data || []
+    warehouses.value = (wRes as any).data || []
+    // 默认选中默认仓
+    const def = warehouses.value.find(w => w.isDefault === 1)
+    selectedWarehouse.value = def ? def.id : (warehouses.value[0]?.id ?? null)
+    prevWarehouse = selectedWarehouse.value
     // 默认选择第一个供应商
     if (providers.value.length > 0) {
       selectedProvider.value = providers.value[0].id

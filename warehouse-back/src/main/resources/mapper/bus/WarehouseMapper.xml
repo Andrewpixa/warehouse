@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.sunlee.bus.mapper.WarehouseMapper">
+
+    <!--设置默认仓前将其余仓库全部置为非默认-->
+    <update id="clearDefault">
+        update bus_warehouse set is_default = 0 where is_default = 1 and id != #{excludeId}
+    </update>
+
+</mapper>

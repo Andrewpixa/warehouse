@@ -46,6 +46,11 @@ public class SerialNumber implements Serializable {
     private Integer inportid;
 
     /**
+     * 所在仓库ID
+     */
+    private Integer warehouseId;
+
+    /**
      * 状态：0=在库, 1=已售, 2=已退
      */
     private Integer status;

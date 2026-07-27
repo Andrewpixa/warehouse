@@ -23,7 +23,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.sunlee.bus.entity.Goods;
 import com.sunlee.bus.entity.Provider;
+import com.sunlee.bus.entity.Warehouse;
 import com.sunlee.bus.service.IProviderService;
+import com.sunlee.bus.service.IWarehouseService;
 
 import java.util.List;
 import java.util.Map;
@@ -50,6 +52,9 @@ public class StocktakeController {
     @Autowired
     private IProviderService providerService;
 
+    @Autowired
+    private IWarehouseService warehouseService;
+
     /**
      * 查询盘点单列表
      */
@@ -58,23 +63,31 @@ public class StocktakeController {
         IPage<Stocktake> page = new Page<>(stocktakeVo.getPage(), stocktakeVo.getLimit());
         QueryWrapper<Stocktake> qw = new QueryWrapper<>();
         qw.eq(stocktakeVo.getStatus() != null, "status", stocktakeVo.getStatus());
+        qw.eq(stocktakeVo.getWarehouseId() != null, "warehouse_id", stocktakeVo.getWarehouseId());
         qw.ge(stocktakeVo.getStartTime() != null, "create_time", stocktakeVo.getStartTime());
         qw.le(stocktakeVo.getEndTime() != null, "create_time", stocktakeVo.getEndTime());
         qw.orderByDesc("create_time");
         stocktakeService.page(page, qw);
+        // 填充仓库名称
+        for (Stocktake stocktake : page.getRecords()) {
+            if (stocktake.getWarehouseId() != null) {
+                Warehouse warehouse = warehouseService.getById(stocktake.getWarehouseId());
+                stocktake.setWarehouseName(warehouse != null ? warehouse.getName() : String.valueOf(stocktake.getWarehouseId()));
+            }
+        }
         return new DataGridView(page.getTotal(), page.getRecords());
     }
 
     /**
      * 创建盘点单
      */
-    @OperationLog(type = "添加", module = "盘点管理", description = "'创建盘点单'")
+    @OperationLog(type = "添加", module = "盘点管理", description = "'创建盘点单, 仓库ID: ' + #args[1]")
     @RequestMapping("createStocktake")
-    public ResultObj createStocktake(String remark) {
+    public ResultObj createStocktake(String remark, Integer warehouseId) {
         try {
             User user = (User) WebUtils.getSession().getAttribute("user");
             String operator = user != null ? user.getName() : "未知用户";
-            Stocktake stocktake = stocktakeService.createStocktake(operator, remark);
+            Stocktake stocktake = stocktakeService.createStocktake(operator, remark, warehouseId);
             return new ResultObj(200, "盘点单创建成功: " + stocktake.getStocktakeNo());
         } catch (Exception e) {
             log.error("创建盘点单失败: {}", e.getMessage(), e);

@@ -34,11 +34,16 @@
           <div v-else class="warning-list">
             <div
               v-for="item in warningGoods"
-              :key="item.id"
+              :key="item._warehouseWarn ? `w-${item.id}` : `g-${item.id}`"
               class="warning-item"
               @click="goGoods"
             >
-              <span class="warning-name">{{ item.goodsname }}</span>
+              <span class="warning-name">
+                {{ item.goodsname }}
+                <el-tag v-if="item._warehouseWarn" type="warning" size="small" style="margin-left: 4px">
+                  {{ item.warehouseName }}
+                </el-tag>
+              </span>
               <span class="warning-stock">
                 库存 <b class="danger-num">{{ item.number }}</b> / 预警值 {{ item.dangernum }}
               </span>
@@ -90,6 +95,7 @@ import { Refresh } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 import { getImageUrl } from '@/api/file'
 import { loadAllWarningGoods } from '@/api/goods'
+import { loadWarehouseWarnings } from '@/api/warehouse'
 import ThemeSettings from './ThemeSettings.vue'
 
 defineProps<{ isCollapse: boolean }>()
@@ -115,8 +121,13 @@ let warningTimer: ReturnType<typeof setInterval> | null = null
 const fetchWarningGoods = async () => {
   warningLoading.value = true
   try {
-    const res: any = await loadAllWarningGoods()
-    warningGoods.value = res.data || []
+    // 商品级总量预警 + 分仓预警合并展示（分仓项标注仓库名）
+    const [totalRes, whRes]: any[] = await Promise.all([loadAllWarningGoods(), loadWarehouseWarnings()])
+    const warehouseWarnings = (whRes.data || []).map((w: any) => ({
+      ...w,
+      _warehouseWarn: true
+    }))
+    warningGoods.value = [...(totalRes.data || []), ...warehouseWarnings]
   } catch {
     // 静默失败，避免影响顶栏其他功能
   } finally {

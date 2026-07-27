@@ -47,8 +47,9 @@ public interface ISerialNumberService extends IService<SerialNumber> {
      * @param goodsId 商品ID
      * @param serialNumbers 序列号列表
      * @param inportId 进货单ID
+     * @param warehouseId 入库仓库ID（null 时落默认仓）
      */
-    void batchInport(Integer goodsId, List<String> serialNumbers, Integer inportId);
+    void batchInport(Integer goodsId, List<String> serialNumbers, Integer inportId, Integer warehouseId);
 
     /**
      * 批量销售 - 销售时标记序列号
@@ -68,9 +69,10 @@ public interface ISerialNumberService extends IService<SerialNumber> {
     /**
      * 获取商品可用序列号
      * @param goodsId 商品ID
+     * @param warehouseId 仓库ID（null 不限仓库）
      * @return 可用序列号列表
      */
-    List<SerialNumber> getAvailableByGoodsId(Integer goodsId);
+    List<SerialNumber> getAvailableByGoodsId(Integer goodsId, Integer warehouseId);
 
     /**
      * 校验序列号是否可用

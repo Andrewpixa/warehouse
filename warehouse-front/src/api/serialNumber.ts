@@ -30,6 +30,6 @@ export function getAvailableSerialNumbers(goodsId: number) {
 /**
  * 批量入库序列号
  */
-export function batchInportSerialNumbers(data: { goodsId: number, serialNumbers: string[], inportId: number }) {
+export function batchInportSerialNumbers(data: { goodsId: number, serialNumbers: string[], inportId: number, warehouseId?: number | null }) {
   return request.post('/serialNumber/batchInport', data)
 }

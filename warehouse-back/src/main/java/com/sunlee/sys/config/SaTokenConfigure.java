@@ -226,6 +226,31 @@ public class SaTokenConfigure implements WebMvcConfigurer {
         URL_PERM_MAP.put("/serialNumber/deleteSerialNumber", "serialNumber:delete");
         // ===== 操作日志 =====
         URL_PERM_MAP.put("/operationLog/loadAllOperationLog", "operationLog:view");
+        // ===== 仓库/库位/分仓库存/分仓预警 =====
+        URL_PERM_MAP.put("/warehouse/loadAllWarehouse", "warehouse:view");
+        URL_PERM_MAP.put("/warehouse/loadAllWarehouseForSelect", "warehouse:view");
+        URL_PERM_MAP.put("/warehouse/addWarehouse", "warehouse:create");
+        URL_PERM_MAP.put("/warehouse/updateWarehouse", "warehouse:update");
+        URL_PERM_MAP.put("/warehouse/setDefaultWarehouse", "warehouse:update");
+        URL_PERM_MAP.put("/warehouse/deleteWarehouse", "warehouse:delete");
+        URL_PERM_MAP.put("/warehouse/loadLocations", "location:view");
+        URL_PERM_MAP.put("/warehouse/addLocation", "location:create");
+        URL_PERM_MAP.put("/warehouse/updateLocation", "location:update");
+        URL_PERM_MAP.put("/warehouse/deleteLocation", "location:delete");
+        URL_PERM_MAP.put("/warehouse/loadGoodsStock", "warehouse:view");
+        URL_PERM_MAP.put("/warehouse/loadStockByGoodsId", "warehouse:view");
+        URL_PERM_MAP.put("/warehouse/loadWarehouseWarnings", "warehouse:view");
+        URL_PERM_MAP.put("/warehouse/loadWarnRules", "warehouse:view");
+        URL_PERM_MAP.put("/warehouse/saveWarnRule", "warehouse:update");
+        URL_PERM_MAP.put("/warehouse/deleteWarnRule", "warehouse:update");
+        // ===== 库存调拨 =====
+        URL_PERM_MAP.put("/transfer/loadAllTransfer", "transfer:view");
+        URL_PERM_MAP.put("/transfer/loadTransferItems", "transfer:view");
+        URL_PERM_MAP.put("/transfer/createTransfer", "transfer:create");
+        URL_PERM_MAP.put("/transfer/shipTransfer", "transfer:ship");
+        URL_PERM_MAP.put("/transfer/receiveTransfer", "transfer:receive");
+        URL_PERM_MAP.put("/transfer/cancelTransfer", "transfer:cancel");
+        URL_PERM_MAP.put("/transfer/deleteTransfer", "transfer:delete");
     }
 
     @Override
