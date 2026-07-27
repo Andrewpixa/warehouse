@@ -20,12 +20,12 @@ export function loadAllGoodsForSelect() {
   return request.get('/goods/loadAllGoodsForSelect')
 }
 
-export function loadGoodsForPOS(params: { page?: number; limit?: number; keyword?: string }) {
+export function loadGoodsForPOS(params: { page?: number; limit?: number; keyword?: string; warehouseId?: number }) {
   return request.get('/goods/loadGoodsForPOS', { params })
 }
 
-export function loadGoodsByProviderId(providerid: number, allStatus?: number) {
-  return request.get('/goods/loadGoodsByProviderId', { params: { providerid, allStatus } })
+export function loadGoodsByProviderId(providerid: number, allStatus?: number, warehouseId?: number) {
+  return request.get('/goods/loadGoodsByProviderId', { params: { providerid, allStatus, warehouseId } })
 }
 
 export function updateGoodsAvailable(id: number, available: number) {

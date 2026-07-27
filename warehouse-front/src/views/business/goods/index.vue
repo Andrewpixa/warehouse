@@ -18,6 +18,11 @@
             <el-option v-for="c in categories" :key="c.id" :label="c.catename" :value="c.id" />
           </el-select>
         </el-form-item>
+        <el-form-item label="仓库">
+          <el-select v-model="searchParams.warehouseId" placeholder="全部（总库存）" clearable filterable>
+            <el-option v-for="w in warehouses" :key="w.id" :label="w.name" :value="w.id" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="附加属性">
           <el-input v-model="searchParams.attribute" placeholder="附加属性" clearable />
         </el-form-item>
@@ -38,7 +43,7 @@
         <el-table-column prop="size" label="规格" />
         <el-table-column prop="goodspackage" label="单位" width="60" />
         <el-table-column prop="price" label="价格" width="80" />
-        <el-table-column prop="number" label="库存" width="80" />
+        <el-table-column prop="number" :label="searchParams.warehouseId ? '该仓库存' : '库存'" width="90" />
         <el-table-column prop="dangernum" label="预警值" width="80" />
         <el-table-column label="附加属性" min-width="160">
           <template #default="{ row }">
@@ -207,6 +212,7 @@ import ImageUpload from '@/components/ImageUpload.vue'
 import { loadAllGoods, addGoods, updateGoods, deleteGoods, updateGoodsAvailable } from '@/api/goods'
 import { loadAllProviderForSelect } from '@/api/provider'
 import { loadAllCategoryForSelect, addCategory } from '@/api/category'
+import { loadAllWarehouseForSelect } from '@/api/warehouse'
 import { getImageUrl } from '@/api/file'
 
 const tableRef = ref()
@@ -215,6 +221,7 @@ const categoryPopoverRef = ref()
 const isEdit = ref(false)
 const providers = ref<any[]>([])
 const categories = ref<any[]>([])
+const warehouses = ref<any[]>([])
 const newCategoryName = ref('')
 const attrList = ref<{ key: string; value: string }[]>([])
 
@@ -228,7 +235,8 @@ const searchParams = reactive({
   productcode: '',
   attribute: '',
   providerid: null as number | null,
-  categoryid: null as number | null
+  categoryid: null as number | null,
+  warehouseId: null as number | null
 })
 
 const rules = {
@@ -245,6 +253,7 @@ const handleReset = () => {
   searchParams.attribute = ''
   searchParams.providerid = null
   searchParams.categoryid = null
+  searchParams.warehouseId = null
 }
 const parseAttribute = (val: string): { key: string; value: string }[] => {
   try { return JSON.parse(val) } catch { return [] }
@@ -302,6 +311,10 @@ onMounted(async () => {
   try {
     const res: any = await loadAllCategoryForSelect()
     categories.value = res.data || []
+  } catch {}
+  try {
+    const res: any = await loadAllWarehouseForSelect()
+    warehouses.value = res.data || []
   } catch {}
 })
 </script>

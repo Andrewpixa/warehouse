@@ -8,6 +8,7 @@ import com.sunlee.bus.entity.SerialNumberLog;
 import com.sunlee.bus.mapper.GoodsMapper;
 import com.sunlee.bus.mapper.SerialNumberLogMapper;
 import com.sunlee.bus.mapper.SerialNumberMapper;
+import com.sunlee.bus.service.IGoodsStockService;
 import com.sunlee.bus.service.ISerialNumberService;
 import com.sunlee.bus.vo.SerialNumberVo;
 import com.sunlee.sys.common.Constast;
@@ -36,6 +37,9 @@ public class SerialNumberServiceImpl extends ServiceImpl<SerialNumberMapper, Ser
 
     @Autowired
     private SerialNumberLogMapper serialNumberLogMapper;
+
+    @Autowired
+    private IGoodsStockService goodsStockService;
 
     /**
      * 记录序列号操作日志
@@ -114,7 +118,7 @@ public class SerialNumberServiceImpl extends ServiceImpl<SerialNumberMapper, Ser
     }
 
     @Override
-    public void batchInport(Integer goodsId, List<String> serialNumbers, Integer inportId) {
+    public void batchInport(Integer goodsId, List<String> serialNumbers, Integer inportId, Integer warehouseId) {
         if (serialNumbers == null || serialNumbers.isEmpty()) {
             return;
         }
@@ -131,6 +135,7 @@ public class SerialNumberServiceImpl extends ServiceImpl<SerialNumberMapper, Ser
             serialNumber.setSerialNumber(sn);
             serialNumber.setGoodsid(goodsId);
             serialNumber.setInportid(inportId);
+            serialNumber.setWarehouseId(goodsStockService.resolveWarehouseId(warehouseId));
             serialNumber.setStatus(0); // 在库
             serialNumber.setInstockTime(new Date());
             list.add(serialNumber);
@@ -179,10 +184,11 @@ public class SerialNumberServiceImpl extends ServiceImpl<SerialNumberMapper, Ser
     }
 
     @Override
-    public List<SerialNumber> getAvailableByGoodsId(Integer goodsId) {
+    public List<SerialNumber> getAvailableByGoodsId(Integer goodsId, Integer warehouseId) {
         QueryWrapper<SerialNumber> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("goodsid", goodsId);
         queryWrapper.eq("status", 0); // 在库可用
+        queryWrapper.eq(warehouseId != null, "warehouse_id", warehouseId);
         queryWrapper.orderByDesc("instock_time");
         return list(queryWrapper);
     }

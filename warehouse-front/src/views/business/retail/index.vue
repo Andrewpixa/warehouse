@@ -7,7 +7,13 @@
           <template #header>
             <div class="panel-header">
               <span class="panel-title">商品选择</span>
-              <el-tag type="info" size="large">散客零售</el-tag>
+              <div style="display: flex; gap: 8px">
+                <el-select v-model="selectedWarehouse" placeholder="选择仓库" style="width: 140px"
+                  @change="onWarehouseChange">
+                  <el-option v-for="w in warehouses" :key="w.id" :label="w.name" :value="w.id" />
+                </el-select>
+                <el-tag type="info" size="large">散客零售</el-tag>
+              </div>
             </div>
           </template>
 
@@ -179,6 +185,7 @@ import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { batchAddRetail } from '@/api/retail'
 import { loadGoodsForPOS } from '@/api/goods'
+import { loadAllWarehouseForSelect } from '@/api/warehouse'
 
 interface GoodsItem {
   id: number
@@ -200,6 +207,9 @@ interface CartItem {
 
 const goodsList = ref<GoodsItem[]>([])
 const searchKeyword = ref('')
+// 仓库：默认选中默认仓；商品列表库存数即该仓分仓库存（后端按 warehouseId 覆盖）
+const warehouses = ref<any[]>([])
+const selectedWarehouse = ref<number | null>(null)
 const cartItems = ref<CartItem[]>([])
 const remark = ref('')
 const paytype = ref('现金')
@@ -238,6 +248,24 @@ function onSearchInput() {
 // 页码变化
 function handlePageChange(page: number) {
   currentPage.value = page
+  loadGoods()
+}
+
+// 切换仓库：库存快照全部失效，需清空购物车并按新仓重新加载商品
+let prevWarehouse: number | null = null
+async function onWarehouseChange() {
+  if (cartItems.value.length > 0) {
+    try {
+      await ElMessageBox.confirm('切换仓库将清空当前购物车，是否继续？', '提示', { type: 'warning' })
+    } catch {
+      // 用户取消：还原为原仓库
+      selectedWarehouse.value = prevWarehouse
+      return
+    }
+    cartItems.value = []
+  }
+  prevWarehouse = selectedWarehouse.value
+  currentPage.value = 1
   loadGoods()
 }
 
@@ -314,6 +342,7 @@ async function handleSubmit() {
       number: item.number,
       retailprice: item.retailprice,
       paytype: paytype.value,
+      warehouseId: selectedWarehouse.value,
       remark: remark.value
     }))
 
@@ -340,7 +369,8 @@ async function loadGoods() {
     const res: any = await loadGoodsForPOS({
       page: currentPage.value,
       limit: pageSize.value,
-      keyword: searchKeyword.value.trim() || undefined
+      keyword: searchKeyword.value.trim() || undefined,
+      warehouseId: selectedWarehouse.value || undefined
     })
     goodsList.value = res.data || []
     total.value = res.count || 0
@@ -351,7 +381,14 @@ async function loadGoods() {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
+  try {
+    const wRes: any = await loadAllWarehouseForSelect()
+    warehouses.value = wRes.data || []
+    const def = warehouses.value.find(w => w.isDefault === 1)
+    selectedWarehouse.value = def ? def.id : (warehouses.value[0]?.id ?? null)
+    prevWarehouse = selectedWarehouse.value
+  } catch {}
   loadGoods()
 })
 </script>

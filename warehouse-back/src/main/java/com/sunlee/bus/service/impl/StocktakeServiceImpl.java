@@ -6,8 +6,10 @@ import com.sunlee.bus.entity.Goods;
 import com.sunlee.bus.entity.Stocktake;
 import com.sunlee.bus.entity.StocktakeItem;
 import com.sunlee.bus.mapper.GoodsMapper;
+import com.sunlee.bus.mapper.GoodsStockMapper;
 import com.sunlee.bus.mapper.StocktakeMapper;
 import com.sunlee.bus.service.IGoodsService;
+import com.sunlee.bus.service.IGoodsStockService;
 import com.sunlee.bus.service.IStocktakeItemService;
 import com.sunlee.bus.service.IStocktakeService;
 import lombok.extern.slf4j.Slf4j;
@@ -33,8 +35,15 @@ public class StocktakeServiceImpl extends ServiceImpl<StocktakeMapper, Stocktake
     @Autowired
     private IStocktakeItemService stocktakeItemService;
 
+    @Autowired
+    private IGoodsStockService goodsStockService;
+
+    @Autowired
+    private GoodsStockMapper goodsStockMapper;
+
     @Override
-    public Stocktake createStocktake(String operator, String remark) {
+    public Stocktake createStocktake(String operator, String remark, Integer warehouseId) {
+        Integer wid = goodsStockService.resolveWarehouseId(warehouseId);
         // 生成盘点单号: ST + 日期 + 序号
         String no = "ST" + new SimpleDateFormat("yyyyMMddHHmmss").format(new Date());
         Stocktake stocktake = new Stocktake();
@@ -42,17 +51,18 @@ public class StocktakeServiceImpl extends ServiceImpl<StocktakeMapper, Stocktake
         stocktake.setStatus(0);
         stocktake.setOperator(operator);
         stocktake.setRemark(remark);
+        stocktake.setWarehouseId(wid);
         stocktake.setCreateTime(new Date());
         save(stocktake);
 
-        // 自动加载所有商品当前库存作为盘点明细
-        List<Goods> allGoods = goodsService.list();
-        for (Goods goods : allGoods) {
+        // 自动加载该仓所有商品当前分仓库存作为盘点明细（无库存记录的商品按0计）
+        List<java.util.Map<String, Object>> goodsStockList = goodsStockMapper.selectWarehouseGoodsStock(wid);
+        for (java.util.Map<String, Object> row : goodsStockList) {
             StocktakeItem item = new StocktakeItem();
             item.setStocktakeId(stocktake.getId());
-            item.setGoodsid(goods.getId());
-            item.setGoodsname(goods.getGoodsname());
-            item.setSystemNum(goods.getNumber() != null ? goods.getNumber() : 0);
+            item.setGoodsid(((Number) row.get("goodsid")).intValue());
+            item.setGoodsname((String) row.get("goodsname"));
+            item.setSystemNum(((Number) row.get("number")).intValue());
             item.setActualNum(null); // 待填写
             item.setDiffNum(null);
             stocktakeItemService.save(item);
@@ -89,15 +99,13 @@ public class StocktakeServiceImpl extends ServiceImpl<StocktakeMapper, Stocktake
             item.setDiffNum(item.getActualNum() - item.getSystemNum());
             stocktakeItemService.updateById(item);
 
-            // 按差异量原子调整库存（而非盲写实际数量）：
+            // 按差异量原子调整该仓分仓库存（而非盲写实际数量）：
             // 盘点单创建到提交之间发生的正常出入库不会被覆盖，只有差异部分被修正
             int diff = item.getDiffNum();
             if (diff > 0) {
-                goodsMapper.increaseStock(item.getGoodsid(), diff);
+                goodsStockService.increase(item.getGoodsid(), stocktake.getWarehouseId(), diff);
             } else if (diff < 0) {
-                if (goodsMapper.decreaseStock(item.getGoodsid(), -diff) == 0) {
-                    throw new RuntimeException("商品 [" + item.getGoodsname() + "] 盘亏扣减失败：盘点期间库存已变动且当前库存不足，请重新盘点");
-                }
+                goodsStockService.decrease(item.getGoodsid(), stocktake.getWarehouseId(), -diff, item.getGoodsname());
             }
         }
     }

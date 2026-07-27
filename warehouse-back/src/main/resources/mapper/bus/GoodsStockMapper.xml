@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.sunlee.bus.mapper.GoodsStockMapper">
+
+    <!--原子增加分仓库存：该商品首次入该仓时插入，之后累加（唯一键 uk_goods_wh 保证不重复）-->
+    <insert id="increaseStock">
+        insert into bus_goods_stock (goodsid, warehouse_id, number)
+        values (#{goodsid}, #{warehouseId}, #{number})
+        on duplicate key update number = number + #{number}
+    </insert>
+
+    <!--原子扣减分仓库存，带该仓库存充足条件，不足时不更新（返回0），避免并发超卖和负库存-->
+    <update id="decreaseStock">
+        update bus_goods_stock set number = number - #{number}
+        where goodsid = #{goodsid} and warehouse_id = #{warehouseId} and number &gt;= #{number}
+    </update>
+
+    <!--分仓库存分页查询（联商品与仓库）-->
+    <select id="selectStockPage" resultType="com.sunlee.bus.entity.GoodsStock">
+        select s.*, g.goodsname, g.size, w.name as warehouseName
+        from bus_goods_stock s
+        left join bus_goods g on g.id = s.goodsid
+        left join bus_warehouse w on w.id = s.warehouse_id
+        <where>
+            <if test="warehouseId != null">
+                and s.warehouse_id = #{warehouseId}
+            </if>
+            <if test="goodsname != null and goodsname != ''">
+                and g.goodsname like concat('%', #{goodsname}, '%')
+            </if>
+        </where>
+        order by s.warehouse_id, s.goodsid
+    </select>
+
+    <!--某商品在各仓的库存分布-->
+    <select id="selectByGoodsId" resultType="com.sunlee.bus.entity.GoodsStock">
+        select s.*, g.goodsname, g.size, w.name as warehouseName
+        from bus_goods_stock s
+        left join bus_goods g on g.id = s.goodsid
+        left join bus_warehouse w on w.id = s.warehouse_id
+        where s.goodsid = #{goodsid}
+        order by s.warehouse_id
+    </select>
+
+    <!--分仓预警：仅对有分仓预警规则的商品，该仓库存低于规则阈值时返回-->
+    <select id="selectWarehouseWarnings" resultType="com.sunlee.bus.entity.GoodsStock">
+        select s.*, g.goodsname, g.size, w.name as warehouseName, r.dangernum
+        from bus_goods_stock s
+        join bus_warehouse_warn_rule r on r.goodsid = s.goodsid and r.warehouse_id = s.warehouse_id
+        left join bus_goods g on g.id = s.goodsid
+        left join bus_warehouse w on w.id = s.warehouse_id
+        where s.number &lt; r.dangernum
+        order by s.warehouse_id, s.goodsid
+    </select>
+
+    <!--某仓全部商品库存（盘点单创建用，LEFT JOIN 保证无库存记录的商品也在列）-->
+    <select id="selectWarehouseGoodsStock" resultType="java.util.Map">
+        select g.id as goodsid, g.goodsname, IFNULL(s.number, 0) as number
+        from bus_goods g
+        left join bus_goods_stock s on s.goodsid = g.id and s.warehouse_id = #{warehouseId}
+        order by g.id
+    </select>
+
+</mapper>

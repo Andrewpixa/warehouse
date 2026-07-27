@@ -12,6 +12,7 @@ import com.sunlee.bus.mapper.GoodsMapper;
 import com.sunlee.bus.mapper.InportLogMapper;
 import com.sunlee.bus.mapper.InportMapper;
 import com.sunlee.bus.mapper.OutportMapper;
+import com.sunlee.bus.service.IGoodsStockService;
 import com.sunlee.bus.service.IInportService;
 import com.sunlee.bus.vo.InportVo;
 import com.sunlee.sys.common.DataGridView;
@@ -45,6 +46,9 @@ public class InportServiceImpl extends ServiceImpl<InportMapper, Inport> impleme
     @Autowired
     private InportLogMapper inportLogMapper;
 
+    @Autowired
+    private IGoodsStockService goodsStockService;
+
     /**
      * 保存商品进货
      * @param entity
@@ -57,8 +61,10 @@ public class InportServiceImpl extends ServiceImpl<InportMapper, Inport> impleme
         if (goods == null) {
             throw new RuntimeException("商品不存在: " + entity.getGoodsid());
         }
-        // 原子增加库存
-        goodsMapper.increaseStock(entity.getGoodsid(), entity.getNumber());
+        // 未指定仓库时落默认仓，保证单据始终记录入库仓
+        entity.setWarehouseId(goodsStockService.resolveWarehouseId(entity.getWarehouseId()));
+        // 原子增加分仓库存（并同步总库存缓存）
+        goodsStockService.increase(entity.getGoodsid(), entity.getWarehouseId(), entity.getNumber());
         return super.save(entity);
     }
 
@@ -73,8 +79,10 @@ public class InportServiceImpl extends ServiceImpl<InportMapper, Inport> impleme
             if (goods == null) {
                 throw new RuntimeException("商品不存在: " + entity.getGoodsid());
             }
-            // 原子增加库存
-            goodsMapper.increaseStock(entity.getGoodsid(), entity.getNumber());
+            // 未指定仓库时落默认仓
+            entity.setWarehouseId(goodsStockService.resolveWarehouseId(entity.getWarehouseId()));
+            // 原子增加分仓库存
+            goodsStockService.increase(entity.getGoodsid(), entity.getWarehouseId(), entity.getNumber());
         }
         saveBatch(list);
 
@@ -110,6 +118,10 @@ public class InportServiceImpl extends ServiceImpl<InportMapper, Inport> impleme
         if (!inport.getGoodsid().equals(entity.getGoodsid())) {
             throw new RuntimeException("编辑单据不允许更换商品，请删除原单后重新开单");
         }
+        // 禁止编辑时更换仓库：库存按仓差量调整，换仓会导致两个仓都错账（与换商品同理）
+        if (entity.getWarehouseId() != null && !entity.getWarehouseId().equals(inport.getWarehouseId())) {
+            throw new RuntimeException("编辑单据不允许更换仓库，请删除原单后重新开单");
+        }
         // 已退完的记录禁止编辑，避免静默复活已退完订单导致账实不符
         if (inport.getOrderStatus() != null && inport.getOrderStatus() == 1) {
             throw new RuntimeException("该记录已退完，禁止编辑");
@@ -129,11 +141,9 @@ public class InportServiceImpl extends ServiceImpl<InportMapper, Inport> impleme
         //按差量调整库存：新数量比原数量多则增加，少则原子扣减（库存不足时拦截，防止扣成负数）
         int delta = entity.getNumber() - inport.getNumber();
         if (delta > 0) {
-            goodsMapper.increaseStock(entity.getGoodsid(), delta);
+            goodsStockService.increase(entity.getGoodsid(), inport.getWarehouseId(), delta);
         } else if (delta < 0) {
-            if (goodsMapper.decreaseStock(entity.getGoodsid(), -delta) == 0) {
-                throw new RuntimeException("商品【" + goods.getGoodsname() + "】库存不足，当前库存: " + goods.getNumber() + "，无法减少进货数量");
-            }
+            goodsStockService.decrease(entity.getGoodsid(), inport.getWarehouseId(), -delta, goods.getGoodsname());
         }
         //更新进货单
         return super.updateById(entity);
@@ -151,10 +161,10 @@ public class InportServiceImpl extends ServiceImpl<InportMapper, Inport> impleme
         QueryWrapper<Outport> outportWrapper = new QueryWrapper<>();
         outportWrapper.eq("inportid", id);
         outportMapper.update(outportUpdate, outportWrapper);
-        // 回滚商品库存（库存不足时拦截，防止扣成负数）
+        // 回滚商品库存（该仓库存不足时拦截，防止扣成负数）
         Goods goods = goodsMapper.selectById(inport.getGoodsid());
-        if (goods != null && goodsMapper.decreaseStock(inport.getGoodsid(), inport.getNumber()) == 0) {
-            throw new RuntimeException("商品【" + goods.getGoodsname() + "】库存不足，当前库存: " + goods.getNumber() + "，无法删除该进货单");
+        if (goods != null) {
+            goodsStockService.decrease(inport.getGoodsid(), inport.getWarehouseId(), inport.getNumber(), goods.getGoodsname());
         }
         // 软删除进货单
         baseMapper.deleteById(id);
@@ -200,10 +210,10 @@ public class InportServiceImpl extends ServiceImpl<InportMapper, Inport> impleme
             throw new RuntimeException("退货失败：剩余可退数量不足或该记录已退完");
         }
 
-        // 回滚商品库存：进货退货需扣减库存（库存不足时拦截，防止扣成负数）
+        // 回滚商品库存：进货退货需按原入库仓扣减库存（该仓库存不足时拦截，防止扣成负数）
         Goods goods = goodsMapper.selectById(inport.getGoodsid());
-        if (goods != null && goodsMapper.decreaseStock(inport.getGoodsid(), returnQty) == 0) {
-            throw new RuntimeException("商品【" + goods.getGoodsname() + "】库存不足，当前库存: " + goods.getNumber() + "，无法退货");
+        if (goods != null) {
+            goodsStockService.decrease(inport.getGoodsid(), inport.getWarehouseId(), returnQty, goods.getGoodsname());
         }
 
         // 记录退货日志
@@ -246,10 +256,10 @@ public class InportServiceImpl extends ServiceImpl<InportMapper, Inport> impleme
             if (baseMapper.decreaseRemaining(inport.getId(), inport.getNumber()) == 0) {
                 continue;
             }
-            // 回滚商品库存：进货退货需扣减库存（库存不足时拦截，防止扣成负数）
+            // 回滚商品库存：进货退货需按原入库仓扣减库存（该仓库存不足时拦截，防止扣成负数）
             Goods goods = goodsMapper.selectById(inport.getGoodsid());
-            if (goods != null && goodsMapper.decreaseStock(inport.getGoodsid(), inport.getNumber()) == 0) {
-                throw new RuntimeException("商品【" + goods.getGoodsname() + "】库存不足，当前库存: " + goods.getNumber() + "，无法退货");
+            if (goods != null) {
+                goodsStockService.decrease(inport.getGoodsid(), inport.getWarehouseId(), inport.getNumber(), goods.getGoodsname());
             }
 
             // 记录退货日志
@@ -305,12 +315,13 @@ public class InportServiceImpl extends ServiceImpl<InportMapper, Inport> impleme
             inport.setOrderno(orderNo);
             inport.setProviderid(providerId);
 
-            // 原子增加库存
+            // 原子增加分仓库存（未指定仓库时落默认仓）
             Goods goods = goodsMapper.selectById(inport.getGoodsid());
             if (goods == null) {
                 throw new RuntimeException("商品不存在: " + inport.getGoodsid());
             }
-            goodsMapper.increaseStock(inport.getGoodsid(), inport.getNumber());
+            inport.setWarehouseId(goodsStockService.resolveWarehouseId(inport.getWarehouseId()));
+            goodsStockService.increase(inport.getGoodsid(), inport.getWarehouseId(), inport.getNumber());
         }
 
         saveBatch(list);

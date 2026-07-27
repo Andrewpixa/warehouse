@@ -33,6 +33,13 @@ public class Stocktake implements Serializable {
 
     private Date finishTime;
 
+    /** 盘点仓库ID */
+    private Integer warehouseId;
+
+    /** 仓库名称（非数据库字段） */
+    @TableField(exist = false)
+    private String warehouseName;
+
     @TableField(exist = false)
     private List<StocktakeItem> items;
 }

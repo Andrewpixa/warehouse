@@ -15,4 +15,9 @@ public class GoodsVo extends Goods {
     private Integer page=1;
     private Integer limit=10;
 
+    /**
+     * 按仓库筛选：传 warehouseId 时，返回的库存为该仓分仓库存（无记录按0计）
+     */
+    private Integer warehouseId;
+
 }

@@ -15,12 +15,18 @@
             <el-option label="已取消" :value="2" />
           </el-select>
         </el-form-item>
+        <el-form-item label="仓库">
+          <el-select v-model="searchParams.warehouseId" placeholder="全部仓库" clearable style="width: 150px;">
+            <el-option v-for="w in warehouses" :key="w.id" :label="w.name" :value="w.id" />
+          </el-select>
+        </el-form-item>
       </SearchForm>
 
       <CrudTable ref="tableRef" :load-api="loadAllStocktake" :search-params="searchParams">
         <el-table-column type="selection" width="50" />
         <el-table-column prop="id" label="ID" width="60" />
         <el-table-column prop="stocktakeNo" label="盘点单号" width="180" />
+        <el-table-column prop="warehouseName" label="盘点仓库" width="110" />
         <el-table-column prop="operator" label="盘点人" width="100" />
         <el-table-column prop="status" label="状态" width="100" align="center">
           <template #default="{ row }">
@@ -133,6 +139,11 @@
     <!-- 新建盘点单弹窗 -->
     <el-dialog v-model="createDialogVisible" title="新建盘点单" width="400px">
       <el-form label-width="80px">
+        <el-form-item label="盘点仓库" required>
+          <el-select v-model="createForm.warehouseId" placeholder="选择仓库" style="width: 100%">
+            <el-option v-for="w in warehouses" :key="w.id" :label="w.name" :value="w.id" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="备注">
           <el-input v-model="createForm.remark" type="textarea" placeholder="盘点备注" />
         </el-form-item>
@@ -160,14 +171,20 @@ import {
   submitStocktake,
   cancelStocktake
 } from '@/api/stocktake'
+import { loadAllWarehouseForSelect } from '@/api/warehouse'
+import { onMounted } from 'vue'
 
 const tableRef = ref()
-const searchParams = reactive({ status: undefined })
+const searchParams = reactive<{ status: number | undefined; warehouseId: number | undefined }>({
+  status: undefined,
+  warehouseId: undefined
+})
+const warehouses = ref<any[]>([])
 const showDetail = ref(false)
 const currentStocktake = ref<any>(null)
 const stocktakeItems = ref<any[]>([])
 const createDialogVisible = ref(false)
-const createForm = reactive({ remark: '' })
+const createForm = reactive<{ remark: string; warehouseId: number | null }>({ remark: '', warehouseId: null })
 const creating = ref(false)
 
 // 打印相关
@@ -215,17 +232,24 @@ function statusTag(status: number) {
 }
 
 function handleSearch() { tableRef.value?.reload() }
-function handleReset() { searchParams.status = undefined; tableRef.value?.reload() }
+function handleReset() { searchParams.status = undefined; searchParams.warehouseId = undefined; tableRef.value?.reload() }
 
 function handleCreate() {
   createForm.remark = ''
+  // 默认选中默认仓
+  const def = warehouses.value.find(w => w.isDefault === 1)
+  createForm.warehouseId = def ? def.id : (warehouses.value[0]?.id ?? null)
   createDialogVisible.value = true
 }
 
 async function handleCreateSubmit() {
+  if (!createForm.warehouseId) {
+    ElMessage.warning('请选择盘点仓库')
+    return
+  }
   creating.value = true
   try {
-    const res: any = await createStocktake({ remark: createForm.remark })
+    const res: any = await createStocktake({ remark: createForm.remark, warehouseId: createForm.warehouseId })
     ElMessage.success(res.msg || '创建成功')
     createDialogVisible.value = false
     tableRef.value?.reload()
@@ -278,6 +302,13 @@ async function handleCancel(row: any) {
     tableRef.value?.reload()
   } catch {}
 }
+
+onMounted(async () => {
+  try {
+    const res: any = await loadAllWarehouseForSelect()
+    warehouses.value = res.data || []
+  } catch {}
+})
 </script>
 
 <style scoped>

@@ -12,6 +12,7 @@ import com.sunlee.bus.mapper.GoodsMapper;
 import com.sunlee.bus.mapper.SalesLogMapper;
 import com.sunlee.bus.mapper.SalesMapper;
 import com.sunlee.bus.mapper.SalesbackMapper;
+import com.sunlee.bus.service.IGoodsStockService;
 import com.sunlee.bus.service.ISalesService;
 import com.sunlee.bus.vo.SalesVo;
 import com.sunlee.sys.common.DataGridView;
@@ -47,6 +48,9 @@ public class SalesServiceImpl extends ServiceImpl<SalesMapper, Sales> implements
     @Autowired
     private SalesLogMapper salesLogMapper;
 
+    @Autowired
+    private IGoodsStockService goodsStockService;
+
     /**
      * 添加商品销售
      * @param entity    商品销售实体类
@@ -58,10 +62,10 @@ public class SalesServiceImpl extends ServiceImpl<SalesMapper, Sales> implements
         if (goods == null) {
             throw new RuntimeException("商品不存在: " + entity.getGoodsid());
         }
-        // 原子扣减库存，库存不足时扣减失败并回滚事务
-        if (goodsMapper.decreaseStock(entity.getGoodsid(), entity.getNumber()) == 0) {
-            throw new RuntimeException("商品【" + goods.getGoodsname() + "】库存不足，当前库存: " + goods.getNumber());
-        }
+        // 未指定仓库时落默认仓，保证单据始终记录出库仓
+        entity.setWarehouseId(goodsStockService.resolveWarehouseId(entity.getWarehouseId()));
+        // 原子扣减分仓库存，该仓库存不足时扣减失败并回滚事务
+        goodsStockService.decrease(entity.getGoodsid(), entity.getWarehouseId(), entity.getNumber(), goods.getGoodsname());
         return super.save(entity);
     }
 
@@ -76,10 +80,10 @@ public class SalesServiceImpl extends ServiceImpl<SalesMapper, Sales> implements
             if (goods == null) {
                 throw new RuntimeException("商品不存在: " + entity.getGoodsid());
             }
-            // 原子扣减库存，任一商品库存不足则整批回滚
-            if (goodsMapper.decreaseStock(entity.getGoodsid(), entity.getNumber()) == 0) {
-                throw new RuntimeException("商品【" + goods.getGoodsname() + "】库存不足，当前库存: " + goods.getNumber());
-            }
+            // 未指定仓库时落默认仓
+            entity.setWarehouseId(goodsStockService.resolveWarehouseId(entity.getWarehouseId()));
+            // 原子扣减分仓库存，任一商品该仓库存不足则整批回滚
+            goodsStockService.decrease(entity.getGoodsid(), entity.getWarehouseId(), entity.getNumber(), goods.getGoodsname());
         }
         saveBatch(list);
 
@@ -115,6 +119,10 @@ public class SalesServiceImpl extends ServiceImpl<SalesMapper, Sales> implements
         if (!sales.getGoodsid().equals(entity.getGoodsid())) {
             throw new RuntimeException("编辑单据不允许更换商品，请删除原单后重新开单");
         }
+        // 禁止编辑时更换仓库：库存按仓差量调整，换仓会导致两个仓都错账（与换商品同理）
+        if (entity.getWarehouseId() != null && !entity.getWarehouseId().equals(sales.getWarehouseId())) {
+            throw new RuntimeException("编辑单据不允许更换仓库，请删除原单后重新开单");
+        }
         // 已退完的记录禁止编辑，避免静默复活已退完订单导致账实不符
         if (sales.getOrderStatus() != null && sales.getOrderStatus() == 1) {
             throw new RuntimeException("该记录已退完，禁止编辑");
@@ -130,14 +138,12 @@ public class SalesServiceImpl extends ServiceImpl<SalesMapper, Sales> implements
         if (entity.getNumber() < 0) {
             throw new RuntimeException("销售数量不能为负数");
         }
-        //按差量调整库存：新数量比原数量多则原子扣减，少则回补
+        //按差量调整库存：新数量比原数量多则原子扣减，少则回补（均按原出库仓）
         int delta = entity.getNumber() - sales.getNumber();
         if (delta > 0) {
-            if (goodsMapper.decreaseStock(entity.getGoodsid(), delta) == 0) {
-                throw new RuntimeException("商品【" + goods.getGoodsname() + "】库存不足，当前库存: " + goods.getNumber());
-            }
+            goodsStockService.decrease(entity.getGoodsid(), sales.getWarehouseId(), delta, goods.getGoodsname());
         } else if (delta < 0) {
-            goodsMapper.increaseStock(entity.getGoodsid(), -delta);
+            goodsStockService.increase(entity.getGoodsid(), sales.getWarehouseId(), -delta);
         }
         return super.updateById(entity);
     }
@@ -154,8 +160,8 @@ public class SalesServiceImpl extends ServiceImpl<SalesMapper, Sales> implements
         QueryWrapper<Salesback> salesbackWrapper = new QueryWrapper<>();
         salesbackWrapper.eq("salesid", id);
         salesbackMapper.update(salesbackUpdate, salesbackWrapper);
-        // 回滚商品库存
-        goodsMapper.increaseStock(sales.getGoodsid(), sales.getNumber());
+        // 回滚商品库存（按原出库仓回库）
+        goodsStockService.increase(sales.getGoodsid(), sales.getWarehouseId(), sales.getNumber());
         // 软删除销售单
         baseMapper.deleteById(id);
     }
@@ -200,8 +206,8 @@ public class SalesServiceImpl extends ServiceImpl<SalesMapper, Sales> implements
             throw new RuntimeException("退货失败：剩余可退数量不足或该记录已退完");
         }
 
-        // 回滚商品库存
-        goodsMapper.increaseStock(sales.getGoodsid(), returnQty);
+        // 回滚商品库存（按原出库仓回库）
+        goodsStockService.increase(sales.getGoodsid(), sales.getWarehouseId(), returnQty);
 
         // 记录退货日志
         SalesLog log = new SalesLog();
@@ -243,8 +249,8 @@ public class SalesServiceImpl extends ServiceImpl<SalesMapper, Sales> implements
             if (baseMapper.decreaseRemaining(sales.getId(), sales.getNumber()) == 0) {
                 continue;
             }
-            // 回滚商品库存
-            goodsMapper.increaseStock(sales.getGoodsid(), sales.getNumber());
+            // 回滚商品库存（按原出库仓回库）
+            goodsStockService.increase(sales.getGoodsid(), sales.getWarehouseId(), sales.getNumber());
 
             // 记录退货日志
             SalesLog log = new SalesLog();
@@ -302,14 +308,13 @@ public class SalesServiceImpl extends ServiceImpl<SalesMapper, Sales> implements
             sales.setOrderno(orderNo);
             sales.setCustomerid(customerId);
 
-            // 原子扣减库存，库存不足则整批回滚
+            // 原子扣减分仓库存，该仓库存不足则整批回滚（未指定仓库时落默认仓）
             Goods goods = goodsMapper.selectById(sales.getGoodsid());
             if (goods == null) {
                 throw new RuntimeException("商品不存在: " + sales.getGoodsid());
             }
-            if (goodsMapper.decreaseStock(sales.getGoodsid(), sales.getNumber()) == 0) {
-                throw new RuntimeException("商品【" + goods.getGoodsname() + "】库存不足，当前库存: " + goods.getNumber());
-            }
+            sales.setWarehouseId(goodsStockService.resolveWarehouseId(sales.getWarehouseId()));
+            goodsStockService.decrease(sales.getGoodsid(), sales.getWarehouseId(), sales.getNumber(), goods.getGoodsname());
         }
 
         // 批量保存

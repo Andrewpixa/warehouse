@@ -29,6 +29,12 @@ public class Retail implements Serializable {
 
     private Integer goodsid;
 
+    /** 仓库ID（出库仓） */
+    private Integer warehouseId;
+
+    /** 库位ID（拣货指引） */
+    private Integer locationId;
+
     private String paytype;
 
     private Date retailtime;
@@ -49,5 +55,11 @@ public class Retail implements Serializable {
 
     @TableField(exist = false)
     private String size;
+
+    /**
+     * 仓库名称
+     */
+    @TableField(exist = false)
+    private String warehouseName;
 
 }

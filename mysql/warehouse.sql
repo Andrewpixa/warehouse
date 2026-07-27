@@ -226,6 +226,8 @@ CREATE TABLE `bus_inport` (
   `goodsid` int DEFAULT NULL,
   `orderno` varchar(50) DEFAULT NULL,
   `order_status` int DEFAULT '0',
+  `warehouse_id` int DEFAULT NULL COMMENT '仓库ID',
+  `location_id` int DEFAULT NULL COMMENT '库位ID（拣货指引）',
   `isdelete` int NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`) USING BTREE,
   KEY `bus_inport_ibfk_1` (`providerid`) USING BTREE,
@@ -488,6 +490,8 @@ CREATE TABLE `bus_retail` (
   `number` int DEFAULT NULL,
   `remark` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci DEFAULT NULL,
   `retailprice` decimal(10,2) DEFAULT NULL,
+  `warehouse_id` int DEFAULT NULL COMMENT '仓库ID',
+  `location_id` int DEFAULT NULL COMMENT '库位ID（拣货指引）',
   `isdelete` int NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`) USING BTREE
 ) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb3 ROW_FORMAT=DYNAMIC;
@@ -587,6 +591,8 @@ CREATE TABLE `bus_sales` (
   `goodsid` int DEFAULT NULL,
   `isdelete` int NOT NULL DEFAULT '0',
   `order_status` int DEFAULT '0' COMMENT '订单状态: 0=正常, 1=已退完',
+  `warehouse_id` int DEFAULT NULL COMMENT '仓库ID',
+  `location_id` int DEFAULT NULL COMMENT '库位ID（拣货指引）',
   PRIMARY KEY (`id`) USING BTREE,
   KEY `idx_orderno` (`orderno`)
 ) ENGINE=InnoDB AUTO_INCREMENT=183 DEFAULT CHARSET=utf8mb3 ROW_FORMAT=DYNAMIC;
@@ -685,6 +691,7 @@ CREATE TABLE `bus_stocktake` (
   `remark` varchar(255) DEFAULT NULL,
   `create_time` datetime DEFAULT NULL,
   `finish_time` datetime DEFAULT NULL,
+  `warehouse_id` int DEFAULT NULL COMMENT '盘点仓库ID',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -841,7 +848,7 @@ CREATE TABLE `sys_permission` (
 
 LOCK TABLES `sys_permission` WRITE;
 /*!40000 ALTER TABLE `sys_permission` DISABLE KEYS */;
-INSERT INTO `sys_permission` VALUES (1,0,'menu','仓库管理系统',NULL,'Box','','',1,1,1),(3,1,'menu','进货管理',NULL,'ShoppingBag','',NULL,0,2,1),(4,1,'menu','销售管理',NULL,'ShoppingCart','','',0,3,1),(5,1,'menu','系统管理',NULL,'Setting','','',1,99,1),(7,151,'menu','客户管理',NULL,'User','/bus/toCustomerManager','',0,4,1),(8,151,'menu','供应商管理',NULL,'Van','/bus/toProviderManager','',0,3,1),(9,151,'menu','商品管理',NULL,'Goods','/bus/toGoodsManager','',0,1,1),(10,3,'menu','商品进货',NULL,'Download','/bus/toInportManager','',0,10,0),(11,3,'menu','商品退货',NULL,'Upload','/bus/toOutportManager','',0,12,0),(12,4,'menu','销售记录',NULL,'Sell','/business/sales','',0,13,0),(13,4,'menu','商品退货',NULL,'RefreshLeft','/bus/toSalesbackManager','',0,14,0),(14,154,'menu','部门管理',NULL,'OfficeBuilding','/sys/toDeptManager','',0,3,1),(15,5,'menu','菜单管理',NULL,'Document','/sys/toMenuManager','',0,15,1),(16,5,'menu','权限管理','','Lock','/sys/toPermissionManager','',0,16,1),(17,154,'menu','角色管理','','UserFilled','/sys/toRoleManager','',0,2,1),(18,154,'menu','人员管理','','User','/sys/toUserManager','',0,1,1),(21,5,'menu','登陆日志',NULL,'Document','/sys/toLoginfoManager','',0,21,1),(22,5,'menu','系统公告',NULL,'Bell','/sys/toNoticeManager',NULL,0,22,1),(23,5,'menu','图标管理',NULL,'Picture','../resources/page/icon.html',NULL,0,23,1),(30,14,'permission','添加部门','dept:create','',NULL,NULL,0,24,1),(31,14,'permission','修改部门','dept:update','',NULL,NULL,0,26,1),(32,14,'permission','删除部门','dept:delete','',NULL,NULL,0,27,1),(34,15,'permission','添加菜单','menu:create','','','',0,29,1),(35,15,'permission','修改菜单','menu:update','',NULL,NULL,0,30,1),(36,15,'permission','删除菜单','menu:delete','',NULL,NULL,0,31,1),(38,16,'permission','添加权限','permission:create','',NULL,NULL,0,33,1),(39,16,'permission','修改权限','permission:update','',NULL,NULL,0,34,1),(40,16,'permission','删除权限','permission:delete','',NULL,NULL,0,35,1),(42,17,'permission','添加角色','role:create','',NULL,NULL,0,37,1),(43,17,'permission','修改角色','role:update','',NULL,NULL,0,38,1),(44,17,'permission','删除角色','role:delete','',NULL,NULL,0,39,1),(46,17,'permission','分配权限','role:selectPermission','',NULL,NULL,0,41,1),(47,18,'permission','添加用户','user:create','',NULL,NULL,0,42,1),(48,18,'permission','修改用户','user:update','',NULL,NULL,0,43,1),(49,18,'permission','删除用户','user:delete','',NULL,NULL,0,44,1),(51,18,'permission','用户分配角色','user:selectRole','',NULL,NULL,0,46,1),(52,18,'permission','重置密码','user:resetPwd',NULL,NULL,NULL,0,47,1),(53,14,'permission','部门查询','dept:view',NULL,NULL,NULL,0,48,1),(54,15,'permission','菜单查询','menu:view',NULL,NULL,NULL,0,49,1),(55,16,'permission','权限查询','permission:view',NULL,NULL,NULL,0,50,1),(56,17,'permission','角色查询','role:view',NULL,NULL,NULL,0,51,1),(57,18,'permission','用户查询','user:view',NULL,NULL,NULL,0,52,1),(68,7,'permission','客户查询','customer:view',NULL,NULL,NULL,NULL,60,1),(69,7,'permission','客户添加','customer:create',NULL,NULL,NULL,NULL,61,1),(70,7,'permission','客户修改','customer:update',NULL,NULL,NULL,NULL,62,1),(71,7,'permission','客户删除','customer:delete',NULL,NULL,NULL,NULL,63,1),(73,21,'permission','日志查询','info:view',NULL,NULL,NULL,NULL,65,1),(74,21,'permission','日志删除','info:delete',NULL,NULL,NULL,NULL,66,1),(75,21,'permission','日志批量删除','info:batchdelete',NULL,NULL,NULL,NULL,67,1),(76,22,'permission','公告查询','notice:view',NULL,NULL,NULL,NULL,68,1),(77,22,'permission','公告添加','notice:create',NULL,NULL,NULL,NULL,69,1),(78,22,'permission','公告修改','notice:update',NULL,NULL,NULL,NULL,70,1),(79,22,'permission','公告删除','notice:delete',NULL,NULL,NULL,NULL,71,1),(81,8,'permission','供应商查询','provider:view',NULL,NULL,NULL,NULL,73,1),(82,8,'permission','供应商添加','provider:create',NULL,NULL,NULL,NULL,74,1),(83,8,'permission','供应商修改','provider:update',NULL,NULL,NULL,NULL,75,1),(84,8,'permission','供应商删除','provider:delete',NULL,NULL,NULL,NULL,76,1),(86,22,'permission','公告查看','notice:viewnotice',NULL,NULL,NULL,NULL,78,1),(91,9,'permission','商品查询','goods:view',NULL,NULL,NULL,0,79,1),(92,9,'permission','商品添加','goods:create',NULL,NULL,NULL,0,80,1),(116,9,'permission','商品删除','goods:delete',NULL,NULL,NULL,0,84,1),(117,9,'permission','商品修改','goods:update',NULL,NULL,NULL,0,85,1),(118,9,'permission','商品查询','goods:view',NULL,NULL,NULL,0,86,1),(119,22,'permission','公告批量删除','notice:batchdelete',NULL,NULL,NULL,0,87,1),(125,1,'menu','报表统计',NULL,'DataAnalysis','',NULL,0,8,1),(126,125,'menu','进销金额分析',NULL,'Histogram','/bus/toInportAnalysis',NULL,0,92,1),(127,125,'menu','进销商品分析',NULL,'TrendCharts','/bus/toGoodsAnalysis',NULL,0,93,1),(128,125,'menu','利润分析',NULL,'TrendCharts','/bus/toProfitAnalysis',NULL,0,94,1),(130,151,'menu','商品分类',NULL,'Folder','/bus/toCategoryManager','',0,2,1),(132,5,'menu','操作日志',NULL,'Document','/system/operation-log',NULL,0,25,1),(133,1,'menu','零售管理',NULL,'ShoppingCart','',NULL,0,4,1),(134,133,'menu','散客零售',NULL,'Sell','/business/retail',NULL,0,10,1),(136,152,'menu','会员列表',NULL,'UserFilled','/business/member','',0,1,1),(137,136,'permission','会员查看','member:view',NULL,NULL,NULL,0,1,1),(138,136,'permission','会员添加','member:create',NULL,NULL,NULL,0,2,1),(139,136,'permission','会员修改','member:update',NULL,NULL,NULL,0,3,1),(140,136,'permission','会员删除','member:delete',NULL,NULL,NULL,0,4,1),(141,3,'menu','盘点管理',NULL,'Finished','/business/stocktake','',0,12,1),(142,141,'permission','盘点查看','stocktake:view',NULL,NULL,NULL,0,1,1),(143,141,'permission','盘点添加','stocktake:create',NULL,NULL,NULL,0,2,1),(144,141,'permission','盘点完成','stocktake:finish',NULL,NULL,NULL,0,3,1),(145,153,'menu','店员提成',NULL,'Money','/business/commission','',0,2,1),(146,145,'permission','提成查看','commission:view',NULL,NULL,NULL,0,1,1),(147,145,'permission','提成计算','commission:calculate',NULL,NULL,NULL,0,2,1),(148,153,'menu','业绩排名',NULL,'Trophy','/business/performance','',0,1,1),(149,148,'permission','排名查看','performance:view',NULL,NULL,NULL,0,1,1),(150,153,'menu','我的提成',NULL,'Coin','/business/my-commission','',0,3,1),(151,1,'menu','基础数据','','Grid','',NULL,1,1,1),(152,1,'menu','会员中心','','UserFilled','',NULL,1,5,1),(153,1,'menu','绩效管理','','Trophy','',NULL,1,7,1),(154,1,'menu','人资中心',NULL,'User',NULL,NULL,1,6,1),(155,4,'menu','商品销售',NULL,'Sell','/business/sales-pos',NULL,0,10,1),(156,4,'menu','销售订单',NULL,'Document','/business/sales-order',NULL,0,12,1),(157,4,'menu','退加货记录',NULL,'List','/business/sales-record',NULL,0,15,1),(158,3,'menu','商品进货',NULL,'ShoppingCart','/bus/toInportPOS','',1,9,1),(159,3,'menu','进货订单',NULL,'List','/bus/toInportOrder','',1,10,1),(160,3,'menu','退加货记录',NULL,'Document','/bus/toInportRecord','',1,11,1),(161,152,'menu','等级规则',NULL,'Medal','/business/member-level','',0,2,1),(162,161,'permission','等级查看','level:view',NULL,NULL,NULL,0,1,1),(163,161,'permission','等级添加','level:create',NULL,NULL,NULL,0,2,1),(164,161,'permission','等级修改','level:update',NULL,NULL,NULL,0,3,1),(165,161,'permission','等级删除','level:delete',NULL,NULL,NULL,0,4,1),(166,133,'menu','零售订单',NULL,'Document','/business/retail-order',NULL,0,11,1),(167,133,'menu','零售退回记录',NULL,'List','/business/retail-record',NULL,0,14,1),(168,158,'permission','进货查询','inport:view',NULL,NULL,NULL,0,1,1),(169,158,'permission','进货开单','inport:create',NULL,NULL,NULL,0,2,1),(170,158,'permission','进货修改','inport:update',NULL,NULL,NULL,0,3,1),(171,158,'permission','进货删除','inport:delete',NULL,NULL,NULL,0,4,1),(172,158,'permission','进货退货','inport:return',NULL,NULL,NULL,0,5,1),(173,155,'permission','销售查询','sales:view',NULL,NULL,NULL,0,1,1),(174,155,'permission','销售开单','sales:create',NULL,NULL,NULL,0,2,1),(175,155,'permission','销售修改','sales:update',NULL,NULL,NULL,0,3,1),(176,155,'permission','销售删除','sales:delete',NULL,NULL,NULL,0,4,1),(177,155,'permission','销售退货','sales:return',NULL,NULL,NULL,0,5,1),(178,134,'permission','零售查询','retail:view',NULL,NULL,NULL,0,1,1),(179,134,'permission','零售开单','retail:create',NULL,NULL,NULL,0,2,1),(180,134,'permission','零售修改','retail:update',NULL,NULL,NULL,0,3,1),(181,134,'permission','零售删除','retail:delete',NULL,NULL,NULL,0,4,1),(182,134,'permission','零售退货','retail:return',NULL,NULL,NULL,0,5,1),(183,125,'permission','报表查看','report:view',NULL,NULL,NULL,0,1,1),(184,130,'permission','分类查询','category:view',NULL,NULL,NULL,0,1,1),(185,130,'permission','分类添加','category:create',NULL,NULL,NULL,0,2,1),(186,130,'permission','分类修改','category:update',NULL,NULL,NULL,0,3,1),(187,130,'permission','分类删除','category:delete',NULL,NULL,NULL,0,4,1),(188,3,'menu','序列号管理',NULL,'Tickets','/business/serial-number',NULL,0,13,1),(189,188,'permission','序列号查询','serialNumber:view',NULL,NULL,NULL,0,1,1),(190,188,'permission','序列号添加','serialNumber:create',NULL,NULL,NULL,0,2,1),(191,188,'permission','序列号修改','serialNumber:update',NULL,NULL,NULL,0,3,1),(192,188,'permission','序列号删除','serialNumber:delete',NULL,NULL,NULL,0,4,1),(193,132,'permission','操作日志查询','operationLog:view',NULL,NULL,NULL,0,1,1);
+INSERT INTO `sys_permission` VALUES (1,0,'menu','仓库管理系统',NULL,'Box','','',1,1,1),(3,1,'menu','进货管理',NULL,'ShoppingBag','',NULL,0,2,1),(4,1,'menu','销售管理',NULL,'ShoppingCart','','',0,3,1),(5,1,'menu','系统管理',NULL,'Setting','','',1,99,1),(7,151,'menu','客户管理',NULL,'User','/bus/toCustomerManager','',0,4,1),(8,151,'menu','供应商管理',NULL,'Van','/bus/toProviderManager','',0,3,1),(9,151,'menu','商品管理',NULL,'Goods','/bus/toGoodsManager','',0,2,1),(10,3,'menu','商品进货',NULL,'Download','/bus/toInportManager','',0,10,0),(11,3,'menu','商品退货',NULL,'Upload','/bus/toOutportManager','',0,12,0),(12,4,'menu','销售记录',NULL,'Sell','/business/sales','',0,13,0),(13,4,'menu','商品退货',NULL,'RefreshLeft','/bus/toSalesbackManager','',0,14,0),(14,154,'menu','部门管理',NULL,'OfficeBuilding','/sys/toDeptManager','',0,3,1),(15,5,'menu','菜单管理',NULL,'Document','/sys/toMenuManager','',0,15,1),(16,5,'menu','权限管理','','Lock','/sys/toPermissionManager','',0,16,1),(17,154,'menu','角色管理','','UserFilled','/sys/toRoleManager','',0,2,1),(18,154,'menu','人员信息','','User','/sys/toUserManager','',0,1,1),(21,5,'menu','登陆日志',NULL,'Document','/sys/toLoginfoManager','',0,21,1),(22,5,'menu','系统公告',NULL,'Bell','/sys/toNoticeManager',NULL,0,22,1),(23,5,'menu','图标管理',NULL,'Picture','../resources/page/icon.html',NULL,0,23,1),(30,14,'permission','添加部门','dept:create','',NULL,NULL,0,24,1),(31,14,'permission','修改部门','dept:update','',NULL,NULL,0,26,1),(32,14,'permission','删除部门','dept:delete','',NULL,NULL,0,27,1),(34,15,'permission','添加菜单','menu:create','','','',0,29,1),(35,15,'permission','修改菜单','menu:update','',NULL,NULL,0,30,1),(36,15,'permission','删除菜单','menu:delete','',NULL,NULL,0,31,1),(38,16,'permission','添加权限','permission:create','',NULL,NULL,0,33,1),(39,16,'permission','修改权限','permission:update','',NULL,NULL,0,34,1),(40,16,'permission','删除权限','permission:delete','',NULL,NULL,0,35,1),(42,17,'permission','添加角色','role:create','',NULL,NULL,0,37,1),(43,17,'permission','修改角色','role:update','',NULL,NULL,0,38,1),(44,17,'permission','删除角色','role:delete','',NULL,NULL,0,39,1),(46,17,'permission','分配权限','role:selectPermission','',NULL,NULL,0,41,1),(47,18,'permission','添加用户','user:create','',NULL,NULL,0,42,1),(48,18,'permission','修改用户','user:update','',NULL,NULL,0,43,1),(49,18,'permission','删除用户','user:delete','',NULL,NULL,0,44,1),(51,18,'permission','用户分配角色','user:selectRole','',NULL,NULL,0,46,1),(52,18,'permission','重置密码','user:resetPwd',NULL,NULL,NULL,0,47,1),(53,14,'permission','部门查询','dept:view',NULL,NULL,NULL,0,48,1),(54,15,'permission','菜单查询','menu:view',NULL,NULL,NULL,0,49,1),(55,16,'permission','权限查询','permission:view',NULL,NULL,NULL,0,50,1),(56,17,'permission','角色查询','role:view',NULL,NULL,NULL,0,51,1),(57,18,'permission','用户查询','user:view',NULL,NULL,NULL,0,52,1),(68,7,'permission','客户查询','customer:view',NULL,NULL,NULL,NULL,60,1),(69,7,'permission','客户添加','customer:create',NULL,NULL,NULL,NULL,61,1),(70,7,'permission','客户修改','customer:update',NULL,NULL,NULL,NULL,62,1),(71,7,'permission','客户删除','customer:delete',NULL,NULL,NULL,NULL,63,1),(73,21,'permission','日志查询','info:view',NULL,NULL,NULL,NULL,65,1),(74,21,'permission','日志删除','info:delete',NULL,NULL,NULL,NULL,66,1),(75,21,'permission','日志批量删除','info:batchdelete',NULL,NULL,NULL,NULL,67,1),(76,22,'permission','公告查询','notice:view',NULL,NULL,NULL,NULL,68,1),(77,22,'permission','公告添加','notice:create',NULL,NULL,NULL,NULL,69,1),(78,22,'permission','公告修改','notice:update',NULL,NULL,NULL,NULL,70,1),(79,22,'permission','公告删除','notice:delete',NULL,NULL,NULL,NULL,71,1),(81,8,'permission','供应商查询','provider:view',NULL,NULL,NULL,NULL,73,1),(82,8,'permission','供应商添加','provider:create',NULL,NULL,NULL,NULL,74,1),(83,8,'permission','供应商修改','provider:update',NULL,NULL,NULL,NULL,75,1),(84,8,'permission','供应商删除','provider:delete',NULL,NULL,NULL,NULL,76,1),(86,22,'permission','公告查看','notice:viewnotice',NULL,NULL,NULL,NULL,78,1),(91,9,'permission','商品查询','goods:view',NULL,NULL,NULL,0,79,1),(92,9,'permission','商品添加','goods:create',NULL,NULL,NULL,0,80,1),(116,9,'permission','商品删除','goods:delete',NULL,NULL,NULL,0,84,1),(117,9,'permission','商品修改','goods:update',NULL,NULL,NULL,0,85,1),(118,9,'permission','商品查询','goods:view',NULL,NULL,NULL,0,86,1),(119,22,'permission','公告批量删除','notice:batchdelete',NULL,NULL,NULL,0,87,1),(125,1,'menu','报表统计',NULL,'DataAnalysis','',NULL,0,8,1),(126,125,'menu','进销金额分析',NULL,'Histogram','/bus/toInportAnalysis',NULL,0,92,1),(127,125,'menu','进销商品分析',NULL,'TrendCharts','/bus/toGoodsAnalysis',NULL,0,93,1),(128,125,'menu','利润分析',NULL,'TrendCharts','/bus/toProfitAnalysis',NULL,0,94,1),(130,151,'menu','分类管理',NULL,'Folder','/bus/toCategoryManager','',0,1,1),(132,5,'menu','操作日志',NULL,'Document','/system/operation-log',NULL,0,25,1),(133,1,'menu','零售管理',NULL,'ShoppingCart','',NULL,0,4,1),(134,133,'menu','散客零售',NULL,'Sell','/business/retail',NULL,0,10,1),(136,152,'menu','会员列表',NULL,'UserFilled','/business/member','',0,1,1),(137,136,'permission','会员查看','member:view',NULL,NULL,NULL,0,1,1),(138,136,'permission','会员添加','member:create',NULL,NULL,NULL,0,2,1),(139,136,'permission','会员修改','member:update',NULL,NULL,NULL,0,3,1),(140,136,'permission','会员删除','member:delete',NULL,NULL,NULL,0,4,1),(141,194,'menu','盘点管理',NULL,'Finished','/business/stocktake','',0,4,1),(142,141,'permission','盘点查看','stocktake:view',NULL,NULL,NULL,0,1,1),(143,141,'permission','盘点添加','stocktake:create',NULL,NULL,NULL,0,2,1),(144,141,'permission','盘点完成','stocktake:finish',NULL,NULL,NULL,0,3,1),(145,153,'menu','店员提成',NULL,'Money','/business/commission','',0,2,1),(146,145,'permission','提成查看','commission:view',NULL,NULL,NULL,0,1,1),(147,145,'permission','提成计算','commission:calculate',NULL,NULL,NULL,0,2,1),(148,153,'menu','业绩排名',NULL,'Trophy','/business/performance','',0,1,1),(149,148,'permission','排名查看','performance:view',NULL,NULL,NULL,0,1,1),(150,153,'menu','我的提成',NULL,'Coin','/business/my-commission','',0,3,1),(151,1,'menu','基础资料','','Grid','',NULL,1,1,1),(152,1,'menu','会员中心','','UserFilled','',NULL,1,6,1),(153,1,'menu','绩效管理','','Trophy','',NULL,1,7,1),(154,1,'menu','人员管理',NULL,'User',NULL,NULL,1,9,1),(155,4,'menu','商品销售',NULL,'Sell','/business/sales-pos',NULL,0,10,1),(156,4,'menu','销售订单',NULL,'Document','/business/sales-order',NULL,0,12,1),(157,4,'menu','退加货记录',NULL,'List','/business/sales-record',NULL,0,15,1),(158,3,'menu','商品进货',NULL,'ShoppingCart','/bus/toInportPOS','',1,9,1),(159,3,'menu','进货订单',NULL,'List','/bus/toInportOrder','',1,10,1),(160,3,'menu','退加货记录',NULL,'Document','/bus/toInportRecord','',1,11,1),(161,152,'menu','等级规则',NULL,'Medal','/business/member-level','',0,2,1),(162,161,'permission','等级查看','level:view',NULL,NULL,NULL,0,1,1),(163,161,'permission','等级添加','level:create',NULL,NULL,NULL,0,2,1),(164,161,'permission','等级修改','level:update',NULL,NULL,NULL,0,3,1),(165,161,'permission','等级删除','level:delete',NULL,NULL,NULL,0,4,1),(166,133,'menu','零售订单',NULL,'Document','/business/retail-order',NULL,0,11,1),(167,133,'menu','零售退回记录',NULL,'List','/business/retail-record',NULL,0,14,1),(168,158,'permission','进货查询','inport:view',NULL,NULL,NULL,0,1,1),(169,158,'permission','进货开单','inport:create',NULL,NULL,NULL,0,2,1),(170,158,'permission','进货修改','inport:update',NULL,NULL,NULL,0,3,1),(171,158,'permission','进货删除','inport:delete',NULL,NULL,NULL,0,4,1),(172,158,'permission','进货退货','inport:return',NULL,NULL,NULL,0,5,1),(173,155,'permission','销售查询','sales:view',NULL,NULL,NULL,0,1,1),(174,155,'permission','销售开单','sales:create',NULL,NULL,NULL,0,2,1),(175,155,'permission','销售修改','sales:update',NULL,NULL,NULL,0,3,1),(176,155,'permission','销售删除','sales:delete',NULL,NULL,NULL,0,4,1),(177,155,'permission','销售退货','sales:return',NULL,NULL,NULL,0,5,1),(178,134,'permission','零售查询','retail:view',NULL,NULL,NULL,0,1,1),(179,134,'permission','零售开单','retail:create',NULL,NULL,NULL,0,2,1),(180,134,'permission','零售修改','retail:update',NULL,NULL,NULL,0,3,1),(181,134,'permission','零售删除','retail:delete',NULL,NULL,NULL,0,4,1),(182,134,'permission','零售退货','retail:return',NULL,NULL,NULL,0,5,1),(183,125,'permission','报表查看','report:view',NULL,NULL,NULL,0,1,1),(184,130,'permission','分类查询','category:view',NULL,NULL,NULL,0,1,1),(185,130,'permission','分类添加','category:create',NULL,NULL,NULL,0,2,1),(186,130,'permission','分类修改','category:update',NULL,NULL,NULL,0,3,1),(187,130,'permission','分类删除','category:delete',NULL,NULL,NULL,0,4,1),(188,194,'menu','序列号管理',NULL,'Tickets','/business/serial-number',NULL,0,5,1),(189,188,'permission','序列号查询','serialNumber:view',NULL,NULL,NULL,0,1,1),(190,188,'permission','序列号添加','serialNumber:create',NULL,NULL,NULL,0,2,1),(191,188,'permission','序列号修改','serialNumber:update',NULL,NULL,NULL,0,3,1),(192,188,'permission','序列号删除','serialNumber:delete',NULL,NULL,NULL,0,4,1),(193,132,'permission','操作日志查询','operationLog:view',NULL,NULL,NULL,0,1,1),(194,1,'menu','仓储管理',NULL,'House','',NULL,0,5,1),(195,194,'menu','仓库管理',NULL,'OfficeBuilding','/business/warehouse',NULL,0,1,1),(196,195,'permission','仓库查询','warehouse:view',NULL,NULL,NULL,0,1,1),(197,195,'permission','仓库添加','warehouse:create',NULL,NULL,NULL,0,2,1),(198,195,'permission','仓库修改','warehouse:update',NULL,NULL,NULL,0,3,1),(199,195,'permission','仓库删除','warehouse:delete',NULL,NULL,NULL,0,4,1),(200,195,'permission','库位查询','location:view',NULL,NULL,NULL,0,5,1),(201,195,'permission','库位添加','location:create',NULL,NULL,NULL,0,6,1),(202,195,'permission','库位修改','location:update',NULL,NULL,NULL,0,7,1),(203,195,'permission','库位删除','location:delete',NULL,NULL,NULL,0,8,1),(204,194,'menu','库存调拨',NULL,'Van','/business/transfer',NULL,0,3,1),(205,204,'permission','调拨查询','transfer:view',NULL,NULL,NULL,0,1,1),(206,204,'permission','调拨开单','transfer:create',NULL,NULL,NULL,0,2,1),(207,204,'permission','调拨发出','transfer:ship',NULL,NULL,NULL,0,3,1),(208,204,'permission','调拨收货','transfer:receive',NULL,NULL,NULL,0,4,1),(209,204,'permission','调拨取消','transfer:cancel',NULL,NULL,NULL,0,5,1),(210,204,'permission','调拨删除','transfer:delete',NULL,NULL,NULL,0,6,1),(211,194,'menu','分仓库存',NULL,'Box','/business/goods-stock',NULL,0,2,1);
 /*!40000 ALTER TABLE `sys_permission` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -896,7 +903,7 @@ CREATE TABLE `sys_role_permission` (
 
 LOCK TABLES `sys_role_permission` WRITE;
 /*!40000 ALTER TABLE `sys_role_permission` DISABLE KEYS */;
-INSERT INTO `sys_role_permission` VALUES (1,1),(11,3),(12,3),(13,4),(1,5),(1,7),(11,7),(13,7),(1,8),(11,8),(12,8),(1,9),(11,9),(1,10),(11,10),(12,10),(1,11),(11,11),(12,11),(1,12),(13,12),(1,13),(13,13),(1,14),(1,15),(1,16),(1,17),(1,18),(1,21),(1,22),(1,23),(1,30),(1,31),(1,32),(1,34),(1,35),(1,36),(1,38),(1,39),(1,40),(1,42),(1,43),(1,44),(1,46),(1,47),(1,48),(1,49),(1,51),(1,52),(1,53),(1,54),(1,55),(1,56),(1,57),(1,68),(11,68),(13,68),(1,69),(11,69),(13,69),(1,70),(11,70),(13,70),(1,71),(11,71),(13,71),(1,73),(1,74),(1,75),(1,76),(1,77),(1,78),(1,79),(1,81),(11,81),(12,81),(1,82),(11,82),(12,82),(1,83),(11,83),(12,83),(1,84),(11,84),(12,84),(1,86),(1,91),(11,91),(1,92),(11,92),(1,116),(11,116),(1,117),(11,117),(1,118),(1,125),(14,125),(1,126),(14,126),(14,127),(14,128),(11,130),(1,132),(1,133),(13,133),(1,134),(13,134),(1,136),(13,136),(1,137),(13,137),(1,138),(13,138),(1,139),(13,139),(1,140),(13,140),(1,141),(11,141),(1,142),(11,142),(1,143),(11,143),(1,144),(11,144),(1,145),(1,146),(1,147),(1,148),(1,149),(1,150),(13,150),(1,151),(11,151),(12,151),(13,151),(1,152),(13,152),(1,153),(13,153),(1,158),(11,158),(12,158),(1,159),(11,159),(12,159),(1,160),(11,160),(12,160),(1,155),(1,156),(1,157),(1,161),(1,166),(1,167),(1,188),(1,162),(1,163),(1,164),(1,165),(1,168),(1,169),(1,170),(1,171),(1,172),(1,173),(1,174),(1,175),(1,176),(1,177),(1,178),(1,179),(1,180),(1,181),(1,182),(1,183),(1,184),(1,185),(1,186),(1,187),(1,189),(1,190),(1,191),(1,192),(1,193),(11,168),(11,169),(11,170),(11,171),(11,172),(11,184),(11,185),(11,186),(11,187),(11,188),(11,189),(11,190),(11,191),(11,192),(12,91),(12,184),(12,168),(12,169),(12,172),(13,155),(13,156),(13,157),(13,161),(13,166),(13,167),(13,162),(13,163),(13,164),(13,165),(13,173),(13,174),(13,175),(13,176),(13,177),(13,178),(13,179),(13,180),(13,181),(13,182),(13,91),(13,184),(13,189),(14,183);
+INSERT INTO `sys_role_permission` VALUES (1,1),(11,3),(12,3),(13,4),(1,5),(1,7),(11,7),(13,7),(1,8),(11,8),(12,8),(1,9),(11,9),(1,10),(11,10),(12,10),(1,11),(11,11),(12,11),(1,12),(13,12),(1,13),(13,13),(1,14),(1,15),(1,16),(1,17),(1,18),(1,21),(1,22),(1,23),(1,30),(1,31),(1,32),(1,34),(1,35),(1,36),(1,38),(1,39),(1,40),(1,42),(1,43),(1,44),(1,46),(1,47),(1,48),(1,49),(1,51),(1,52),(1,53),(1,54),(1,55),(1,56),(1,57),(1,68),(11,68),(13,68),(1,69),(11,69),(13,69),(1,70),(11,70),(13,70),(1,71),(11,71),(13,71),(1,73),(1,74),(1,75),(1,76),(1,77),(1,78),(1,79),(1,81),(11,81),(12,81),(1,82),(11,82),(12,82),(1,83),(11,83),(12,83),(1,84),(11,84),(12,84),(1,86),(1,91),(11,91),(1,92),(11,92),(1,116),(11,116),(1,117),(11,117),(1,118),(1,125),(14,125),(1,126),(14,126),(14,127),(14,128),(11,130),(1,132),(1,133),(13,133),(1,134),(13,134),(1,136),(13,136),(1,137),(13,137),(1,138),(13,138),(1,139),(13,139),(1,140),(13,140),(1,141),(11,141),(1,142),(11,142),(1,143),(11,143),(1,144),(11,144),(1,145),(1,146),(1,147),(1,148),(1,149),(1,150),(13,150),(1,151),(11,151),(12,151),(13,151),(1,152),(13,152),(1,153),(13,153),(1,158),(11,158),(12,158),(1,159),(11,159),(12,159),(1,160),(11,160),(12,160),(1,155),(1,156),(1,157),(1,161),(1,166),(1,167),(1,188),(1,162),(1,163),(1,164),(1,165),(1,168),(1,169),(1,170),(1,171),(1,172),(1,173),(1,174),(1,175),(1,176),(1,177),(1,178),(1,179),(1,180),(1,181),(1,182),(1,183),(1,184),(1,185),(1,186),(1,187),(1,189),(1,190),(1,191),(1,192),(1,193),(11,168),(11,169),(11,170),(11,171),(11,172),(11,184),(11,185),(11,186),(11,187),(11,188),(11,189),(11,190),(11,191),(11,192),(12,91),(12,184),(12,168),(12,169),(12,172),(13,155),(13,156),(13,157),(13,161),(13,166),(13,167),(13,162),(13,163),(13,164),(13,165),(13,173),(13,174),(13,175),(13,176),(13,177),(13,178),(13,179),(13,180),(13,181),(13,182),(13,91),(13,184),(13,189),(14,183),(1,194),(1,195),(1,204),(1,211),(1,196),(1,197),(1,198),(1,199),(1,200),(1,201),(1,202),(1,203),(1,205),(1,206),(1,207),(1,208),(1,209),(1,210),(11,194),(11,195),(11,204),(11,211),(11,196),(11,197),(11,198),(11,199),(11,200),(11,201),(11,202),(11,203),(11,205),(11,206),(11,207),(11,208),(11,209),(11,210),(12,196),(13,196);
 /*!40000 ALTER TABLE `sys_role_permission` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -979,6 +986,7 @@ CREATE TABLE `bus_serial_number` (
   `serial_number` varchar(50) NOT NULL COMMENT '序列号',
   `goodsid` int NOT NULL COMMENT '商品ID',
   `inportid` int DEFAULT NULL COMMENT '入库单ID',
+  `warehouse_id` int DEFAULT NULL COMMENT '所在仓库ID',
   `status` tinyint NOT NULL DEFAULT 0 COMMENT '状态：0=在库, 1=已售, 2=已退',
   `instock_time` datetime DEFAULT NULL COMMENT '入库时间',
   `outstock_time` datetime DEFAULT NULL COMMENT '出库时间',
@@ -1032,6 +1040,103 @@ CREATE TABLE `bus_serial_number_log` (
 --
 -- Dumping routines for database 'warehouse'
 --
+--
+-- 多仓库/库位/调拨/分仓预警（2026-07-26 一期）
+--
+
+DROP TABLE IF EXISTS `bus_warehouse`;
+CREATE TABLE `bus_warehouse` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `name` varchar(100) NOT NULL COMMENT '仓库名称',
+  `code` varchar(50) DEFAULT NULL COMMENT '仓库编码',
+  `address` varchar(255) DEFAULT NULL COMMENT '地址',
+  `manager` varchar(50) DEFAULT NULL COMMENT '负责人',
+  `phone` varchar(50) DEFAULT NULL COMMENT '联系电话',
+  `is_default` tinyint NOT NULL DEFAULT 0 COMMENT '是否默认仓 0=否 1=是（全系统唯一）',
+  `available` int NOT NULL DEFAULT 1 COMMENT '状态 0=停用 1=启用',
+  `remark` varchar(255) DEFAULT NULL COMMENT '备注',
+  `create_time` datetime DEFAULT NULL COMMENT '创建时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_warehouse_code` (`code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='仓库表';
+
+INSERT INTO `bus_warehouse` VALUES (1,'主仓库','WH001',NULL,NULL,NULL,1,1,'系统默认仓库',NOW());
+
+DROP TABLE IF EXISTS `bus_warehouse_location`;
+CREATE TABLE `bus_warehouse_location` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `warehouse_id` int NOT NULL COMMENT '所属仓库ID',
+  `code` varchar(50) NOT NULL COMMENT '库位编码 如 A-01-03',
+  `zone` varchar(50) DEFAULT NULL COMMENT '库区（拣货区/存储区/退货区/不良品区）',
+  `name` varchar(100) DEFAULT NULL COMMENT '库位名称',
+  `available` int NOT NULL DEFAULT 1 COMMENT '状态 0=停用 1=启用',
+  `remark` varchar(255) DEFAULT NULL COMMENT '备注',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_wh_loc_code` (`warehouse_id`,`code`),
+  KEY `idx_warehouse` (`warehouse_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='库位表';
+
+DROP TABLE IF EXISTS `bus_goods_stock`;
+CREATE TABLE `bus_goods_stock` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `goodsid` int NOT NULL COMMENT '商品ID',
+  `warehouse_id` int NOT NULL COMMENT '仓库ID',
+  `number` int NOT NULL DEFAULT 0 COMMENT '该仓库存数量',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_goods_wh` (`goodsid`,`warehouse_id`),
+  KEY `idx_warehouse` (`warehouse_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='分仓库存表';
+
+-- 现有库存全部落默认仓
+INSERT INTO `bus_goods_stock` (goodsid, warehouse_id, number)
+SELECT id, 1, IFNULL(number, 0) FROM bus_goods;
+
+DROP TABLE IF EXISTS `bus_transfer`;
+CREATE TABLE `bus_transfer` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `transfer_no` varchar(50) NOT NULL COMMENT '调拨单号',
+  `from_warehouse_id` int NOT NULL COMMENT '调出仓库ID',
+  `to_warehouse_id` int NOT NULL COMMENT '调入仓库ID',
+  `status` int NOT NULL DEFAULT 0 COMMENT '状态 0=草稿 1=在途 2=已完成 3=已取消',
+  `operator` varchar(50) DEFAULT NULL COMMENT '操作人',
+  `remark` varchar(255) DEFAULT NULL COMMENT '备注',
+  `create_time` datetime DEFAULT NULL COMMENT '创建时间',
+  `ship_time` datetime DEFAULT NULL COMMENT '发出时间',
+  `finish_time` datetime DEFAULT NULL COMMENT '完成时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_transfer_no` (`transfer_no`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='库存调拨单';
+
+DROP TABLE IF EXISTS `bus_transfer_item`;
+CREATE TABLE `bus_transfer_item` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `transfer_id` int NOT NULL COMMENT '调拨单ID',
+  `goodsid` int NOT NULL COMMENT '商品ID',
+  `number` int NOT NULL COMMENT '调拨数量',
+  `from_location_id` int DEFAULT NULL COMMENT '调出库位ID（拣货指引）',
+  `to_location_id` int DEFAULT NULL COMMENT '调入库位ID',
+  PRIMARY KEY (`id`),
+  KEY `idx_transfer` (`transfer_id`),
+  KEY `idx_goods` (`goodsid`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='调拨单明细';
+
+DROP TABLE IF EXISTS `bus_warehouse_warn_rule`;
+CREATE TABLE `bus_warehouse_warn_rule` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `goodsid` int NOT NULL COMMENT '商品ID',
+  `warehouse_id` int NOT NULL COMMENT '仓库ID',
+  `dangernum` int NOT NULL COMMENT '该仓预警阈值',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_goods_wh_rule` (`goodsid`,`warehouse_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='分仓预警规则表';
+
+-- 历史单据/盘点/序列号回填默认仓
+UPDATE bus_inport SET warehouse_id = 1 WHERE warehouse_id IS NULL;
+UPDATE bus_sales SET warehouse_id = 1 WHERE warehouse_id IS NULL;
+UPDATE bus_retail SET warehouse_id = 1 WHERE warehouse_id IS NULL;
+UPDATE bus_stocktake SET warehouse_id = 1 WHERE warehouse_id IS NULL;
+UPDATE bus_serial_number SET warehouse_id = 1 WHERE warehouse_id IS NULL;
+
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;

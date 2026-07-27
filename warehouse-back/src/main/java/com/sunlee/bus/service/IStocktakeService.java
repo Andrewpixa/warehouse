@@ -6,9 +6,10 @@ import com.sunlee.bus.entity.Stocktake;
 public interface IStocktakeService extends IService<Stocktake> {
 
     /**
-     * 创建盘点单（自动加载当前库存）
+     * 创建盘点单（按仓加载该仓当前库存）
+     * @param warehouseId 盘点仓库（null 时落默认仓）
      */
-    Stocktake createStocktake(String operator, String remark);
+    Stocktake createStocktake(String operator, String remark, Integer warehouseId);
 
     /**
      * 提交盘点结果（更新库存）

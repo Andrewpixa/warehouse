@@ -184,6 +184,11 @@
     <el-dialog v-model="addGoodsDialogVisible" title="加货" width="700px" @close="resetAddForm">
       <div class="add-goods-header" v-if="currentOrder">
         <span>订单号: <strong>{{ currentOrder.orderNo }}</strong></span>
+        <span>出库仓:
+          <el-select v-model="addForm.warehouseId" placeholder="选择仓库" style="width: 140px">
+            <el-option v-for="w in warehouses" :key="w.id" :label="w.name" :value="w.id" />
+          </el-select>
+        </span>
       </div>
 
       <div v-for="(item, index) in addForm.items" :key="index" class="add-item-row">
@@ -262,9 +267,11 @@ import SearchForm from '@/components/SearchForm.vue'
 import CrudTable from '@/components/CrudTable.vue'
 import { loadAllOrders, loadOrderDetail, returnSingleGoods, returnOrder, addToOrder, loadReturnAddRecords } from '@/api/retail'
 import { loadAllGoodsForSelect } from '@/api/goods'
+import { loadAllWarehouseForSelect } from '@/api/warehouse'
 
 const tableRef = ref()
 const goodsList = ref<any[]>([])
+const warehouses = ref<any[]>([])
 const searchParams = reactive({ paytype: null as string | null })
 
 const detailDialogVisible = ref(false)
@@ -312,6 +319,7 @@ const hasReturnQty = computed(() => {
 const addGoodsDialogVisible = ref(false)
 const addSubmitting = ref(false)
 const addForm = reactive({
+  warehouseId: null as number | null,
   items: [{ goodsid: null as number | null, number: 1, retailprice: 0 }] as { goodsid: number | null; number: number; retailprice: number }[]
 })
 
@@ -473,6 +481,9 @@ const removeAddItem = (index: number) => {
 
 const resetAddForm = () => {
   addForm.items = [{ goodsid: null, number: 1, retailprice: 0 }]
+  // 重置为默认仓
+  const def = warehouses.value.find(w => w.isDefault === 1)
+  addForm.warehouseId = def ? def.id : (warehouses.value[0]?.id ?? null)
 }
 
 const onGoodsChange = (index: number, goodsid: number) => {
@@ -496,7 +507,8 @@ const handleAddGoodsSubmit = async () => {
       goodsid: item.goodsid,
       number: item.number,
       retailprice: item.retailprice,
-      paytype: currentOrder.value.paytype || '现金'
+      paytype: currentOrder.value.paytype || '现金',
+      warehouseId: addForm.warehouseId
     }))
 
     const res: any = await addToOrder(data)
@@ -514,8 +526,11 @@ const handleAddGoodsSubmit = async () => {
 
 onMounted(async () => {
   try {
-    const gRes = await loadAllGoodsForSelect()
+    const [gRes, wRes] = await Promise.all([loadAllGoodsForSelect(), loadAllWarehouseForSelect()])
     goodsList.value = (gRes as any).data || []
+    warehouses.value = (wRes as any).data || []
+    const def = warehouses.value.find(w => w.isDefault === 1)
+    addForm.warehouseId = def ? def.id : (warehouses.value[0]?.id ?? null)
   } catch {}
 })
 </script>

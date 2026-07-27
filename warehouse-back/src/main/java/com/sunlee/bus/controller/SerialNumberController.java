@@ -114,8 +114,8 @@ public class SerialNumberController {
      * 获取商品可用序列号
      */
     @RequestMapping("getAvailableSerialNumbers")
-    public DataGridView getAvailableSerialNumbers(Integer goodsId) {
-        List<SerialNumber> list = serialNumberService.getAvailableByGoodsId(goodsId);
+    public DataGridView getAvailableSerialNumbers(Integer goodsId, Integer warehouseId) {
+        List<SerialNumber> list = serialNumberService.getAvailableByGoodsId(goodsId, warehouseId);
         return new DataGridView((long) list.size(), list);
     }
 
@@ -129,6 +129,7 @@ public class SerialNumberController {
             @SuppressWarnings("unchecked")
             List<String> serialNumbers = (List<String>) params.get("serialNumbers");
             Integer inportId = params.get("inportId") != null ? (Integer) params.get("inportId") : 0;
+            Integer warehouseId = params.get("warehouseId") != null ? (Integer) params.get("warehouseId") : null;
 
             if (goodsId == null) {
                 return ResultObj.error("商品ID不能为空");
@@ -137,7 +138,7 @@ public class SerialNumberController {
                 return ResultObj.error("序列号列表不能为空");
             }
 
-            serialNumberService.batchInport(goodsId, serialNumbers, inportId);
+            serialNumberService.batchInport(goodsId, serialNumbers, inportId, warehouseId);
             return new ResultObj(Constast.OK, "序列号入库成功，共" + serialNumbers.size() + "条");
         } catch (Exception e) {
             log.error("序列号入库失败: {}", e.getMessage(), e);

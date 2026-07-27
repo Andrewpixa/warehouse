@@ -59,6 +59,9 @@ public class GoodsController {
     @Autowired
     private ISalesbackService salesbackService;
 
+    @Autowired
+    private IGoodsStockService goodsStockService;
+
     /**
      * 查询商品（支持名称、拼音、简写搜索，批量查询避免 N+1）
      */
@@ -102,6 +105,20 @@ public class GoodsController {
         for (Goods goods : records) {
             goods.setProvidername(providerMap.get(goods.getProviderid()));
             goods.setCategoryname(categoryMap.get(goods.getCategoryid()));
+        }
+
+        // 指定仓库时，库存列覆盖为该仓分仓库存（该仓无记录的商品按0计）
+        if (goodsVo.getWarehouseId() != null && !records.isEmpty()) {
+            List<Integer> goodsIds = records.stream().map(Goods::getId).collect(Collectors.toList());
+            QueryWrapper<GoodsStock> stockQuery = new QueryWrapper<>();
+            stockQuery.eq("warehouse_id", goodsVo.getWarehouseId());
+            stockQuery.in("goodsid", goodsIds);
+            Map<Integer, Integer> stockMap = goodsStockService.list(stockQuery).stream()
+                .collect(Collectors.toMap(GoodsStock::getGoodsid,
+                    s -> s.getNumber() != null ? s.getNumber() : 0));
+            for (Goods goods : records) {
+                goods.setNumber(stockMap.getOrDefault(goods.getId(), 0));
+            }
         }
         return new DataGridView(page.getTotal(), records);
     }
@@ -230,7 +247,7 @@ public class GoodsController {
      * POS页面加载商品（按销售量排序，支持分页）
      */
     @RequestMapping("loadGoodsForPOS")
-    public DataGridView loadGoodsForPOS(Integer page, Integer limit, String keyword){
+    public DataGridView loadGoodsForPOS(Integer page, Integer limit, String keyword, Integer warehouseId){
         // 查询所有有效商品
         QueryWrapper<Goods> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("available", Constast.AVAILABLE_TRUE);
@@ -257,6 +274,13 @@ public class GoodsController {
             }
         }
 
+        // 指定仓库时，库存数覆盖为该仓分仓库存（POS 按仓开单，库存上限/置灰均按该仓）
+        if (warehouseId != null) {
+            for (Goods goods : allGoods) {
+                goods.setNumber(goodsStockService.getStockNumber(goods.getId(), warehouseId));
+            }
+        }
+
         // 按销售量降序排序
         allGoods.sort((a, b) -> Integer.compare(b.getSalesCount(), a.getSalesCount()));
 
@@ -279,7 +303,7 @@ public class GoodsController {
      * @return
      */
     @RequestMapping("loadGoodsByProviderId")
-    public DataGridView loadGoodsByProviderId(Integer providerid,Integer allStatus){
+    public DataGridView loadGoodsByProviderId(Integer providerid,Integer allStatus,Integer warehouseId){
         QueryWrapper<Goods> queryWrapper = new QueryWrapper<Goods>();
         if (!Constast.AVAILABLE_TRUE.equals(allStatus)){
             queryWrapper.eq("available",Constast.AVAILABLE_TRUE);
@@ -290,6 +314,12 @@ public class GoodsController {
             Provider provider = providerService.getById(goods.getProviderid());
             if (null!=provider){
                 goods.setProvidername(provider.getProvidername());
+            }
+        }
+        // 指定仓库时，库存数覆盖为该仓分仓库存（进货页按仓展示）
+        if (warehouseId != null) {
+            for (Goods goods : list) {
+                goods.setNumber(goodsStockService.getStockNumber(goods.getId(), warehouseId));
             }
         }
         return new DataGridView(list);

@@ -228,6 +228,24 @@ const router = createRouter({
           meta: { title: '序列号管理' }
         },
         {
+          path: 'business/warehouse',
+          name: 'WarehouseManager',
+          component: () => import('@/views/business/warehouse/index.vue'),
+          meta: { title: '仓库管理' }
+        },
+        {
+          path: 'business/transfer',
+          name: 'TransferManager',
+          component: () => import('@/views/business/transfer/index.vue'),
+          meta: { title: '库存调拨' }
+        },
+        {
+          path: 'business/goods-stock',
+          name: 'GoodsStockManager',
+          component: () => import('@/views/business/goods-stock/index.vue'),
+          meta: { title: '分仓库存' }
+        },
+        {
           path: 'business/my-commission',
           name: 'MyCommission',
           component: () => import('@/views/business/my-commission/index.vue'),

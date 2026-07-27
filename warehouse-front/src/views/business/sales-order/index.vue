@@ -198,6 +198,11 @@
       <div class="add-goods-header" v-if="currentOrder">
         <span>订单号: <strong>{{ currentOrder.orderNo }}</strong></span>
         <span>客户: <strong>{{ currentOrder.customerName }}</strong></span>
+        <span>出库仓:
+          <el-select v-model="addForm.warehouseId" placeholder="选择仓库" style="width: 140px">
+            <el-option v-for="w in warehouses" :key="w.id" :label="w.name" :value="w.id" />
+          </el-select>
+        </span>
       </div>
 
       <div v-for="(item, index) in addForm.items" :key="index" class="add-item-row">
@@ -278,10 +283,12 @@ import PrintDocument, { type PrintColumn, type PrintMetaItem } from '@/component
 import { loadAllOrders, loadOrderDetail, returnSingleGoods, returnOrder, addToOrder, loadReturnAddRecords } from '@/api/sales'
 import { loadAllCustomerForSelect } from '@/api/customer'
 import { loadAllGoodsForSelect } from '@/api/goods'
+import { loadAllWarehouseForSelect } from '@/api/warehouse'
 
 const tableRef = ref()
 const customers = ref<any[]>([])
 const goodsList = ref<any[]>([])
+const warehouses = ref<any[]>([])
 const searchParams = reactive({ customerid: null as number | null })
 
 const detailDialogVisible = ref(false)
@@ -331,6 +338,7 @@ const hasReturnQty = computed(() => {
 const addGoodsDialogVisible = ref(false)
 const addSubmitting = ref(false)
 const addForm = reactive({
+  warehouseId: null as number | null,
   items: [{ goodsid: null as number | null, number: 1, saleprice: 0 }] as { goodsid: number | null; number: number; saleprice: number }[]
 })
 
@@ -527,6 +535,9 @@ const removeAddItem = (index: number) => {
 
 const resetAddForm = () => {
   addForm.items = [{ goodsid: null, number: 1, saleprice: 0 }]
+  // 重置为默认仓
+  const def = warehouses.value.find(w => w.isDefault === 1)
+  addForm.warehouseId = def ? def.id : (warehouses.value[0]?.id ?? null)
 }
 
 const onGoodsChange = (index: number, goodsid: number) => {
@@ -550,7 +561,8 @@ const handleAddGoodsSubmit = async () => {
       customerid: currentOrder.value.customerId,
       goodsid: item.goodsid,
       number: item.number,
-      saleprice: item.saleprice
+      saleprice: item.saleprice,
+      warehouseId: addForm.warehouseId
     }))
 
     const res: any = await addToOrder(data)
@@ -568,9 +580,12 @@ const handleAddGoodsSubmit = async () => {
 
 onMounted(async () => {
   try {
-    const [cRes, gRes] = await Promise.all([loadAllCustomerForSelect(), loadAllGoodsForSelect()])
+    const [cRes, gRes, wRes] = await Promise.all([loadAllCustomerForSelect(), loadAllGoodsForSelect(), loadAllWarehouseForSelect()])
     customers.value = (cRes as any).data || []
     goodsList.value = (gRes as any).data || []
+    warehouses.value = (wRes as any).data || []
+    const def = warehouses.value.find(w => w.isDefault === 1)
+    addForm.warehouseId = def ? def.id : (warehouses.value[0]?.id ?? null)
   } catch {}
 })
 </script>
