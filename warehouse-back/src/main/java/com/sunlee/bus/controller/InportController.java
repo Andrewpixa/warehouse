@@ -150,7 +150,6 @@ public class InportController {
             return ResultObj.ADD_SUCCESS;
         } catch (Exception e) {
             log.error("批量进货失败: {}", e.getMessage(), e);
-            e.printStackTrace();
             return new ResultObj(Constast.ERROR, "添加失败: " + e.getMessage());
         }
     }
