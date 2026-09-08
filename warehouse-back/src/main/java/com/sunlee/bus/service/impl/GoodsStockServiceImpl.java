@@ -34,10 +34,12 @@ public class GoodsStockServiceImpl extends ServiceImpl<GoodsStockMapper, GoodsSt
             return warehouseId;
         }
         QueryWrapper<Warehouse> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("is_default", 1);
+        queryWrapper.eq("status", 1);
+        queryWrapper.orderByAsc("id");
+        queryWrapper.last("limit 1");
         Warehouse defaultWarehouse = warehouseMapper.selectOne(queryWrapper);
-        // 迁移脚本保证 id=1 为默认仓；无默认仓配置时兜底
-        return defaultWarehouse != null ? defaultWarehouse.getId() : 1;
+        // 药企库无默认仓字段时取第一个启用仓库；无数据时兜底 1
+        return defaultWarehouse != null ? defaultWarehouse.getId().intValue() : 1;
     }
 
     @Override

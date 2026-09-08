@@ -9,48 +9,45 @@ import lombok.ToString;
 import lombok.experimental.Accessors;
 
 import java.io.Serializable;
+import java.util.Date;
 
 /**
- * <p>
- * InnoDB free: 9216 kB
- * </p>
- *
- * @author sunlee
- * @since 2026-03-15
+ * 客户档案（pharma_ims.customers）
  */
 @Data
 @EqualsAndHashCode(callSuper = false)
 @Accessors(chain = true)
-@TableName("bus_customer")
+@TableName("customers")
 @ToString
 public class Customer implements Serializable {
 
-    private static final long serialVersionUID=1L;
+    private static final long serialVersionUID = 1L;
 
-    @TableId(value = "id", type = IdType.AUTO)
-    private Integer id;
+    @TableId(value = "id", type = IdType.INPUT)
+    private Long id;
 
-    private String customername;
+    private String code;
 
-    private String zip;
+    private String name;
 
-    private String address;
+    private String customerType;
 
-    private String telephone;
+    private String licenseNo;
 
-    private String connectionperson;
+    private String contact;
 
     private String phone;
 
-    private String bank;
+    private String address;
 
-    private String account;
+    private String settleType;
 
-    private String email;
+    /** 1启用 0停用 */
+    private Integer status;
 
-    private String fax;
+    private String remark;
 
-    private Integer available;
+    private Date createdAt;
 
-
+    private Date updatedAt;
 }

@@ -28,14 +28,19 @@ public class ProviderController {
 
     @RequestMapping("loadAllProvider")
     public DataGridView loadAllProvider(ProviderVo providerVo) {
-        IPage<Provider> page = new Page<>(providerVo.getPage(), providerVo.getLimit());
-        QueryWrapper<Provider> queryWrapper = new QueryWrapper<>();
-        queryWrapper.like(StringUtils.isNotBlank(providerVo.getProvidername()), "providername", providerVo.getProvidername());
-        queryWrapper.like(StringUtils.isNotBlank(providerVo.getConnectionperson()), "connectionperson", providerVo.getConnectionperson());
-        queryWrapper.like(StringUtils.isNotBlank(providerVo.getPhone()), "phone", providerVo.getPhone());
-        queryWrapper.orderByDesc("id");
-        providerService.page(page, queryWrapper);
-        return new DataGridView(page.getTotal(), page.getRecords());
+        try {
+            IPage<Provider> page = new Page<>(providerVo.getPage(), providerVo.getLimit());
+            QueryWrapper<Provider> queryWrapper = new QueryWrapper<>();
+            queryWrapper.like(StringUtils.isNotBlank(providerVo.getProvidername()), "providername", providerVo.getProvidername());
+            queryWrapper.like(StringUtils.isNotBlank(providerVo.getConnectionperson()), "connectionperson", providerVo.getConnectionperson());
+            queryWrapper.like(StringUtils.isNotBlank(providerVo.getPhone()), "phone", providerVo.getPhone());
+            queryWrapper.orderByDesc("id");
+            providerService.page(page, queryWrapper);
+            return new DataGridView(page.getTotal(), page.getRecords());
+        } catch (Exception e) {
+            log.warn("旧供应商表未接入: {}", e.getMessage());
+            return new DataGridView(0L, java.util.Collections.emptyList());
+        }
     }
 
     @OperationLog(type = "添加", module = "供应商管理", description = "'添加供应商: ' + #args[0].providername")
@@ -77,9 +82,14 @@ public class ProviderController {
 
     @RequestMapping("loadAllProviderForSelect")
     public DataGridView loadAllProviderForSelect() {
-        QueryWrapper<Provider> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("available", Constast.AVAILABLE_TRUE);
-        List<Provider> list = providerService.list(queryWrapper);
-        return new DataGridView(list);
+        try {
+            QueryWrapper<Provider> queryWrapper = new QueryWrapper<>();
+            queryWrapper.eq("available", Constast.AVAILABLE_TRUE);
+            List<Provider> list = providerService.list(queryWrapper);
+            return new DataGridView(list);
+        } catch (Exception e) {
+            log.warn("旧供应商表未接入: {}", e.getMessage());
+            return new DataGridView(java.util.Collections.emptyList());
+        }
     }
 }

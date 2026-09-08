@@ -30,18 +30,25 @@ public class CustomerController {
     public DataGridView loadAllCustomer(CustomerVo customerVo) {
         IPage<Customer> page = new Page<>(customerVo.getPage(), customerVo.getLimit());
         QueryWrapper<Customer> queryWrapper = new QueryWrapper<>();
-        queryWrapper.like(StringUtils.isNotBlank(customerVo.getCustomername()), "customername", customerVo.getCustomername());
-        queryWrapper.like(StringUtils.isNotBlank(customerVo.getConnectionperson()), "connectionperson", customerVo.getConnectionperson());
+        queryWrapper.like(StringUtils.isNotBlank(customerVo.getCode()), "code", customerVo.getCode());
+        queryWrapper.like(StringUtils.isNotBlank(customerVo.getName()), "name", customerVo.getName());
+        queryWrapper.like(StringUtils.isNotBlank(customerVo.getContact()), "contact", customerVo.getContact());
         queryWrapper.like(StringUtils.isNotBlank(customerVo.getPhone()), "phone", customerVo.getPhone());
+        queryWrapper.eq(StringUtils.isNotBlank(customerVo.getCustomerType()), "customer_type", customerVo.getCustomerType());
+        queryWrapper.eq(customerVo.getStatus() != null, "status", customerVo.getStatus());
         queryWrapper.orderByDesc("id");
         customerService.page(page, queryWrapper);
         return new DataGridView(page.getTotal(), page.getRecords());
     }
 
-    @OperationLog(type = "添加", module = "客户管理", description = "'添加客户: ' + #args[0].customername")
+    @OperationLog(type = "添加", module = "客户管理", description = "'添加客户: ' + #args[0].name")
     @RequestMapping("addCustomer")
     public ResultObj addCustomer(CustomerVo customerVo) {
         try {
+            if (customerVo.getStatus() == null) {
+                customerVo.setStatus(Constast.AVAILABLE_TRUE);
+            }
+            customerVo.setId(null);
             customerService.save(customerVo);
             return ResultObj.ADD_SUCCESS;
         } catch (Exception e) {
@@ -50,7 +57,7 @@ public class CustomerController {
         }
     }
 
-    @OperationLog(type = "修改", module = "客户管理", description = "'修改客户: ' + #args[0].customername")
+    @OperationLog(type = "修改", module = "客户管理", description = "'修改客户: ' + #args[0].name")
     @RequestMapping("updateCustomer")
     public ResultObj updateCustomer(CustomerVo customerVo) {
         try {
@@ -63,8 +70,8 @@ public class CustomerController {
     }
 
     @OperationLog(type = "删除", module = "客户管理", description = "'删除客户ID: ' + #args[0]")
-    @RequestMapping(value = "deleteCustomer")
-    public ResultObj deleteCustomer(Integer id) {
+    @RequestMapping("deleteCustomer")
+    public ResultObj deleteCustomer(Long id) {
         try {
             customerService.deleteCustomerById(id);
             return ResultObj.DELETE_SUCCESS;
@@ -77,7 +84,8 @@ public class CustomerController {
     @RequestMapping("loadAllCustomerForSelect")
     public DataGridView loadAllCustomerForSelect() {
         QueryWrapper<Customer> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("available", Constast.AVAILABLE_TRUE);
+        queryWrapper.eq("status", Constast.AVAILABLE_TRUE);
+        queryWrapper.orderByAsc("id");
         List<Customer> list = customerService.list(queryWrapper);
         return new DataGridView(list);
     }

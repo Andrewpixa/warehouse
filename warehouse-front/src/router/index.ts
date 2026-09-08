@@ -99,19 +99,91 @@ const router = createRouter({
           path: 'business/provider',
           name: 'ProviderManager',
           component: () => import('@/views/business/provider/index.vue'),
+          meta: { title: '供应商管理(旧仓管)' }
+        },
+        {
+          path: 'business/supplier',
+          name: 'SupplierManager',
+          component: () => import('@/views/business/supplier/index.vue'),
           meta: { title: '供应商管理' }
         },
         {
           path: 'business/category',
           name: 'CategoryManager',
           component: () => import('@/views/business/category/index.vue'),
-          meta: { title: '商品分类' }
+          meta: { title: '药品分类(旧)' }
         },
         {
           path: 'business/goods',
           name: 'GoodsManager',
           component: () => import('@/views/business/goods/index.vue'),
-          meta: { title: '商品管理' }
+          meta: { title: '商品管理(旧)' }
+        },
+        {
+          path: 'business/drug',
+          name: 'DrugManager',
+          component: () => import('@/views/business/drug/index.vue'),
+          meta: { title: '品种管理' }
+        },
+        {
+          path: 'business/purchase',
+          name: 'PurchaseManager',
+          component: () => import('@/views/business/purchase/index.vue'),
+          meta: { title: '采购入库单' }
+        },
+        {
+          path: 'business/outbound',
+          name: 'OutboundManager',
+          component: () => import('@/views/business/outbound/index.vue'),
+          meta: { title: '销售出库单' }
+        },
+        {
+          path: 'business/receipt',
+          name: 'ReceiptManager',
+          component: () => import('@/views/business/receipt/index.vue'),
+          meta: { title: '医院收货确认' }
+        },
+        {
+          path: 'business/batch-stock',
+          name: 'BatchStockManager',
+          component: () => import('@/views/business/batch-stock/index.vue'),
+          meta: { title: '批号库存' }
+        },
+        {
+          path: 'business/surplus',
+          name: 'SurplusManager',
+          component: () => import('@/views/business/surplus/index.vue'),
+          meta: { title: '批号升益' }
+        },
+        {
+          path: 'business/daily-close',
+          name: 'DailyClose',
+          component: () => import('@/views/business/daily-close/index.vue'),
+          meta: { title: '日清检查' }
+        },
+        {
+          path: 'business/monthly-close',
+          name: 'MonthlyClose',
+          component: () => import('@/views/business/monthly-close/index.vue'),
+          meta: { title: '月结对账' }
+        },
+        {
+          path: 'business/purchase-stats',
+          name: 'PurchaseStats',
+          component: () => import('@/views/business/purchase-stats/index.vue'),
+          meta: { title: '进货统计' }
+        },
+        {
+          path: 'business/outbound-stats',
+          name: 'OutboundStats',
+          component: () => import('@/views/business/outbound-stats/index.vue'),
+          meta: { title: '出货统计' }
+        },
+        {
+          path: 'business/trace',
+          name: 'TraceManager',
+          component: () => import('@/views/business/trace/index.vue'),
+          meta: { title: '追溯码查询' }
         },
         {
           path: 'business/inport-pos',
@@ -260,7 +332,7 @@ NProgress.configure({ showSpinner: false })
 
 router.beforeEach(async (to, _from, next) => {
   NProgress.start()
-  document.title = ((to.meta.title as string) || '仓库管理系统') + ' - 仓库管理系统'
+  document.title = ((to.meta.title as string) || '药品进销存') + ' - 药品进销存'
 
   if (to.path === '/login') {
     next()

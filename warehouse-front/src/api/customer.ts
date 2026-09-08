@@ -13,7 +13,7 @@ export function updateCustomer(data: any) {
 }
 
 export function deleteCustomer(id: number) {
-  return request.delete('/customer/deleteCustomer', { params: { id } })
+  return request.post('/customer/deleteCustomer', null, { params: { id } })
 }
 
 export function loadAllCustomerForSelect() {

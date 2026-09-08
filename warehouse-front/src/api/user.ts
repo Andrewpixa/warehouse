@@ -56,6 +56,16 @@ export function updateUserInfo(data: any) {
   return request.post('/user/updateUserInfo', data)
 }
 
-export function changePassword(oldPassword: string, newPwdOne: string, newPwdTwo: string) {
-  return request.post('/user/changePassword', { oldPassword, newPwdOne, newPwdTwo })
+export async function changePassword(oldPassword: string, newPwdOne: string, newPwdTwo: string) {
+  const { encryptPassword } = await import('@/utils/crypto')
+  const [encOld, encNew1, encNew2] = await Promise.all([
+    encryptPassword(oldPassword),
+    encryptPassword(newPwdOne),
+    encryptPassword(newPwdTwo)
+  ])
+  return request.post('/user/changePassword', {
+    oldPassword: encOld,
+    newPwdOne: encNew1,
+    newPwdTwo: encNew2
+  })
 }

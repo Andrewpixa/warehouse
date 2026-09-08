@@ -45,6 +45,7 @@ public class SalesController {
 
     @RequestMapping("loadAllSales")
     public DataGridView loadAllSales(SalesVo salesVo) {
+        try {
         IPage<Sales> page = new Page<>(salesVo.getPage(), salesVo.getLimit());
         QueryWrapper<Sales> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq(salesVo.getCustomerid() != null && salesVo.getCustomerid() != 0, "customerid", salesVo.getCustomerid());
@@ -56,7 +57,7 @@ public class SalesController {
         for (Sales sales : records) {
             Customer customer = customerService.getById(sales.getCustomerid());
             if (customer != null) {
-                sales.setCustomername(customer.getCustomername());
+                sales.setCustomername(customer.getName());
             }
             Goods goods = goodsService.getById(sales.getGoodsid());
             if (goods != null) {
@@ -65,6 +66,10 @@ public class SalesController {
             }
         }
         return new DataGridView(page.getTotal(), records);
+        } catch (Exception e) {
+            log.warn("旧销售表未接入: {}", e.getMessage());
+            return new DataGridView(0L, java.util.Collections.emptyList());
+        }
     }
 
     @OperationLog(type = "添加", module = "商品销售", description = "'销售商品ID: ' + #args[0].goodsid + ', 数量: ' + #args[0].number")
@@ -190,7 +195,7 @@ public class SalesController {
         for (Sales sales : list) {
             Customer customer = customerService.getById(sales.getCustomerid());
             if (customer != null) {
-                sales.setCustomername(customer.getCustomername());
+                sales.setCustomername(customer.getName());
             }
             Goods goods = goodsService.getById(sales.getGoodsid());
             if (goods != null) {

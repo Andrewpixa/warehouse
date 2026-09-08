@@ -5,7 +5,7 @@
       <div class="greeting-bar">
         <div class="greeting-text">
           <span class="greeting-hello">{{ greeting }}，{{ authStore.user?.name || '管理员' }}</span>
-          <span class="greeting-sub">仓图 · 实时数据概览</span>
+          <span class="greeting-sub">药企进销存 · 实时数据概览</span>
         </div>
       </div>
       <div class="stats-row">
@@ -67,7 +67,7 @@
         <div class="panel-body">
           <div v-if="warningGoods.length === 0" class="empty-mini success">
             <el-icon :size="28"><CircleCheck /></el-icon>
-            <span>所有商品库存正常</span>
+            <span>药品库存正常</span>
           </div>
           <el-table
             v-else
@@ -76,13 +76,13 @@
             stripe
             :header-cell-style="{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)', fontWeight: '600', fontSize: '12px' }"
           >
-            <el-table-column prop="goodsname" label="商品" min-width="80" show-overflow-tooltip />
-            <el-table-column prop="number" label="库存" width="60" align="center">
+            <el-table-column prop="goodsname" label="药品/批号" min-width="120" show-overflow-tooltip />
+            <el-table-column prop="number" label="库存" width="70" align="center">
               <template #default="{ row }">
                 <span class="danger-num">{{ row.number }}</span>
               </template>
             </el-table-column>
-            <el-table-column prop="dangernum" label="预警值" width="60" align="center">
+            <el-table-column prop="dangernum" label="预警" width="100" align="center">
               <template #default="{ row }">
                 <span class="warn-num">{{ row.dangernum }}</span>
               </template>
@@ -193,10 +193,10 @@ const greeting = computed(() => {
 })
 
 const statCards = computed(() => [
-  { key: 'total', label: '商品总数', value: goodsTotal.value, icon: 'Box', bg: 'var(--accent-bg)', color: 'var(--primary-color)' },
-  { key: 'warning', label: '低库存预警', value: warningGoods.value.length, icon: 'WarningFilled', bg: 'var(--warning-bg)', color: 'var(--warning-color)' },
-  { key: 'inport', label: '今日入库', value: todayInport.value, icon: 'Download', bg: 'var(--success-bg)', color: 'var(--success-color)' },
-  { key: 'sales', label: '今日销售', value: todaySales.value, icon: 'ShoppingCart', bg: 'var(--info-bg)', color: 'var(--info-color)' }
+  { key: 'total', label: '药品品种', value: goodsTotal.value, icon: 'Box', bg: 'var(--accent-bg)', color: 'var(--primary-color)' },
+  { key: 'warning', label: '库存/效期预警', value: warningGoods.value.length, icon: 'WarningFilled', bg: 'var(--warning-bg)', color: 'var(--warning-color)' },
+  { key: 'inport', label: '今日采购入库', value: todayInport.value, icon: 'Download', bg: 'var(--success-bg)', color: 'var(--success-color)' },
+  { key: 'sales', label: '今日销售出库', value: todaySales.value, icon: 'ShoppingCart', bg: 'var(--info-bg)', color: 'var(--info-color)' }
 ])
 
 onMounted(async () => {

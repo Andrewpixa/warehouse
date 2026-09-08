@@ -25,7 +25,7 @@ public class AppFileUtils {
     /**
      * 文件上传的保存路径  默认值
      */
-    public static String UPLOAD_PATH = "G:/upload/";
+    public static String UPLOAD_PATH = "/opt/warehouse/upload/";
 
     static {
         //通过反射的方式，读取配置文件的存储地址
@@ -113,11 +113,15 @@ public class AppFileUtils {
      */
     private static String getContentType(String path) {
         String lower = path.toLowerCase();
+        if (lower.endsWith("_temp")) {
+            lower = lower.substring(0, lower.length() - 5);
+        }
         if (lower.endsWith(".png")) return "image/png";
         if (lower.endsWith(".gif")) return "image/gif";
         if (lower.endsWith(".bmp")) return "image/bmp";
         if (lower.endsWith(".webp")) return "image/webp";
         if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
+        if (lower.endsWith(".pdf")) return "application/pdf";
         return "application/octet-stream";
     }
 

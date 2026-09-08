@@ -11,5 +11,5 @@ public class WarehouseVo extends Warehouse {
     private Integer page = 1;
     private Integer limit = 10;
 
-    private Integer[] ids;
+    private Long[] ids;
 }

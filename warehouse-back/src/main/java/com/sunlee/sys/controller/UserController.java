@@ -48,6 +48,9 @@ public class UserController {
     @Autowired
     private IRoleService roleService;
 
+    @Autowired
+    private PasswordCryptoService passwordCryptoService;
+
     /**
      * 查询所有用户
      * @param userVo
@@ -173,12 +176,10 @@ public class UserController {
             }
             //设置类型
             userVo.setType(Constast.USER_TYPE_NORMAL);
-            //设置盐
-            String salt = IdUtil.simpleUUID().toUpperCase();
-            userVo.setSalt(salt);
-            // 生成随机初始密码（8位字母数字组合）
+            // 新用户直接使用 BCrypt（不再依赖 salt）
+            userVo.setSalt(null);
             String initialPwd = generateRandomPassword(8);
-            userVo.setPwd(md5Hash(initialPwd, salt, Constast.HASHITERATIONS));
+            userVo.setPwd(passwordCryptoService.encodeBcrypt(initialPwd));
             //设置用户默认头像
             userVo.setImgpath(Constast.DEFAULT_IMG_USER);
             userService.save(userVo);
@@ -304,30 +305,41 @@ public class UserController {
      * @return
      */
     @RequestMapping("changePassword")
-    public ResultObj changePassword(String oldPassword,String newPwdOne,String newPwdTwo){
-        //1.先通过session获得当前用户的ID
-        User user =(User) WebUtils.getSession().getAttribute("user");
-        //2.将oldPassword加盐并散列两次在和数据库中的密码进行对比
-        Integer userId = user.getId();
-        User user1 = userService.getById(userId);
-        if (user1 == null) {
-            return ResultObj.UPDATE_ERROR;
-        }
-        //2.1获得该用户的盐
-        String salt = user1.getSalt();
-        //2.2通过用户输入的原密码，从数据库中查出的盐，散列次数生成新的旧密码
-        String oldPassword2 = md5Hash(oldPassword, salt, Constast.HASHITERATIONS);
-        if (oldPassword2.equals(user1.getPwd())){
-            if (newPwdOne.equals(newPwdTwo)){
-                //3.生成新的密码
-                String newPassword = md5Hash(newPwdOne, salt, Constast.HASHITERATIONS);
-                user1.setPwd(newPassword);
-                userService.updateById(user1);
-                return ResultObj.UPDATE_SUCCESS;
-            }else {
+    public ResultObj changePassword(String oldPassword, String newPwdOne, String newPwdTwo) {
+        try {
+            User sessionUser = (User) WebUtils.getSession().getAttribute("user");
+            if (sessionUser == null) {
+                return ResultObj.error("未登录或会话已过期");
+            }
+            User dbUser = userService.getById(sessionUser.getId());
+            if (dbUser == null) {
                 return ResultObj.UPDATE_ERROR;
             }
-        }else {
+            String plainOld = passwordCryptoService.decryptIncomingPassword(oldPassword);
+            String plainNew1 = passwordCryptoService.decryptIncomingPassword(newPwdOne);
+            String plainNew2 = passwordCryptoService.decryptIncomingPassword(newPwdTwo);
+            if (!passwordCryptoService.matches(plainOld, dbUser)) {
+                return ResultObj.error("原密码不正确");
+            }
+            if (!plainNew1.equals(plainNew2)) {
+                return ResultObj.error("两次输入的新密码不一致");
+            }
+            if (plainNew1.length() < 6) {
+                return ResultObj.error("新密码长度不能少于6位");
+            }
+            // 改密后统一升级为 BCrypt（显式清空 salt）
+            String bcrypt = passwordCryptoService.encodeBcrypt(plainNew1);
+            com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper<User> updateWrapper =
+                    new com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper<>();
+            updateWrapper.eq("id", dbUser.getId())
+                    .set("pwd", bcrypt)
+                    .set("salt", null);
+            userService.update(updateWrapper);
+            return ResultObj.UPDATE_SUCCESS;
+        } catch (IllegalArgumentException e) {
+            return ResultObj.error(e.getMessage());
+        } catch (Exception e) {
+            log.error("修改密码失败: {}", e.getMessage(), e);
             return ResultObj.UPDATE_ERROR;
         }
     }

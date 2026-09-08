@@ -1,6 +1,6 @@
 package com.sunlee.sys.common;
 
-import lombok.AllArgsConstructor;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -9,12 +9,25 @@ import lombok.NoArgsConstructor;
  * @Date: 2026/01/15 21:35
  */
 @Data
-@AllArgsConstructor
 @NoArgsConstructor
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class ResultObj {
 
     private Integer code;
     private String msg;
+    /** 登录成功时回给小程序 / Electron（不依赖 Cookie） */
+    private String token;
+
+    public ResultObj(Integer code, String msg) {
+        this.code = code;
+        this.msg = msg;
+    }
+
+    public ResultObj(Integer code, String msg, String token) {
+        this.code = code;
+        this.msg = msg;
+        this.token = token;
+    }
 
     public static final ResultObj LOGIN_SUCCESS=new ResultObj(Constast.OK,"登陆成功");
     public static final ResultObj LOGIN_ERROR_PASS=new ResultObj(Constast.ERROR,"用户名或密码错误");

@@ -1,0 +1,84 @@
+{
+  "name": "warehouse-electron",
+  "version": "1.0.0",
+  "private": true,
+  "description": "药企进销存 · 员工查询工作台",
+  "main": "electron/main.cjs",
+  "author": "warehouse",
+  "scripts": {
+    "dev": "concurrently -k \"vite\" \"wait-on http://127.0.0.1:5174 && electron . --dev\"",
+    "build": "vite build",
+    "start": "npm run build && electron .",
+    "dist": "npm run build && electron-builder --publish never",
+    "dist:mac": "npm run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac --publish never",
+    "dist:win": "npm run build && electron-builder --win zip --x64 --publish never",
+    "dist:win-setup": "npm run build && electron-builder --win nsis --x64 --publish never"
+  },
+  "build": {
+    "appId": "com.sunlee.warehouse.employee",
+    "productName": "PharmaWorkbench",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*"
+    ],
+    "asar": true,
+    "npmRebuild": false,
+    "extraResources": [
+      {
+        "from": "config/config.json",
+        "to": "config.json"
+      }
+    ],
+    "artifactName": "pharma-workbench-${version}-${os}-${arch}.${ext}",
+    "mac": {
+      "category": "public.app-category.business",
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "药企员工工作台"
+    }
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@element-plus/icons-vue": "^2.3.1",
+    "@types/node": "^22.0.0",
+    "@vitejs/plugin-vue": "^5.2.1",
+    "axios": "^1.7.9",
+    "concurrently": "^9.1.2",
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8",
+    "element-plus": "^2.9.1",
+    "jsencrypt": "^3.5.4",
+    "typescript": "~5.6.3",
+    "vite": "^6.0.5",
+    "vue": "^3.5.13",
+    "vue-tsc": "^2.2.0",
+    "wait-on": "^8.0.1"
+  }
+}

@@ -45,6 +45,7 @@ public class InportController {
 
     @RequestMapping("loadAllInport")
     public DataGridView loadAllInport(InportVo inportVo) {
+        try {
         IPage<Inport> page = new Page<>(inportVo.getPage(), inportVo.getLimit());
         QueryWrapper<Inport> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq(inportVo.getProviderid() != null && inportVo.getProviderid() != 0, "providerid", inportVo.getProviderid());
@@ -66,6 +67,10 @@ public class InportController {
             }
         }
         return new DataGridView(page.getTotal(), records);
+        } catch (Exception e) {
+            log.warn("旧进货表未接入: {}", e.getMessage());
+            return new DataGridView(0L, java.util.Collections.emptyList());
+        }
     }
 
     @OperationLog(type = "添加", module = "商品进货", description = "'进货商品ID: ' + #args[0].goodsid + ', 数量: ' + #args[0].number")

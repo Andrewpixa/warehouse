@@ -1,42 +1,31 @@
 package com.sunlee.bus.service.impl;
 
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.sunlee.bus.common.PharmaIds;
 import com.sunlee.bus.entity.Customer;
 import com.sunlee.bus.mapper.CustomerMapper;
-import com.sunlee.bus.mapper.GoodsMapper;
 import com.sunlee.bus.service.ICustomerService;
-import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.io.Serializable;
-import java.util.Collection;
-
-/**
- * <p>
- * InnoDB free: 9216 kB 服务实现类
- * </p>
- *
- * @author sunlee
- * @since 2026-03-15
- */
 @Service
 @Transactional
 public class CustomerServiceImpl extends ServiceImpl<CustomerMapper, Customer> implements ICustomerService {
 
-    @Autowired
-    private GoodsMapper goodsMapper;
-
-    /**
-     * 根据客户id删除客户
-     * @param id    客户id
-     */
     @Override
-    public void deleteCustomerById(Integer id) {
-        //根据客户id删除商品销售
-        goodsMapper.deleteSaleByCustomerId(id);
-        //根据客户id删除商品销售退货
-        goodsMapper.deleteSaleBackByCustomerId(id);
+    public boolean save(Customer entity) {
+        if (entity.getId() == null) {
+            entity.setId(PharmaIds.allocate(baseMapper, PharmaIds.CUSTOMER_START, PharmaIds.CUSTOMER_END));
+        }
+        if (StringUtils.isBlank(entity.getCode())) {
+            entity.setCode(String.valueOf(entity.getId()));
+        }
+        return super.save(entity);
+    }
+
+    @Override
+    public void deleteCustomerById(Long id) {
         this.removeById(id);
     }
 }

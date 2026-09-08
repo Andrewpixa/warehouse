@@ -1,8 +1,18 @@
 import request, { BASE_URL } from '@/utils/request'
 import type { ResultObj } from '@/types/api'
+import { encryptPassword } from '@/utils/crypto'
 
-export function login(data: { loginname: string; pwd: string; code: string }): Promise<ResultObj> {
-  return request.post('/login/login', data)
+export async function login(data: { loginname: string; pwd: string; code: string }): Promise<ResultObj> {
+  const encryptedPwd = await encryptPassword(data.pwd)
+  return request.post('/login/login', {
+    loginname: data.loginname,
+    pwd: encryptedPwd,
+    code: data.code
+  })
+}
+
+export function getPublicKey() {
+  return request.get('/login/publicKey')
 }
 
 export function getCodeUrl(): string {

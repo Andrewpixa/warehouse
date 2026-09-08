@@ -16,6 +16,7 @@ import com.sunlee.sys.service.IUserService;
 import com.sunlee.sys.vo.UserVo;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.env.Environment;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -50,14 +51,14 @@ public class LoginController {
         HREF_MAP.put("/sys/toLoginfoManager", "/system/loginfo");
         HREF_MAP.put("../resources/page/icon.html", "/system/icon");
         HREF_MAP.put("/bus/toCustomerManager", "/business/customer");
-        HREF_MAP.put("/bus/toProviderManager", "/business/provider");
+        HREF_MAP.put("/bus/toProviderManager", "/business/supplier");
         HREF_MAP.put("/bus/toCategoryManager", "/business/category");
-        HREF_MAP.put("/bus/toGoodsManager", "/business/goods");
-        HREF_MAP.put("/bus/toInportManager", "/business/inport");
+        HREF_MAP.put("/bus/toGoodsManager", "/business/drug");
+        HREF_MAP.put("/bus/toInportManager", "/business/purchase");
         HREF_MAP.put("/bus/toInportPOS", "/business/inport-pos");
         HREF_MAP.put("/bus/toInportOrder", "/business/inport-order");
         HREF_MAP.put("/bus/toInportRecord", "/business/inport-record");
-        HREF_MAP.put("/bus/toSalesManager", "/business/sales");
+        HREF_MAP.put("/bus/toSalesManager", "/business/outbound");
         HREF_MAP.put("/bus/toSalesPOS", "/business/sales-pos");
         HREF_MAP.put("/bus/toSalesbackManager", "/business/salesback");
         HREF_MAP.put("/bus/toReportManager", "/business/report");
@@ -79,23 +80,51 @@ public class LoginController {
     @Autowired
     private IUserService userService;
 
+    @Autowired
+    private Environment environment;
+
+    @Autowired
+    private PasswordCryptoService passwordCryptoService;
+
+    @Autowired
+    private RedisBiz redisBiz;
+
+    /**
+     * 下发 RSA 公钥（PEM），供前端加密登录/改密密码。私钥仅存服务端。
+     */
+    @RequestMapping("publicKey")
+    public Map<String, Object> publicKey() {
+        Map<String, Object> map = new HashMap<>();
+        map.put("code", Constast.OK);
+        map.put("msg", "ok");
+        map.put("publicKey", passwordCryptoService.getPublicKeyPem());
+        return map;
+    }
+
     @RequestMapping("login")
     public ResultObj login(UserVo userVo, String code, HttpSession session, String captchaId, HttpServletResponse response, String platform) {
         boolean codeValid = false;
         if (code != null) {
-            // 验证码只能来自服务端 session，禁止客户端直接传递验证码值参与比对
-            String sessionKey;
             if (captchaId != null && !captchaId.isEmpty()) {
-                // 移动端：通过 captchaId 从 session 获取验证码
-                sessionKey = "captcha_" + captchaId;
+                codeValid = redisBiz.consumeCaptcha(captchaId, code);
+                if (!codeValid) {
+                    String sessionKey = "captcha_" + captchaId;
+                    String sessionCode = (String) session.getAttribute(sessionKey);
+                    session.removeAttribute(sessionKey);
+                    codeValid = sessionCode != null && sessionCode.equalsIgnoreCase(code);
+                }
             } else {
-                // PC 端：直接从 session 获取验证码
-                sessionKey = "code";
+                String sessionCode = (String) session.getAttribute("code");
+                session.removeAttribute("code");
+                codeValid = sessionCode != null && sessionCode.equalsIgnoreCase(code);
+                if (!codeValid) {
+                    codeValid = redisBiz.consumeCaptcha("pc:" + session.getId(), code);
+                }
             }
-            String sessionCode = (String) session.getAttribute(sessionKey);
-            // 验证码一次性使用，取出后立即失效，防止重放
-            session.removeAttribute(sessionKey);
-            codeValid = sessionCode != null && sessionCode.equalsIgnoreCase(code);
+            if (!codeValid && "dev".equalsIgnoreCase(code)
+                    && Arrays.asList(environment.getActiveProfiles()).contains("dev")) {
+                codeValid = true;
+            }
         }
         if (codeValid) {
             // 根据登录名查询用户
@@ -109,32 +138,31 @@ public class LoginController {
             if (!Constast.AVAILABLE_TRUE.equals(user.getAvailable())) {
                 return ResultObj.error("账号已被停用，请联系管理员");
             }
-            // 验证密码（兼容Shiro Md5Hash: 第1次md5(salt+source)，后续md5(二进制结果)）
-            String salt = user.getSalt();
-            String hashedPwd = user.getPwd();
-            String temp;
+            // 前端 RSA 密文 → 明文，再校验（BCrypt 优先，兼容历史 MD5+salt）
+            String plainPwd;
             try {
-                java.security.MessageDigest md = java.security.MessageDigest.getInstance("MD5");
-                md.update(salt.getBytes(java.nio.charset.StandardCharsets.UTF_8));
-                byte[] hash = md.digest(userVo.getPwd().getBytes(java.nio.charset.StandardCharsets.UTF_8));
-                for (int i = 1; i < Constast.HASHITERATIONS; i++) {
-                    hash = md.digest(hash);
-                }
-                StringBuilder sb = new StringBuilder();
-                for (byte b : hash) {
-                    sb.append(String.format("%02x", b & 0xff));
-                }
-                temp = sb.toString();
-            } catch (Exception e) {
-                throw new RuntimeException(e);
+                plainPwd = passwordCryptoService.decryptIncomingPassword(userVo.getPwd());
+            } catch (IllegalArgumentException e) {
+                return ResultObj.error(e.getMessage());
             }
-            if (!temp.equals(hashedPwd)) {
+            if (!passwordCryptoService.matches(plainPwd, user)) {
                 return ResultObj.LOGIN_ERROR_PASS;
+            }
+            // 历史 MD5 账号登录成功后静默升级为 BCrypt（需显式 set null，MP 默认忽略 null）
+            if (!passwordCryptoService.isBcrypt(user.getPwd())) {
+                passwordCryptoService.upgradeLegacyHashIfNeeded(user, plainPwd);
+                com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper<User> updateWrapper =
+                        new com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper<>();
+                updateWrapper.eq("id", user.getId())
+                        .set("pwd", user.getPwd())
+                        .set("salt", null);
+                userService.update(updateWrapper);
             }
             // SA-Token 登录
             StpUtil.login(user.getId());
             // 将 token 放入响应头（供微信小程序等不支持 cookie 的环境使用）
-            response.setHeader("satoken", StpUtil.getTokenValue());
+            String tokenValue = StpUtil.getTokenValue();
+            response.setHeader("satoken", tokenValue);
             // 将用户信息存入 SA-Token 会话
             StpUtil.getSession().set("user", user);
             // 将用户权限列表存入 SA-Token 会话（供接口权限校验使用）
@@ -146,7 +174,7 @@ public class LoginController {
             entity.setLogintime(new Date());
             loginfoService.save(entity);
 
-            return ResultObj.LOGIN_SUCCESS;
+            return new ResultObj(Constast.OK, "登陆成功", tokenValue);
         } else {
             return ResultObj.LOGIN_ERROR_CODE;
         }
@@ -159,6 +187,7 @@ public class LoginController {
     public void getCode(HttpServletResponse response, HttpSession session) throws IOException {
         LineCaptcha lineCaptcha = CaptchaUtil.createLineCaptcha(116, 36, 4, 5);
         session.setAttribute("code", lineCaptcha.getCode());
+        redisBiz.saveCaptcha("pc:" + session.getId(), lineCaptcha.getCode());
         try {
             ServletOutputStream outputStream = response.getOutputStream();
             lineCaptcha.write(outputStream);
@@ -177,6 +206,7 @@ public class LoginController {
         try {
             LineCaptcha lineCaptcha = CaptchaUtil.createLineCaptcha(116, 36, 4, 5);
             String captchaId = java.util.UUID.randomUUID().toString().replace("-", "");
+            redisBiz.saveCaptcha(captchaId, lineCaptcha.getCode());
             session.setAttribute("captcha_" + captchaId, lineCaptcha.getCode());
             // 将验证码图片转为 base64
             java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();

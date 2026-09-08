@@ -122,13 +122,18 @@ public class SaTokenConfigure implements WebMvcConfigurer {
         URL_PERM_MAP.put("/customer/addCustomer", "customer:create");
         URL_PERM_MAP.put("/customer/updateCustomer", "customer:update");
         URL_PERM_MAP.put("/customer/deleteCustomer", "customer:delete");
-        // 供应商
+        // 供应商（旧 provider 路径保留；新药企档案用 /supplier）
         URL_PERM_MAP.put("/provider/loadAllProvider", "provider:view");
         URL_PERM_MAP.put("/provider/loadAllProviderForSelect", "provider:view");
         URL_PERM_MAP.put("/provider/addProvider", "provider:create");
         URL_PERM_MAP.put("/provider/updateProvider", "provider:update");
         URL_PERM_MAP.put("/provider/deleteProvider", "provider:delete");
-        // 商品
+        URL_PERM_MAP.put("/supplier/loadAllSupplier", "supplier:view");
+        URL_PERM_MAP.put("/supplier/loadAllSupplierForSelect", "supplier:view");
+        URL_PERM_MAP.put("/supplier/addSupplier", "supplier:create");
+        URL_PERM_MAP.put("/supplier/updateSupplier", "supplier:update");
+        URL_PERM_MAP.put("/supplier/deleteSupplier", "supplier:delete");
+        // 商品（旧）+ 药品（新药企档案）
         URL_PERM_MAP.put("/goods/loadAllGoods", "goods:view");
         URL_PERM_MAP.put("/goods/loadAllGoodsForSelect", "goods:view");
         URL_PERM_MAP.put("/goods/loadGoodsForPOS", "goods:view");
@@ -139,6 +144,11 @@ public class SaTokenConfigure implements WebMvcConfigurer {
         URL_PERM_MAP.put("/goods/updateGoodsAvailable", "goods:update");
         URL_PERM_MAP.put("/goods/regeneratePinyin", "goods:update");
         URL_PERM_MAP.put("/goods/deleteGoods", "goods:delete");
+        URL_PERM_MAP.put("/drug/loadAllDrug", "drug:view");
+        URL_PERM_MAP.put("/drug/loadAllDrugForSelect", "drug:view");
+        URL_PERM_MAP.put("/drug/addDrug", "drug:create");
+        URL_PERM_MAP.put("/drug/updateDrug", "drug:update");
+        URL_PERM_MAP.put("/drug/deleteDrug", "drug:delete");
         // 会员（等级规则权限码为 level:*）
         URL_PERM_MAP.put("/member/loadAllMember", "member:view");
         URL_PERM_MAP.put("/member/findMember", "member:view");
@@ -182,6 +192,42 @@ public class SaTokenConfigure implements WebMvcConfigurer {
         URL_PERM_MAP.put("/inport/returnSingleGoods", "inport:return");
         URL_PERM_MAP.put("/inport/returnOrder", "inport:return");
         URL_PERM_MAP.put("/outport/loadAllOutport", "inport:view");
+        URL_PERM_MAP.put("/purchase/loadAllPurchase", "inport:view");
+        URL_PERM_MAP.put("/purchase/loadPurchaseDetail", "inport:view");
+        URL_PERM_MAP.put("/purchase/savePurchase", "inport:create");
+        URL_PERM_MAP.put("/purchase/confirmPurchase", "inport:confirm");
+        URL_PERM_MAP.put("/purchase/deletePurchase", "inport:delete");
+        URL_PERM_MAP.put("/batchStock/loadAllBatchStock", "warehouse:view");
+        URL_PERM_MAP.put("/surplus/loadAllSurplus", "surplus:view");
+        URL_PERM_MAP.put("/surplus/loadSurplusDetail", "surplus:view");
+        URL_PERM_MAP.put("/surplus/loadWarehouseBatches", "surplus:view");
+        URL_PERM_MAP.put("/surplus/saveSurplus", "surplus:create");
+        URL_PERM_MAP.put("/surplus/confirmSurplus", "surplus:confirm");
+        URL_PERM_MAP.put("/surplus/deleteSurplus", "surplus:delete");
+        URL_PERM_MAP.put("/dailyClose/loadChecklist", "dailyClose:view");
+        URL_PERM_MAP.put("/dailyClose/confirm", "dailyClose:confirm");
+        URL_PERM_MAP.put("/monthlyClose/loadStatement", "monthlyClose:view");
+        URL_PERM_MAP.put("/monthlyClose/confirm", "monthlyClose:confirm");
+        URL_PERM_MAP.put("/pharmaStats/", "pharmaStats:view");
+        URL_PERM_MAP.put("/trace/loadInvoice", "trace:view");
+        URL_PERM_MAP.put("/trace/loadByInvoice", "trace:view");
+        URL_PERM_MAP.put("/trace/loadBySpdid", "trace:view");
+        URL_PERM_MAP.put("/trace/addCodes", "trace:collect");
+        URL_PERM_MAP.put("/trace/previewParse", "trace:parse");
+        URL_PERM_MAP.put("/trace/parseCodes", "trace:parse");
+        URL_PERM_MAP.put("/outbound/loadAllOutbound", "sales:view");
+        URL_PERM_MAP.put("/outbound/loadOutboundDetail", "sales:view");
+        URL_PERM_MAP.put("/outbound/loadReceiptDetail", "receipt:view");
+        URL_PERM_MAP.put("/outbound/loadByInvoice", "sales:view");
+        URL_PERM_MAP.put("/outbound/loadUnpaidOutbound", "sales:view");
+        URL_PERM_MAP.put("/outbound/saveOutbound", "sales:create");
+        URL_PERM_MAP.put("/outbound/saveReversal", "sales:return");
+        URL_PERM_MAP.put("/outbound/loadReversals", "sales:return");
+        URL_PERM_MAP.put("/outbound/markPaid", "sales:create");
+        URL_PERM_MAP.put("/outbound/confirmOutbound", "sales:create");
+        URL_PERM_MAP.put("/outbound/loadPendingReceipt", "receipt:view");
+        URL_PERM_MAP.put("/outbound/confirmReceipt", "receipt:confirm");
+        URL_PERM_MAP.put("/outbound/deleteOutbound", "sales:delete");
         // ===== 销售（salesback 同理为只读历史查询）=====
         URL_PERM_MAP.put("/sales/loadAllSales", "sales:view");
         URL_PERM_MAP.put("/sales/loadAllOrders", "sales:view");
@@ -259,6 +305,7 @@ public class SaTokenConfigure implements WebMvcConfigurer {
             SaRouter.match("/**")
                     .notMatch(
                             "/login/login",
+                            "/login/publicKey",
                             "/login/getCode",
                             "/login/getCaptchaBase64",
                             "/login/logout",
@@ -270,6 +317,10 @@ public class SaTokenConfigure implements WebMvcConfigurer {
                             "/v3/api-docs/**"
                     )
                     .check(r -> {
+                        if ("OPTIONS".equalsIgnoreCase(
+                                cn.dev33.satoken.context.SaHolder.getRequest().getMethod())) {
+                            return;
+                        }
                         // 1. 登录校验
                         StpUtil.checkLogin();
                         // 2. 接口级权限校验

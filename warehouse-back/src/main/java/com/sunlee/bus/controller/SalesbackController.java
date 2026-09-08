@@ -51,7 +51,7 @@ public class SalesbackController {
         for (Salesback salesback : records) {
             Customer customer = customerService.getById(salesback.getCustomerid());
             if (customer != null) {
-                salesback.setCustomername(customer.getCustomername());
+                salesback.setCustomername(customer.getName());
             }
             Goods goods = goodsService.getById(salesback.getGoodsid());
             if (goods != null) {

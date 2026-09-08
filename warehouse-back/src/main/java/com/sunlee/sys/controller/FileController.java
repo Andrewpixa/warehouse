@@ -31,14 +31,14 @@ public class FileController {
      * 允许上传的文件扩展名白名单
      */
     private static final Set<String> ALLOWED_EXTENSIONS = new HashSet<>(Arrays.asList(
-        "jpg", "jpeg", "png", "gif", "bmp", "webp"
+        "jpg", "jpeg", "png", "gif", "bmp", "webp", "pdf"
     ));
 
     /**
      * 允许上传的文件 MIME 类型白名单
      */
     private static final Set<String> ALLOWED_CONTENT_TYPES = new HashSet<>(Arrays.asList(
-        "image/jpeg", "image/png", "image/gif", "image/bmp", "image/webp"
+        "image/jpeg", "image/png", "image/gif", "image/bmp", "image/webp", "application/pdf"
     ));
 
     /**
@@ -70,12 +70,14 @@ public class FileController {
         }
         String extension = getFileExtension(oldName).toLowerCase();
         if (!ALLOWED_EXTENSIONS.contains(extension)) {
-            return ResultObj.error("不允许的文件类型，仅支持: jpg, jpeg, png, gif, bmp, webp");
+            return ResultObj.error("不允许的文件类型，仅支持: jpg, jpeg, png, gif, bmp, webp, pdf");
         }
 
         // 3.校验 MIME 类型
         String contentType = mf.getContentType();
-        if (contentType == null || !ALLOWED_CONTENT_TYPES.contains(contentType.toLowerCase())) {
+        boolean pdfByName = "pdf".equals(extension);
+        boolean mimeOk = contentType != null && ALLOWED_CONTENT_TYPES.contains(contentType.toLowerCase());
+        if (!mimeOk && !(pdfByName && (contentType == null || "application/octet-stream".equals(contentType.toLowerCase())))) {
             return ResultObj.error("文件类型校验失败");
         }
 

@@ -1,9 +1,14 @@
 # 开发环境配置
+# 本机未装 Redis：SA-Token 仍用内存，验证码/发票流水有 Redis 才写 Redis
 spring:
+  autoconfigure:
+    exclude:
+      - cn.dev33.satoken.dao.SaTokenDaoRedisJackson
+      - org.springframework.boot.autoconfigure.freemarker.FreeMarkerAutoConfiguration
   datasource:
     druid:
       driver-class-name: com.mysql.cj.jdbc.Driver
-      url: jdbc:mysql://127.0.0.1:3306/warehouse?useUnicode=true&characterEncoding=utf8&serverTimezone=UTC&useSSL=false
+      url: jdbc:mysql://127.0.0.1:3306/pharma_ims?useUnicode=true&characterEncoding=utf8&serverTimezone=UTC&useSSL=false&allowPublicKeyRetrieval=true
       username: root
       password: ${MYSQL_PASSWORD:}
       max-active: 20

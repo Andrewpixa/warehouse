@@ -29,7 +29,7 @@
           </div>
           <div v-if="warningGoods.length === 0" class="warning-empty">
             <el-icon :size="24"><CircleCheck /></el-icon>
-            <span>所有商品库存正常</span>
+            <span>药品库存正常</span>
           </div>
           <div v-else class="warning-list">
             <div
@@ -45,12 +45,12 @@
                 </el-tag>
               </span>
               <span class="warning-stock">
-                库存 <b class="danger-num">{{ item.number }}</b> / 预警值 {{ item.dangernum }}
+                库存 <b class="danger-num">{{ item.number }}</b> / {{ item.dangernum }}
               </span>
             </div>
           </div>
           <div v-if="warningGoods.length > 0" class="warning-pop-footer">
-            <el-button link type="primary" size="small" @click="goGoods">去商品管理处理</el-button>
+            <el-button link type="primary" size="small" @click="goGoods">去批号库存查看</el-button>
           </div>
         </div>
       </el-popover>
@@ -136,7 +136,7 @@ const fetchWarningGoods = async () => {
 }
 
 const goGoods = () => {
-  router.push('/business/goods')
+  router.push('/business/batch-stock')
 }
 
 const weekdays = ['日', '一', '二', '三', '四', '五', '六']

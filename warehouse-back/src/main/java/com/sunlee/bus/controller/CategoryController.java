@@ -28,12 +28,17 @@ public class CategoryController {
 
     @RequestMapping("loadAllCategory")
     public DataGridView loadAllCategory(CategoryVo categoryVo) {
-        IPage<Category> page = new Page<>(categoryVo.getPage(), categoryVo.getLimit());
-        QueryWrapper<Category> queryWrapper = new QueryWrapper<>();
-        queryWrapper.like(StringUtils.isNotBlank(categoryVo.getCatename()), "catename", categoryVo.getCatename());
-        queryWrapper.orderByDesc("id");
-        categoryService.page(page, queryWrapper);
-        return new DataGridView(page.getTotal(), page.getRecords());
+        try {
+            IPage<Category> page = new Page<>(categoryVo.getPage(), categoryVo.getLimit());
+            QueryWrapper<Category> queryWrapper = new QueryWrapper<>();
+            queryWrapper.like(StringUtils.isNotBlank(categoryVo.getCatename()), "catename", categoryVo.getCatename());
+            queryWrapper.orderByDesc("id");
+            categoryService.page(page, queryWrapper);
+            return new DataGridView(page.getTotal(), page.getRecords());
+        } catch (Exception e) {
+            log.warn("旧分类表未接入: {}", e.getMessage());
+            return new DataGridView(0L, java.util.Collections.emptyList());
+        }
     }
 
     @OperationLog(type = "添加", module = "商品分类", description = "'添加分类: ' + #args[0].catename")
@@ -75,9 +80,14 @@ public class CategoryController {
 
     @RequestMapping("loadAllCategoryForSelect")
     public DataGridView loadAllCategoryForSelect() {
-        QueryWrapper<Category> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("available", Constast.AVAILABLE_TRUE);
-        List<Category> list = categoryService.list(queryWrapper);
-        return new DataGridView(list);
+        try {
+            QueryWrapper<Category> queryWrapper = new QueryWrapper<>();
+            queryWrapper.eq("available", Constast.AVAILABLE_TRUE);
+            List<Category> list = categoryService.list(queryWrapper);
+            return new DataGridView(list);
+        } catch (Exception e) {
+            log.warn("旧分类表未接入: {}", e.getMessage());
+            return new DataGridView(java.util.Collections.emptyList());
+        }
     }
 }

@@ -21,6 +21,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -62,11 +63,24 @@ public class GoodsController {
     @Autowired
     private IGoodsStockService goodsStockService;
 
+    @Autowired
+    private IDrugService drugService;
+
+    @Autowired
+    private IPurchaseOrderService purchaseOrderService;
+
+    @Autowired
+    private ISalesOrderService pharmaSalesOrderService;
+
+    @Autowired
+    private IBatchStockService batchStockService;
+
     /**
      * 查询商品（支持名称、拼音、简写搜索，批量查询避免 N+1）
      */
     @RequestMapping("loadAllGoods")
     public DataGridView loadAllGoods(GoodsVo goodsVo){
+        try {
         IPage<Goods> page = new Page<>(goodsVo.getPage(), goodsVo.getLimit());
         QueryWrapper<Goods> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq(goodsVo.getProviderid()!=null && goodsVo.getProviderid()!=0, "providerid", goodsVo.getProviderid());
@@ -121,6 +135,10 @@ public class GoodsController {
             }
         }
         return new DataGridView(page.getTotal(), records);
+        } catch (Exception e) {
+            log.warn("旧商品表未接入: {}", e.getMessage());
+            return new DataGridView(0L, Collections.emptyList());
+        }
     }
 
     /**
@@ -231,16 +249,21 @@ public class GoodsController {
      */
     @RequestMapping("loadAllGoodsForSelect")
     public DataGridView loadAllGoodsForSelect(){
-        QueryWrapper<Goods> queryWrapper = new QueryWrapper<Goods>();
-        queryWrapper.eq("available",Constast.AVAILABLE_TRUE);
-        List<Goods> list = goodsService.list(queryWrapper);
-        for (Goods goods : list) {
-            Provider provider = providerService.getById(goods.getProviderid());
-            if (null!=provider){
-                goods.setProvidername(provider.getProvidername());
+        try {
+            QueryWrapper<Goods> queryWrapper = new QueryWrapper<Goods>();
+            queryWrapper.eq("available",Constast.AVAILABLE_TRUE);
+            List<Goods> list = goodsService.list(queryWrapper);
+            for (Goods goods : list) {
+                Provider provider = providerService.getById(goods.getProviderid());
+                if (null!=provider){
+                    goods.setProvidername(provider.getProvidername());
+                }
             }
+            return new DataGridView(list);
+        } catch (Exception e) {
+            log.warn("旧商品表未接入: {}", e.getMessage());
+            return new DataGridView(Collections.emptyList());
         }
-        return new DataGridView(list);
     }
 
     /**
@@ -248,6 +271,7 @@ public class GoodsController {
      */
     @RequestMapping("loadGoodsForPOS")
     public DataGridView loadGoodsForPOS(Integer page, Integer limit, String keyword, Integer warehouseId){
+        try {
         // 查询所有有效商品
         QueryWrapper<Goods> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("available", Constast.AVAILABLE_TRUE);
@@ -295,6 +319,10 @@ public class GoodsController {
                 : new ArrayList<>();
 
         return new DataGridView((long) allGoods.size(), pageData);
+        } catch (Exception e) {
+            log.warn("旧商品表未接入: {}", e.getMessage());
+            return new DataGridView(0L, Collections.emptyList());
+        }
     }
 
     /**
@@ -304,6 +332,7 @@ public class GoodsController {
      */
     @RequestMapping("loadGoodsByProviderId")
     public DataGridView loadGoodsByProviderId(Integer providerid,Integer allStatus,Integer warehouseId){
+        try {
         QueryWrapper<Goods> queryWrapper = new QueryWrapper<Goods>();
         if (!Constast.AVAILABLE_TRUE.equals(allStatus)){
             queryWrapper.eq("available",Constast.AVAILABLE_TRUE);
@@ -323,18 +352,42 @@ public class GoodsController {
             }
         }
         return new DataGridView(list);
+        } catch (Exception e) {
+            log.warn("旧商品表未接入: {}", e.getMessage());
+            return new DataGridView(Collections.emptyList());
+        }
     }
 
     @RequestMapping("loadAllWarningGoods")
     public DataGridView loadAllWarningGoods(){
-        List<Goods> goods = goodsService.loadAllWarning();
-        for (Goods g : goods) {
-            Provider provider = providerService.getById(g.getProviderid());
-            if (provider != null) {
-                g.setProvidername(provider.getProvidername());
+        try {
+            List<Map<String, Object>> warnings = new ArrayList<>();
+            LocalDate nearExpireLine = LocalDate.now().plusDays(180);
+            BigDecimal lowQtyLine = new BigDecimal("20");
+            List<BatchStock> stocks = batchStockService.list();
+            for (BatchStock stock : stocks) {
+                boolean lowQty = stock.getQty() != null && stock.getQty().compareTo(lowQtyLine) <= 0;
+                boolean nearExpire = stock.getExpireDate() != null && !stock.getExpireDate().isAfter(nearExpireLine);
+                if (!lowQty && !nearExpire) {
+                    continue;
+                }
+                Drug drug = drugService.getById(stock.getDrugId());
+                String drugName = drug != null ? drug.getGenericName() : "未知药品";
+                String reason = lowQty && nearExpire ? "低库存+近效期" : (lowQty ? "低库存" : "近效期");
+                Map<String, Object> row = new HashMap<>();
+                row.put("id", stock.getId());
+                row.put("goodsname", drugName + " / " + stock.getBatchNo());
+                row.put("number", stock.getQty());
+                row.put("dangernum", reason);
+                row.put("expireDate", stock.getExpireDate());
+                row.put("qualityStatus", stock.getQualityStatus());
+                warnings.add(row);
             }
+            return new DataGridView((long) warnings.size(), warnings);
+        } catch (Exception e) {
+            log.warn("库存预警暂不可用: {}", e.getMessage());
+            return new DataGridView(0L, Collections.emptyList());
         }
-        return new DataGridView((long) goods.size(),goods);
     }
 
     /**
@@ -343,26 +396,30 @@ public class GoodsController {
     @RequestMapping("loadDashboardStats")
     public Map<String, Object> loadDashboardStats(){
         Map<String, Object> result = new HashMap<>();
-        // 商品总数
-        long goodsTotal = goodsService.count();
-        result.put("goodsTotal", goodsTotal);
-        // 今日入库商品数量
-        LocalDate today = LocalDate.now();
-        Date dayStart = java.sql.Timestamp.valueOf(today.atStartOfDay());
-        Date dayEnd = java.sql.Timestamp.valueOf(today.plusDays(1).atStartOfDay());
-        QueryWrapper<Inport> inportQuery = new QueryWrapper<>();
-        inportQuery.select("IFNULL(SUM(number), 0) as number");
-        inportQuery.ge("inporttime", dayStart);
-        inportQuery.lt("inporttime", dayEnd);
-        Map<String, Object> inportResult = inportService.getMap(inportQuery);
-        result.put("todayInport", inportResult != null ? inportResult.get("number") : 0);
-        // 今日销售商品数量
-        QueryWrapper<Sales> salesQuery = new QueryWrapper<>();
-        salesQuery.select("IFNULL(SUM(number), 0) as number");
-        salesQuery.ge("salestime", dayStart);
-        salesQuery.lt("salestime", dayEnd);
-        Map<String, Object> salesResult = salesService.getMap(salesQuery);
-        result.put("todaySales", salesResult != null ? salesResult.get("number") : 0);
+        result.put("goodsTotal", 0);
+        result.put("todayInport", 0);
+        result.put("todaySales", 0);
+        try {
+            result.put("goodsTotal", drugService.count());
+        } catch (Exception e) {
+            log.warn("药品总数统计失败: {}", e.getMessage());
+        }
+        try {
+            QueryWrapper<PurchaseOrder> purchaseQuery = new QueryWrapper<>();
+            purchaseQuery.eq("biz_date", java.sql.Date.valueOf(LocalDate.now()));
+            purchaseQuery.eq("status", "已确认");
+            result.put("todayInport", purchaseOrderService.count(purchaseQuery));
+        } catch (Exception e) {
+            log.warn("今日入库统计暂不可用: {}", e.getMessage());
+        }
+        try {
+            QueryWrapper<SalesOrder> outboundQuery = new QueryWrapper<>();
+            outboundQuery.eq("biz_date", java.sql.Date.valueOf(LocalDate.now()));
+            outboundQuery.eq("status", "已确认");
+            result.put("todaySales", pharmaSalesOrderService.count(outboundQuery));
+        } catch (Exception e) {
+            log.warn("今日销售统计暂不可用: {}", e.getMessage());
+        }
         return result;
     }
 
@@ -372,89 +429,51 @@ public class GoodsController {
     @RequestMapping("loadRecentOperations")
     public DataGridView loadRecentOperations(){
         List<Map<String, Object>> allOps = new ArrayList<>();
+        try {
+            QueryWrapper<PurchaseOrder> purchaseQW = new QueryWrapper<>();
+            purchaseQW.orderByDesc("created_at");
+            purchaseQW.last("LIMIT 10");
+            for (PurchaseOrder item : purchaseOrderService.list(purchaseQW)) {
+                Map<String, Object> op = new HashMap<>();
+                op.put("type", "采购入库");
+                op.put("typeTag", "success");
+                op.put("goodsname", item.getOrderNo());
+                op.put("number", item.getTotalAmount());
+                op.put("time", item.getConfirmedAt() != null ? item.getConfirmedAt() : item.getCreatedAt());
+                op.put("operateperson", item.getStatus());
+                allOps.add(op);
+            }
 
-        // 进货
-        QueryWrapper<Inport> inportQW = new QueryWrapper<>();
-        inportQW.orderByDesc("inporttime");
-        inportQW.last("LIMIT 10");
-        List<Inport> inports = inportService.list(inportQW);
-        for (Inport item : inports) {
-            Map<String, Object> op = new HashMap<>();
-            op.put("type", "进货");
-            op.put("typeTag", "success");
-            Goods goods = goodsService.getById(item.getGoodsid());
-            op.put("goodsname", goods != null ? goods.getGoodsname() : "未知商品");
-            op.put("number", item.getNumber());
-            op.put("time", item.getInporttime());
-            op.put("operateperson", item.getOperateperson());
-            allOps.add(op);
+            QueryWrapper<SalesOrder> outboundQW = new QueryWrapper<>();
+            outboundQW.orderByDesc("created_at");
+            outboundQW.last("LIMIT 10");
+            for (SalesOrder item : pharmaSalesOrderService.list(outboundQW)) {
+                Map<String, Object> op = new HashMap<>();
+                op.put("type", "销售出库");
+                op.put("typeTag", "primary");
+                op.put("goodsname", item.getInvoiceNo() != null ? item.getInvoiceNo() : item.getOrderNo());
+                op.put("number", item.getTotalAmount());
+                op.put("time", item.getConfirmedAt() != null ? item.getConfirmedAt() : item.getCreatedAt());
+                op.put("operateperson", item.getStatus());
+                allOps.add(op);
+            }
+
+            allOps.sort((a, b) -> {
+                Date timeA = (Date) a.get("time");
+                Date timeB = (Date) b.get("time");
+                if (timeA == null && timeB == null) return 0;
+                if (timeA == null) return 1;
+                if (timeB == null) return -1;
+                return timeB.compareTo(timeA);
+            });
+            if (allOps.size() > 10) {
+                allOps = allOps.subList(0, 10);
+            }
+            return new DataGridView((long) allOps.size(), allOps);
+        } catch (Exception e) {
+            log.warn("最近出入库记录暂不可用: {}", e.getMessage());
+            return new DataGridView(0L, Collections.emptyList());
         }
-
-        // 销售
-        QueryWrapper<Sales> salesQW = new QueryWrapper<>();
-        salesQW.orderByDesc("salestime");
-        salesQW.last("LIMIT 10");
-        List<Sales> salesList = salesService.list(salesQW);
-        for (Sales item : salesList) {
-            Map<String, Object> op = new HashMap<>();
-            op.put("type", "销售");
-            op.put("typeTag", "primary");
-            Goods goods = goodsService.getById(item.getGoodsid());
-            op.put("goodsname", goods != null ? goods.getGoodsname() : "未知商品");
-            op.put("number", item.getNumber());
-            op.put("time", item.getSalestime());
-            op.put("operateperson", item.getOperateperson());
-            allOps.add(op);
-        }
-
-        // 进货退货
-        QueryWrapper<Outport> outportQW = new QueryWrapper<>();
-        outportQW.orderByDesc("outputtime");
-        outportQW.last("LIMIT 10");
-        List<Outport> outports = outportService.list(outportQW);
-        for (Outport item : outports) {
-            Map<String, Object> op = new HashMap<>();
-            op.put("type", "进货退货");
-            op.put("typeTag", "warning");
-            Goods goods = goodsService.getById(item.getGoodsid());
-            op.put("goodsname", goods != null ? goods.getGoodsname() : "未知商品");
-            op.put("number", item.getNumber());
-            op.put("time", item.getOutputtime());
-            op.put("operateperson", item.getOperateperson());
-            allOps.add(op);
-        }
-
-        // 销售退货
-        QueryWrapper<Salesback> salesbackQW = new QueryWrapper<>();
-        salesbackQW.orderByDesc("salesbacktime");
-        salesbackQW.last("LIMIT 10");
-        List<Salesback> salesbacks = salesbackService.list(salesbackQW);
-        for (Salesback item : salesbacks) {
-            Map<String, Object> op = new HashMap<>();
-            op.put("type", "销售退货");
-            op.put("typeTag", "danger");
-            Goods goods = goodsService.getById(item.getGoodsid());
-            op.put("goodsname", goods != null ? goods.getGoodsname() : "未知商品");
-            op.put("number", item.getNumber());
-            op.put("time", item.getSalesbacktime());
-            op.put("operateperson", item.getOperateperson());
-            allOps.add(op);
-        }
-
-        // 按时间倒序排序，取前10条
-        allOps.sort((a, b) -> {
-            Date timeA = (Date) a.get("time");
-            Date timeB = (Date) b.get("time");
-            if (timeA == null && timeB == null) return 0;
-            if (timeA == null) return 1;
-            if (timeB == null) return -1;
-            return timeB.compareTo(timeA);
-        });
-        if (allOps.size() > 10) {
-            allOps = allOps.subList(0, 10);
-        }
-
-        return new DataGridView((long) allOps.size(), allOps);
     }
 
     /**

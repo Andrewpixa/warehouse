@@ -1,9 +1,12 @@
 # 生产环境配置
 spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.freemarker.FreeMarkerAutoConfiguration
   datasource:
     druid:
       driver-class-name: com.mysql.cj.jdbc.Driver
-      url: jdbc:mysql://${MYSQL_HOST}:${MYSQL_PORT}/warehouse?useUnicode=true&characterEncoding=utf8&serverTimezone=UTC&useSSL=true
+      url: jdbc:mysql://${MYSQL_HOST}:${MYSQL_PORT}/${MYSQL_DB:pharma_ims}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
       username: ${MYSQL_USERNAME}
       password: ${MYSQL_PASSWORD}
       max-active: 50
@@ -15,6 +18,12 @@ spring:
       # 生产环境关闭 Druid 监控页面
       stat-view-servlet:
         enabled: false
+  data:
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: 0
 
 # 生产环境关闭 SQL 日志
 mybatis-plus:

@@ -11,45 +11,36 @@ import java.io.Serializable;
 import java.util.Date;
 
 /**
- * 仓库
- *
- * @author sunlee
- * @since 2026-07-26
+ * 仓库档案（pharma_ims.warehouses）
  */
 @Data
 @EqualsAndHashCode(callSuper = false)
 @Accessors(chain = true)
-@TableName("bus_warehouse")
+@TableName("warehouses")
 public class Warehouse implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
     @TableId(value = "id", type = IdType.AUTO)
-    private Integer id;
+    private Long id;
 
-    /** 仓库名称 */
-    private String name;
-
-    /** 仓库编码 */
     private String code;
 
-    /** 地址 */
+    private String name;
+
+    /** 合格/待验/退货/不合格 */
+    private String whType;
+
     private String address;
 
-    /** 负责人 */
-    private String manager;
+    private Long managerId;
 
-    /** 联系电话 */
-    private String phone;
-
-    /** 是否默认仓 0=否 1=是（全系统唯一） */
-    private Integer isDefault;
-
-    /** 状态 0=停用 1=启用 */
-    private Integer available;
+    /** 1启用 0停用 */
+    private Integer status;
 
     private String remark;
 
-    private Date createTime;
+    private Date createdAt;
 
+    private Date updatedAt;
 }

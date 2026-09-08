@@ -12,7 +12,7 @@
         </svg>
       </div>
       <transition name="fade">
-        <span v-if="!isCollapse" class="logo-text">仓图</span>
+        <span v-if="!isCollapse" class="logo-text">药企进销存</span>
       </transition>
     </div>
     <el-scrollbar class="sidebar-scrollbar">
@@ -155,7 +155,8 @@ const handleMenuSelect = (index: string) => {
   white-space: nowrap;
   overflow: hidden;
   color: var(--text-primary);
-  letter-spacing: 2px;
+  letter-spacing: 0.5px;
+  font-size: 14px;
 }
 
 .sidebar-scrollbar {
