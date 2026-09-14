@@ -1,5 +1,6 @@
 <template>
   <div class="login-container">
+    <router-link class="intro-entry" to="/welcome">了解产品</router-link>
     <div class="login-background">
       <div class="grid-overlay"></div>
       <div class="noise-overlay"></div>
@@ -174,6 +175,27 @@ onMounted(() => {
   background: var(--bg-secondary);
   position: relative;
   overflow: hidden;
+}
+
+.intro-entry {
+  position: absolute;
+  top: 24px;
+  right: 28px;
+  z-index: 20;
+  font-size: 13px;
+  letter-spacing: 0.16em;
+  color: var(--text-secondary);
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-primary);
+  transition: color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.intro-entry:hover {
+  color: var(--primary-color);
+  border-color: var(--primary-color);
+  transform: translateY(-1px);
 }
 
 .login-background {

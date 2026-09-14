@@ -53,14 +53,19 @@ service.interceptors.response.use(
     const status = error.response?.status
     if (status === 401) {
       const now = Date.now()
-      if (now - lastUnauthorizedAt > 5000) {
+      const { useAuthStore } = await import('@/stores/auth')
+      const authStore = useAuthStore()
+      const wasLoggedIn = authStore.isLoggedIn
+      const isPublic = Boolean(router.currentRoute.value.meta.public)
+      authStore.reset()
+      if (isPublic) {
+        return Promise.reject(error)
+      }
+      if (wasLoggedIn && now - lastUnauthorizedAt > 5000) {
         lastUnauthorizedAt = now
         ElMessage.error('登录已过期，请重新登录')
       }
-      // 清除本地登录状态（动态 import 避免与 stores/auth 循环依赖）
-      const { useAuthStore } = await import('@/stores/auth')
-      useAuthStore().reset()
-      router.push('/login')
+      router.push('/welcome')
     } else if (status === 403) {
       ElMessage.error('无权限访问此接口')
     } else if (status === 404) {

@@ -7,10 +7,16 @@ const router = createRouter({
   history: createWebHistory(),
   routes: [
     {
+      path: '/welcome',
+      name: 'Intro',
+      component: () => import('@/views/intro/index.vue'),
+      meta: { title: '产品介绍', public: true }
+    },
+    {
       path: '/login',
       name: 'Login',
       component: () => import('@/views/login/index.vue'),
-      meta: { title: '登录' }
+      meta: { title: '登录', public: true }
     },
     {
       path: '/',
@@ -334,7 +340,7 @@ router.beforeEach(async (to, _from, next) => {
   NProgress.start()
   document.title = ((to.meta.title as string) || '药品进销存') + ' - 药品进销存'
 
-  if (to.path === '/login') {
+  if (to.meta.public) {
     next()
     return
   }
@@ -347,7 +353,7 @@ router.beforeEach(async (to, _from, next) => {
       next()
     } catch (e) {
       console.error('路由守卫认证失败:', e)
-      next('/login')
+      next('/welcome')
     }
   } else {
     next()
