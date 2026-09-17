@@ -60,6 +60,9 @@ public class SaTokenConfigure implements WebMvcConfigurer {
         LOGIN_ONLY_PATHS.add("/commission/loadMyCommission");
         // 图片上传（扩展名/MIME/大小已校验，业务开单普遍需要）
         LOGIN_ONLY_PATHS.add("/file/uploadFile");
+        LOGIN_ONLY_PATHS.add("/ops/workbench");
+        LOGIN_ONLY_PATHS.add("/ops/makerQuery");
+        LOGIN_ONLY_PATHS.add("/desk/summary");
 
         // ===== sys 模块（操作级权限码）=====
         // 用户
@@ -90,10 +93,12 @@ public class SaTokenConfigure implements WebMvcConfigurer {
         URL_PERM_MAP.put("/menu/updateMenu", "menu:update");
         URL_PERM_MAP.put("/menu/deleteMenu", "menu:delete");
         // 部门
-        URL_PERM_MAP.put("/dept/loadDeptManagerLeftTreeJson", "dept:view");
-        URL_PERM_MAP.put("/dept/loadAllDept", "dept:view");
+        URL_PERM_MAP.put("/dept/loadDeptManagerLeftTreeJson", "user:view");
+        URL_PERM_MAP.put("/dept/loadAllDept", "user:view");
         URL_PERM_MAP.put("/dept/loadDeptMaxOrderNum", "dept:view");
         URL_PERM_MAP.put("/dept/checkDeptHasChildrenNode", "dept:view");
+        URL_PERM_MAP.put("/dept/loadDeptDetail", "dept:view");
+        URL_PERM_MAP.put("/dept/loadGspUsers", "dept:view");
         URL_PERM_MAP.put("/dept/addDept", "dept:create");
         URL_PERM_MAP.put("/dept/updateDept", "dept:update");
         URL_PERM_MAP.put("/dept/deleteDept", "dept:delete");
@@ -197,6 +202,15 @@ public class SaTokenConfigure implements WebMvcConfigurer {
         URL_PERM_MAP.put("/purchase/savePurchase", "inport:create");
         URL_PERM_MAP.put("/purchase/confirmPurchase", "inport:confirm");
         URL_PERM_MAP.put("/purchase/deletePurchase", "inport:delete");
+        URL_PERM_MAP.put("/purchase/previewSupplierInvoice", "inport:view");
+        URL_PERM_MAP.put("/purchase/receiveSupplierInvoice", "inport:create");
+        URL_PERM_MAP.put("/ops/loadAll", "ops:view");
+        URL_PERM_MAP.put("/ops/loadDetail", "ops:view");
+        URL_PERM_MAP.put("/ops/printPack", "ops:view");
+        URL_PERM_MAP.put("/ops/makerAccounts", "ops:view");
+        URL_PERM_MAP.put("/ops/save", "ops:create");
+        URL_PERM_MAP.put("/ops/confirm", "ops:confirm");
+        URL_PERM_MAP.put("/ops/delete", "ops:delete");
         URL_PERM_MAP.put("/batchStock/loadAllBatchStock", "warehouse:view");
         URL_PERM_MAP.put("/surplus/loadAllSurplus", "surplus:view");
         URL_PERM_MAP.put("/surplus/loadSurplusDetail", "surplus:view");
@@ -215,6 +229,10 @@ public class SaTokenConfigure implements WebMvcConfigurer {
         URL_PERM_MAP.put("/trace/addCodes", "trace:collect");
         URL_PERM_MAP.put("/trace/previewParse", "trace:parse");
         URL_PERM_MAP.put("/trace/parseCodes", "trace:parse");
+        URL_PERM_MAP.put("/quality/pendingSuppliers", "quality:view");
+        URL_PERM_MAP.put("/quality/pendingBatches", "quality:view");
+        URL_PERM_MAP.put("/quality/approveFirstCamp", "quality:confirm");
+        URL_PERM_MAP.put("/quality/setBatchQuality", "quality:confirm");
         URL_PERM_MAP.put("/outbound/loadAllOutbound", "sales:view");
         URL_PERM_MAP.put("/outbound/loadOutboundDetail", "sales:view");
         URL_PERM_MAP.put("/outbound/loadReceiptDetail", "receipt:view");
@@ -225,6 +243,10 @@ public class SaTokenConfigure implements WebMvcConfigurer {
         URL_PERM_MAP.put("/outbound/loadReversals", "sales:return");
         URL_PERM_MAP.put("/outbound/markPaid", "sales:create");
         URL_PERM_MAP.put("/outbound/confirmOutbound", "sales:create");
+        URL_PERM_MAP.put("/outbound/simulateEinvoice", "sales:create");
+        URL_PERM_MAP.put("/outbound/preprocessOrder", "sales:create");
+        URL_PERM_MAP.put("/outbound/importPlatformOrder", "sales:create");
+        URL_PERM_MAP.put("/outbound/downloadEinvoice", "sales:view");
         URL_PERM_MAP.put("/outbound/loadPendingReceipt", "receipt:view");
         URL_PERM_MAP.put("/outbound/confirmReceipt", "receipt:confirm");
         URL_PERM_MAP.put("/outbound/deleteOutbound", "sales:delete");
@@ -309,6 +331,7 @@ public class SaTokenConfigure implements WebMvcConfigurer {
                             "/login/getCode",
                             "/login/getCaptchaBase64",
                             "/login/logout",
+                            "/ops/makerQuery*",
                             "/index.html*",
                             "/sys/toLogin*",
                             "/resources/**",

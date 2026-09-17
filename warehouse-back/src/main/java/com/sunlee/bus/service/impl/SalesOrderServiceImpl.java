@@ -5,14 +5,19 @@ import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.sunlee.bus.common.PharmaAmounts;
 import com.sunlee.bus.common.PharmaNos;
+import com.sunlee.bus.entity.BatchStock;
 import com.sunlee.bus.entity.Customer;
 import com.sunlee.bus.entity.Drug;
+import com.sunlee.bus.entity.OpsFlowDoc;
 import com.sunlee.bus.entity.SalesOrder;
 import com.sunlee.bus.entity.SalesOrderItem;
 import com.sunlee.bus.entity.Warehouse;
+import com.sunlee.bus.mapper.OpsFlowDocMapper;
 import com.sunlee.bus.mapper.SalesOrderMapper;
 import com.sunlee.bus.service.IBatchStockService;
+import com.sunlee.bus.service.IBizVoucherService;
 import com.sunlee.bus.service.ICustomerService;
 import com.sunlee.bus.service.IDrugService;
 import com.sunlee.bus.service.ISalesOrderItemService;
@@ -60,6 +65,12 @@ public class SalesOrderServiceImpl extends ServiceImpl<SalesOrderMapper, SalesOr
     @Autowired
     private RedisBiz redisBiz;
 
+    @Autowired
+    private IBizVoucherService voucherService;
+
+    @Autowired
+    private OpsFlowDocMapper opsFlowDocMapper;
+
     @Override
     public IPage<SalesOrder> pageOrders(SalesOrderVo vo) {
         IPage<SalesOrder> page = new Page<>(vo.getPage(), vo.getLimit());
@@ -72,6 +83,8 @@ public class SalesOrderServiceImpl extends ServiceImpl<SalesOrderMapper, SalesOr
         qw.eq(StringUtils.isNotBlank(vo.getPaidStatus()), "paid_status", vo.getPaidStatus());
         qw.eq(StringUtils.isNotBlank(vo.getReceiveStatus()), "receive_status", vo.getReceiveStatus());
         qw.eq(StringUtils.isNotBlank(vo.getOrderType()), "order_type", vo.getOrderType());
+        qw.eq(StringUtils.isNotBlank(vo.getOrderChannel()), "order_channel", vo.getOrderChannel());
+        qw.eq(StringUtils.isNotBlank(vo.getPreprocessStatus()), "preprocess_status", vo.getPreprocessStatus());
         qw.like(StringUtils.isNotBlank(vo.getOriginalInvoiceNo()), "original_invoice_no", vo.getOriginalInvoiceNo());
         qw.orderByDesc("id");
         this.page(page, qw);
@@ -87,6 +100,7 @@ public class SalesOrderServiceImpl extends ServiceImpl<SalesOrderMapper, SalesOr
         }
         fillHeaderNames(order);
         order.setItems(loadItems(id));
+        voucherService.fillSales(order);
         if (PharmaNos.ORDER_NORMAL.equals(defaultType(order.getOrderType()))) {
             fillRemainingQty(order);
         }
@@ -95,17 +109,30 @@ public class SalesOrderServiceImpl extends ServiceImpl<SalesOrderMapper, SalesOr
 
     @Override
     public SalesOrder getByInvoiceNo(String invoiceNo) {
-        if (StringUtils.isBlank(invoiceNo)) {
-            throw new IllegalArgumentException("请输入发票号");
-        }
-        QueryWrapper<SalesOrder> qw = new QueryWrapper<>();
-        qw.eq("invoice_no", invoiceNo.trim());
-        qw.last("LIMIT 1");
-        SalesOrder order = this.getOne(qw, false);
+        SalesOrder order = findByInvoiceQuery(invoiceNo);
         if (order == null) {
-            throw new IllegalArgumentException("未找到发票号：" + invoiceNo);
+            throw new IllegalArgumentException("未找到发票号：" + invoiceNo + "。可输入 20 位全电号码、后 10 位顺序号或出库单号");
         }
         return getDetail(order.getId());
+    }
+
+    @Override
+    public SalesOrder findByInvoiceQuery(String invoiceNo) {
+        if (StringUtils.isBlank(invoiceNo)) {
+            return null;
+        }
+        String q = invoiceNo.trim();
+        QueryWrapper<SalesOrder> qw = new QueryWrapper<>();
+        qw.and(w -> w.eq("invoice_no", q)
+                .or().eq("order_no", q)
+                .or().eq("einvoice_no", q)
+                .or().likeRight("invoice_no", q)
+                .or().likeLeft("invoice_no", q));
+        qw.isNotNull("invoice_no");
+        qw.ne("invoice_no", "");
+        qw.orderByDesc("id");
+        qw.last("LIMIT 1");
+        return this.getOne(qw, false);
     }
 
     @Override
@@ -155,6 +182,24 @@ public class SalesOrderServiceImpl extends ServiceImpl<SalesOrderMapper, SalesOr
         order.setEinvoiceNo(StringUtils.trimToNull(vo.getEinvoiceNo()));
         order.setEinvoicePath(StringUtils.trimToNull(vo.getEinvoicePath()));
         order.setRemark(vo.getRemark());
+        if (StringUtils.isNotBlank(vo.getOrderChannel())) {
+            order.setOrderChannel(vo.getOrderChannel());
+        } else if (StringUtils.isBlank(order.getOrderChannel())) {
+            order.setOrderChannel("OFFLINE");
+        }
+        if (vo.getPlatformNo() != null) {
+            order.setPlatformNo(StringUtils.trimToNull(vo.getPlatformNo()));
+        }
+        if (vo.getId() != null) {
+            order.setPreprocessStatus("待预处理");
+            order.setCreditOk(0);
+            order.setLicenseOk(0);
+            order.setAllocateOk(0);
+            order.setPriceLocked(0);
+            order.setPreprocessRemark("草稿已改，须重新预处理后再开票");
+        } else if (StringUtils.isBlank(order.getPreprocessStatus())) {
+            order.setPreprocessStatus("待预处理");
+        }
         if (PharmaNos.ORDER_REVERSAL.equals(defaultType(order.getOrderType()))) {
             applyReversalDraft(order, vo, items);
         } else {
@@ -216,6 +261,8 @@ public class SalesOrderServiceImpl extends ServiceImpl<SalesOrderMapper, SalesOr
             if (!reversal) {
                 assertShipReady(items);
             }
+            fillHeaderNames(order);
+            voucherService.assertOutboundConfirm(order, items, reversal, einvoicePath);
             String invoiceNo = order.getInvoiceNo();
             if (StringUtils.isBlank(invoiceNo)) {
                 invoiceNo = nextInvoiceNo(order.getBizDate(), order.getId());
@@ -303,11 +350,12 @@ public class SalesOrderServiceImpl extends ServiceImpl<SalesOrderMapper, SalesOr
         if (!PharmaNos.RECEIVE_PENDING.equals(order.getReceiveStatus())) {
             throw new IllegalArgumentException("该单据不是待收货状态");
         }
+        boolean reject = PharmaNos.RECEIVE_ACTION_REJECT.equals(vo.getReceiveAction());
+        voucherService.assertReceiptSign(order, reject);
         List<SalesOrderItem> dbItems = loadItems(order.getId());
         if (dbItems.isEmpty()) {
             throw new IllegalArgumentException("出库单没有明细");
         }
-        boolean reject = PharmaNos.RECEIVE_ACTION_REJECT.equals(vo.getReceiveAction());
         Map<Long, SalesOrderItem> submitted = new HashMap<>();
         if (vo.getItems() != null) {
             for (SalesOrderItem item : vo.getItems()) {
@@ -381,6 +429,7 @@ public class SalesOrderServiceImpl extends ServiceImpl<SalesOrderMapper, SalesOr
         QueryWrapper<SalesOrderItem> delQw = new QueryWrapper<>();
         delQw.eq("order_id", id);
         itemService.remove(delQw);
+        voucherService.removeByBiz(PharmaNos.BIZ_SALES, id);
         this.removeById(id);
     }
 
@@ -601,17 +650,15 @@ public class SalesOrderServiceImpl extends ServiceImpl<SalesOrderMapper, SalesOr
     private String nextInvoiceNo(LocalDate bizDate, Long excludeId) {
         long redisSeq = redisBiz.nextInvoiceSeq(bizDate);
         if (redisSeq > 0) {
+            if (redisSeq < PharmaNos.INVOICE_SEQ_START) {
+                redisSeq = PharmaNos.INVOICE_SEQ_START + redisSeq - 1;
+            }
             String candidate = PharmaNos.invoiceNo(bizDate, redisSeq);
             while (invoiceExists(candidate, excludeId)) {
-                redisSeq = redisBiz.nextInvoiceSeq(bizDate);
-                if (redisSeq < 1) {
-                    break;
-                }
+                redisSeq++;
                 candidate = PharmaNos.invoiceNo(bizDate, redisSeq);
             }
-            if (redisSeq > 0 && !invoiceExists(candidate, excludeId)) {
-                return candidate;
-            }
+            return candidate;
         }
         String prefix = PharmaNos.invoiceCode(bizDate);
         QueryWrapper<SalesOrder> qw = new QueryWrapper<>();
@@ -621,9 +668,10 @@ public class SalesOrderServiceImpl extends ServiceImpl<SalesOrderMapper, SalesOr
             qw.ne("id", excludeId);
         }
         SalesOrder last = this.getOne(qw, false);
-        long seq = 1L;
-        if (last != null && StringUtils.length(last.getInvoiceNo()) == PharmaNos.INVOICE_LEN) {
-            seq = Long.parseLong(last.getInvoiceNo().substring(12)) + 1;
+        long seq = PharmaNos.INVOICE_SEQ_START;
+        if (last != null && StringUtils.length(last.getInvoiceNo()) == PharmaNos.INVOICE_LEN
+                && last.getInvoiceNo().startsWith(prefix)) {
+            seq = Math.max(PharmaNos.parseSeq(last.getInvoiceNo()) + 1, PharmaNos.INVOICE_SEQ_START);
         }
         String candidate = PharmaNos.invoiceNo(bizDate, seq);
         while (invoiceExists(candidate, excludeId)) {
@@ -669,7 +717,7 @@ public class SalesOrderServiceImpl extends ServiceImpl<SalesOrderMapper, SalesOr
         }
         BigDecimal price = item.getSalePrice() == null ? BigDecimal.ZERO : item.getSalePrice();
         item.setSalePrice(price);
-        item.setAmount(item.getQty().multiply(price));
+        item.setAmount(PharmaAmounts.lineAmount(item.getQty(), price));
     }
 
     private List<SalesOrderItem> loadItems(Long orderId) {
@@ -732,6 +780,154 @@ public class SalesOrderServiceImpl extends ServiceImpl<SalesOrderMapper, SalesOr
         } catch (Exception e) {
             throw new IllegalArgumentException("发货时间格式应为 yyyy-MM-dd HH:mm:ss");
         }
+    }
+
+    @Override
+    @Transactional
+    public SalesOrder simulateEinvoice(Long id) {
+        SalesOrder order = getDetail(id);
+        if (!PharmaNos.STATUS_DRAFT.equals(order.getStatus())) {
+            throw new IllegalArgumentException("只有草稿出库单可以模拟开票；已确认单发票已锁定");
+        }
+        if (PharmaNos.ORDER_REVERSAL.equals(order.getOrderType())) {
+            throw new IllegalArgumentException("红冲单不单独开具正数发票");
+        }
+        if (!"已通过".equals(order.getPreprocessStatus())) {
+            throw new IllegalArgumentException("须先通过订单预处理（信誉额、证照、分货、价格）才能开票");
+        }
+        String invoiceNo = order.getInvoiceNo();
+        if (StringUtils.isBlank(invoiceNo)) {
+            invoiceNo = nextInvoiceNo(order.getBizDate(), order.getId());
+            order.setInvoiceNo(invoiceNo);
+        }
+        fillHeaderNames(order);
+        StringBuilder rows = new StringBuilder();
+        for (SalesOrderItem item : order.getItems()) {
+            rows.append("<tr><td>").append(com.sunlee.bus.common.SimInvoiceDocs.escape(item.getDrugName()))
+                    .append("</td><td>").append(com.sunlee.bus.common.SimInvoiceDocs.escape(item.getBatchNo()))
+                    .append("</td><td>").append(item.getQty())
+                    .append("</td><td>").append(item.getSalePrice())
+                    .append("</td></tr>");
+        }
+        String html = "<h1>电子发票（模拟·我方开具）</h1>"
+                + "<p>销货方：药衡医药</p>"
+                + "<p>购货方：" + com.sunlee.bus.common.SimInvoiceDocs.escape(order.getCustomerName()) + "</p>"
+                + "<p>全电发票号码：" + com.sunlee.bus.common.SimInvoiceDocs.escape(invoiceNo) + "</p>"
+                + "<p>开票日期：" + order.getBizDate() + "</p>"
+                + "<table><tr><th>品种</th><th>批号</th><th>数量</th><th>单价</th></tr>"
+                + rows + "</table>"
+                + "<p>价税合计：" + order.getTotalAmount() + "</p>";
+        String path = com.sunlee.bus.common.SimInvoiceDocs.writeHtml("einvoice.html", "电子发票", html);
+        order.setEinvoiceNo(invoiceNo);
+        order.setEinvoicePath(path);
+        this.updateById(order);
+        voucherService.replaceGeneratedFile(PharmaNos.BIZ_SALES, order.getId(), "invoice",
+                "电子发票-" + invoiceNo + ".html", html);
+        return getDetail(id);
+    }
+
+    @Override
+    @Transactional
+    public SalesOrder preprocess(Long id) {
+        SalesOrder order = getDetail(id);
+        assertDraft(order);
+        Customer customer = customerService.getById(order.getCustomerId());
+        if (customer == null) {
+            throw new IllegalArgumentException("客户不存在");
+        }
+        boolean license = StringUtils.isNotBlank(customer.getLicenseNo()) && (customer.getStatus() == null || customer.getStatus() == 1);
+        QueryWrapper<OpsFlowDoc> creditQw = new QueryWrapper<>();
+        creditQw.eq("doc_type", "CREDIT").eq("customer_id", order.getCustomerId()).eq("status", "已生效").orderByDesc("id").last("LIMIT 1");
+        OpsFlowDoc credit = opsFlowDocMapper.selectOne(creditQw);
+        BigDecimal limit = credit == null || credit.getAmount() == null ? BigDecimal.ZERO : credit.getAmount();
+        QueryWrapper<SalesOrder> unpaidQw = new QueryWrapper<>();
+        unpaidQw.eq("customer_id", order.getCustomerId()).eq("status", PharmaNos.STATUS_CONFIRMED)
+                .ne("paid_status", PharmaNos.PAID_DONE);
+        BigDecimal occupied = BigDecimal.ZERO;
+        for (SalesOrder row : this.list(unpaidQw)) {
+            BigDecimal amt = row.getTotalAmount() == null ? BigDecimal.ZERO : row.getTotalAmount();
+            BigDecimal paid = row.getPaidAmount() == null ? BigDecimal.ZERO : row.getPaidAmount();
+            occupied = occupied.add(amt.subtract(paid));
+        }
+        BigDecimal need = occupied.add(order.getTotalAmount() == null ? BigDecimal.ZERO : order.getTotalAmount());
+        boolean creditOk = credit != null && limit.compareTo(need) >= 0;
+        QueryWrapper<OpsFlowDoc> allocQw = new QueryWrapper<>();
+        allocQw.eq("doc_type", "ALLOCATE").eq("status", "待分货").eq("customer_id", order.getCustomerId());
+        boolean allocateOk = opsFlowDocMapper.selectCount(allocQw) == 0;
+        boolean priceOk = true;
+        for (SalesOrderItem item : order.getItems()) {
+            if (item.getSalePrice() == null || item.getSalePrice().compareTo(BigDecimal.ZERO) <= 0) {
+                priceOk = false;
+                break;
+            }
+        }
+        java.util.List<String> issues = new java.util.ArrayList<>();
+        if (!creditOk) {
+            issues.add(credit == null ? "无已生效信誉额" : "欠款加本单超过授信 " + limit);
+        }
+        if (!license) {
+            issues.add("客户证照缺失或已停用");
+        }
+        if (!allocateOk) {
+            issues.add("该客户仍有待分货单，分货完成才能开票");
+        }
+        if (!priceOk) {
+            issues.add("成交价未锁定（明细单价须大于0）");
+        }
+        order.setCreditOk(creditOk ? 1 : 0);
+        order.setLicenseOk(license ? 1 : 0);
+        order.setAllocateOk(allocateOk ? 1 : 0);
+        order.setPriceLocked(priceOk ? 1 : 0);
+        if (issues.isEmpty()) {
+            order.setPreprocessStatus("已通过");
+            order.setPreprocessRemark("信誉额、证照、分货、价格均通过，可开票");
+        } else {
+            order.setPreprocessStatus("未通过");
+            order.setPreprocessRemark(String.join("；", issues));
+        }
+        this.updateById(order);
+        return getDetail(id);
+    }
+
+    @Override
+    @Transactional
+    public SalesOrder importPlatformOrder() {
+        QueryWrapper<Customer> cq = new QueryWrapper<>();
+        cq.eq("status", 1).last("LIMIT 1");
+        Customer customer = customerService.getOne(cq, false);
+        if (customer == null) {
+            throw new IllegalArgumentException("没有启用客户，无法接入网单");
+        }
+        QueryWrapper<Warehouse> wq = new QueryWrapper<>();
+        wq.last("LIMIT 1");
+        Warehouse warehouse = warehouseService.getOne(wq, false);
+        if (warehouse == null) {
+            throw new IllegalArgumentException("没有仓库");
+        }
+        QueryWrapper<BatchStock> bq = new QueryWrapper<>();
+        bq.gt("qty", 0).eq("quality_status", PharmaNos.QUALITY_OK).orderByDesc("id").last("LIMIT 1");
+        BatchStock stock = batchStockService.getOne(bq, false);
+        if (stock == null) {
+            throw new IllegalArgumentException("没有合格库存，网单不能跳过预处理直接发货");
+        }
+        Drug drug = drugService.getById(stock.getDrugId());
+        SalesOrderVo vo = new SalesOrderVo();
+        vo.setCustomerId(customer.getId());
+        vo.setWarehouseId(stock.getWarehouseId() != null ? stock.getWarehouseId() : warehouse.getId());
+        vo.setBizDate(LocalDate.now());
+        vo.setPayType(StringUtils.defaultIfBlank(customer.getSettleType(), "月结"));
+        vo.setOrderChannel("PLATFORM");
+        vo.setPlatformNo("WD" + LocalDate.now().toString().replace("-", "") + String.format("%04d", (int) (Math.random() * 9999)));
+        vo.setRemark("全药网/药交平台网单接入，须预处理后才能开票");
+        SalesOrderItem item = new SalesOrderItem();
+        item.setDrugId(stock.getDrugId());
+        item.setBatchNo(stock.getBatchNo());
+        item.setExpireDate(stock.getExpireDate());
+        item.setQty(BigDecimal.ONE);
+        item.setSalePrice(drug != null && drug.getRefSalePrice() != null ? drug.getRefSalePrice() : BigDecimal.ONE);
+        item.setQualityStatus(PharmaNos.QUALITY_OK);
+        vo.setItems(java.util.List.of(item));
+        return saveDraft(vo);
     }
 
     private String persistEinvoicePath(String path) {

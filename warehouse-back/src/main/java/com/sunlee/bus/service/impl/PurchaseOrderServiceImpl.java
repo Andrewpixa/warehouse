@@ -11,7 +11,9 @@ import com.sunlee.bus.entity.PurchaseOrderItem;
 import com.sunlee.bus.entity.Supplier;
 import com.sunlee.bus.entity.Warehouse;
 import com.sunlee.bus.mapper.PurchaseOrderMapper;
+import com.sunlee.bus.common.PharmaAmounts;
 import com.sunlee.bus.service.IBatchStockService;
+import com.sunlee.bus.service.IBizVoucherService;
 import com.sunlee.bus.service.IDrugService;
 import com.sunlee.bus.service.IPurchaseOrderItemService;
 import com.sunlee.bus.service.IPurchaseOrderService;
@@ -48,6 +50,9 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
     @Autowired
     private IDrugService drugService;
 
+    @Autowired
+    private IBizVoucherService voucherService;
+
     @Override
     public IPage<PurchaseOrder> pageOrders(PurchaseOrderVo vo) {
         IPage<PurchaseOrder> page = new Page<>(vo.getPage(), vo.getLimit());
@@ -70,6 +75,7 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
         }
         fillHeaderNames(order);
         order.setItems(loadItems(id));
+        voucherService.fillPurchase(order);
         return order;
     }
 
@@ -113,6 +119,11 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
         order.setKeeperId(vo.getKeeperId());
         order.setBizDate(vo.getBizDate());
         order.setCheckResult(vo.getCheckResult());
+        if (StringUtils.isBlank(vo.getInvoiceNo())) {
+            order.setInvoiceNo(previewSupplierInvoiceNo(vo.getSupplierId(), vo.getBizDate()));
+        } else {
+            order.setInvoiceNo(StringUtils.trimToNull(vo.getInvoiceNo()));
+        }
         order.setRemark(vo.getRemark());
 
         BigDecimal total = BigDecimal.ZERO;
@@ -154,6 +165,8 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
         if (items.isEmpty()) {
             throw new IllegalArgumentException("进货单没有明细，无法确认");
         }
+        fillHeaderNames(order);
+        voucherService.assertPurchaseConfirm(order, items);
         for (PurchaseOrderItem item : items) {
             if (!PharmaNos.QUALITY_OK.equals(item.getQualityStatus())) {
                 throw new IllegalArgumentException("明细存在待验或不合格品种，不能确认入库");
@@ -190,7 +203,70 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
         QueryWrapper<PurchaseOrderItem> delQw = new QueryWrapper<>();
         delQw.eq("order_id", id);
         itemService.remove(delQw);
+        voucherService.removeByBiz(PharmaNos.BIZ_PURCHASE, id);
         this.removeById(id);
+    }
+
+    @Override
+    public String previewSupplierInvoiceNo(Long supplierId, java.time.LocalDate bizDate) {
+        if (supplierId == null) {
+            throw new IllegalArgumentException("请先选择供应商");
+        }
+        java.time.LocalDate d = bizDate == null ? java.time.LocalDate.now() : bizDate;
+        String prefix = com.sunlee.bus.common.SimInvoiceDocs.supplierInvoiceNo(supplierId, d, 0);
+        prefix = prefix.substring(0, prefix.length() - 4);
+        QueryWrapper<PurchaseOrder> qw = new QueryWrapper<>();
+        qw.likeRight("invoice_no", prefix);
+        int seq = (int) this.count(qw) + 1;
+        String no = com.sunlee.bus.common.SimInvoiceDocs.supplierInvoiceNo(supplierId, d, seq);
+        while (this.count(new QueryWrapper<PurchaseOrder>().eq("invoice_no", no)) > 0) {
+            seq++;
+            no = com.sunlee.bus.common.SimInvoiceDocs.supplierInvoiceNo(supplierId, d, seq);
+        }
+        return no;
+    }
+
+    @Override
+    @Transactional
+    public PurchaseOrder receiveSupplierInvoice(Long id) {
+        PurchaseOrder order = getDetail(id);
+        assertDraft(order);
+        if (order.getSupplierId() == null) {
+            throw new IllegalArgumentException("请先选择供应商");
+        }
+        fillHeaderNames(order);
+        if (StringUtils.isBlank(order.getInvoiceNo())) {
+            order.setInvoiceNo(previewSupplierInvoiceNo(order.getSupplierId(), order.getBizDate()));
+            this.updateById(order);
+        }
+        String supplier = order.getSupplierName() == null ? "供应商" : order.getSupplierName();
+        StringBuilder rows = new StringBuilder();
+        for (PurchaseOrderItem item : order.getItems()) {
+            rows.append("<tr><td>").append(com.sunlee.bus.common.SimInvoiceDocs.escape(item.getDrugName()))
+                    .append("</td><td>").append(com.sunlee.bus.common.SimInvoiceDocs.escape(item.getBatchNo()))
+                    .append("</td><td>").append(item.getStockInQty())
+                    .append("</td><td>").append(item.getPurchasePrice())
+                    .append("</td></tr>");
+        }
+        String invoiceHtml = "<h1>增值税普通发票（模拟·供方开具）</h1>"
+                + "<p>销货方：" + com.sunlee.bus.common.SimInvoiceDocs.escape(supplier) + "</p>"
+                + "<p>发票号码：" + com.sunlee.bus.common.SimInvoiceDocs.escape(order.getInvoiceNo()) + "</p>"
+                + "<p>开票日期：" + order.getBizDate() + "</p>"
+                + "<p>购货方：药衡医药</p>"
+                + "<table><tr><th>品种</th><th>批号</th><th>数量</th><th>单价</th></tr>"
+                + rows + "</table>"
+                + "<p>价税合计：" + order.getTotalAmount() + "</p>";
+        voucherService.replaceGeneratedFile(PharmaNos.BIZ_PURCHASE, order.getId(), "invoice",
+                "供应商发票-" + order.getInvoiceNo() + ".html", invoiceHtml);
+        String packHtml = "<h1>随货同行单（模拟·供方随货）</h1>"
+                + "<p>供货单位：" + com.sunlee.bus.common.SimInvoiceDocs.escape(supplier) + "</p>"
+                + "<p>对应发票：" + com.sunlee.bus.common.SimInvoiceDocs.escape(order.getInvoiceNo()) + "</p>"
+                + "<p>收货仓库：" + com.sunlee.bus.common.SimInvoiceDocs.escape(order.getWarehouseName()) + "</p>"
+                + "<table><tr><th>品种</th><th>批号</th><th>数量</th><th>单价</th></tr>"
+                + rows + "</table>";
+        voucherService.replaceGeneratedFile(PharmaNos.BIZ_PURCHASE, order.getId(), "packing",
+                "随货同行-" + order.getOrderNo() + ".html", packHtml);
+        return getDetail(id);
     }
 
     private void assertDraft(PurchaseOrder order) {
@@ -244,7 +320,7 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
         }
         BigDecimal price = item.getPurchasePrice() == null ? BigDecimal.ZERO : item.getPurchasePrice();
         item.setPurchasePrice(price);
-        item.setAmount(qty.multiply(price));
+        item.setAmount(PharmaAmounts.lineAmount(qty, price));
     }
 
     private BigDecimal firstPositive(BigDecimal... values) {

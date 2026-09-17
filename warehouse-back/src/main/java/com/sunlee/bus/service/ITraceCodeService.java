@@ -13,6 +13,14 @@ public interface ITraceCodeService extends IService<TraceCode> {
 
     int addCodes(String spdid, List<String> codes, String packLevel, String bizType);
 
+    /**
+     * 批量采集追溯码
+     *
+     * @param skipDuplicate true：重复码跳过并继续（扫码场景）；false：遇重复码整批报错
+     * @return 实际新增条数
+     */
+    int addCodes(String spdid, List<String> codes, String packLevel, String bizType, boolean skipDuplicate);
+
     /** 按预置关联展开大/中包装，不落库 */
     List<TraceCode> previewParse(String parentCode);
 

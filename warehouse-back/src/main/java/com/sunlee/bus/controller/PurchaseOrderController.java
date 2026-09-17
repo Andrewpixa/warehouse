@@ -9,6 +9,7 @@ import com.sunlee.sys.common.Constast;
 import com.sunlee.sys.common.DataGridView;
 import com.sunlee.sys.common.ResultObj;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -40,6 +41,36 @@ public class PurchaseOrderController {
             map.put("data", purchaseOrderService.getDetail(id));
         } catch (Exception e) {
             log.error("查询进货单失败: {}", e.getMessage(), e);
+            map.put("code", Constast.ERROR);
+            map.put("msg", e.getMessage());
+        }
+        return map;
+    }
+
+    @RequestMapping("previewSupplierInvoice")
+    public Map<String, Object> previewSupplierInvoice(Long supplierId, String bizDate) {
+        Map<String, Object> map = new HashMap<>();
+        try {
+            java.time.LocalDate d = StringUtils.isBlank(bizDate) ? java.time.LocalDate.now() : java.time.LocalDate.parse(bizDate);
+            map.put("code", Constast.OK);
+            map.put("invoiceNo", purchaseOrderService.previewSupplierInvoiceNo(supplierId, d));
+        } catch (Exception e) {
+            map.put("code", Constast.ERROR);
+            map.put("msg", e.getMessage());
+        }
+        return map;
+    }
+
+    @OperationLog(type = "修改", module = "进货单", description = "'模拟接收供应商发票 ID: ' + #args[0]")
+    @RequestMapping("receiveSupplierInvoice")
+    public Map<String, Object> receiveSupplierInvoice(Long id) {
+        Map<String, Object> map = new HashMap<>();
+        try {
+            map.put("code", Constast.OK);
+            map.put("msg", "已模拟接收供应商发票和随货同行单，草稿仍可改发票号后重新接收");
+            map.put("data", purchaseOrderService.receiveSupplierInvoice(id));
+        } catch (Exception e) {
+            log.error("模拟供应商发票失败: {}", e.getMessage(), e);
             map.put("code", Constast.ERROR);
             map.put("msg", e.getMessage());
         }

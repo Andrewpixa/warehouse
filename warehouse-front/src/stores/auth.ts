@@ -23,7 +23,7 @@ export const useAuthStore = defineStore('auth', {
         const res: any = await currentUserApi()
         if (res && res.code === 200) {
           this.user = res.user || null
-          this.menus = res.menus || []
+          this.menus = stripDeptManagerMenu(res.menus || [])
           this.permissions = res.permissions || []
           this.isLoggedIn = true
         } else {
@@ -56,3 +56,15 @@ export const useAuthStore = defineStore('auth', {
     }
   }
 })
+
+function stripDeptManagerMenu(nodes: TreeNode[]): TreeNode[] {
+  return (nodes || [])
+    .filter((n) => {
+      const href = n.href || ''
+      return n.title !== '部门管理' && href !== '/system/dept' && !href.includes('toDeptManager')
+    })
+    .map((n) => ({
+      ...n,
+      children: n.children ? stripDeptManagerMenu(n.children) : n.children
+    }))
+}

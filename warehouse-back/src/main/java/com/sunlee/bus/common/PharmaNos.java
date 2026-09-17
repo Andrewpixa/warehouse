@@ -33,9 +33,16 @@ public final class PharmaNos {
 
     public static final String DRUG_CATEGORY = "药品";
 
-    /** 发票代码后 4 位开票点 */
-    public static final String INVOICE_SITE = "0001";
+    public static final String BIZ_PURCHASE = "purchase";
+    public static final String BIZ_SALES = "sales";
+
+    /**
+     * 全电发票 20 位，对齐公司票样 26957000000121085238：
+     * 第 1-2 位开票年度，第 3-10 位开票方赋码段，第 11-20 位顺序号。
+     */
+    public static final String EINVOICE_ISSUER = "95700000";
     public static final int INVOICE_LEN = 20;
+    public static final int INVOICE_SEQ_START = 121_085_238;
 
     private static final DateTimeFormatter DAY = DateTimeFormatter.ofPattern("yyyyMMdd");
     private static final DateTimeFormatter TS = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
@@ -53,26 +60,35 @@ public final class PharmaNos {
         return "SPD" + LocalDateTime.now().format(TS) + seq;
     }
 
-    /** 12 位代码位：业务日期 YYYYMMDD + 开票点 0001 */
+    /** 前 10 位：年度 2 位 + 赋码段 8 位 */
     public static String invoiceCode(LocalDate bizDate) {
-        return bizDate.format(DAY) + INVOICE_SITE;
+        return year2(bizDate) + EINVOICE_ISSUER;
     }
 
-    /** 20 位发票号：12 位代码 + 8 位数据流水 */
     public static String invoiceNo(LocalDate bizDate, long seq) {
-        if (seq < 1 || seq > 99_999_999L) {
-            throw new IllegalArgumentException("发票数据位超出 8 位");
+        if (seq < 1 || seq > 9_999_999_999L) {
+            throw new IllegalArgumentException("全电发票顺序号须为 1～10 位数字");
         }
-        return invoiceCode(bizDate) + String.format("%08d", seq);
+        return invoiceCode(bizDate) + String.format("%010d", seq);
     }
 
     public static void assertInvoiceNo(String invoiceNo, LocalDate bizDate) {
         if (invoiceNo == null || !invoiceNo.matches("\\d{20}")) {
-            throw new IllegalArgumentException("发票号必须是 20 位数字：前 12 位代码位，后 8 位数据位");
+            throw new IllegalArgumentException("须为 20 位全电发票号码（年度2位+赋码段8位+顺序号10位）");
         }
-        String day = bizDate.format(DAY);
-        if (!invoiceNo.startsWith(day)) {
-            throw new IllegalArgumentException("发票号代码位开头必须对应业务日期 " + day);
+        if (bizDate != null && !invoiceNo.startsWith(invoiceCode(bizDate))) {
+            throw new IllegalArgumentException("全电号码须为年度 " + year2(bizDate) + " + 赋码段 " + EINVOICE_ISSUER + " + 10 位顺序号");
         }
+    }
+
+    public static long parseSeq(String invoiceNo) {
+        if (invoiceNo != null && invoiceNo.length() == INVOICE_LEN) {
+            return Long.parseLong(invoiceNo.substring(10));
+        }
+        return 0L;
+    }
+
+    private static String year2(LocalDate bizDate) {
+        return String.format("%02d", bizDate.getYear() % 100);
     }
 }

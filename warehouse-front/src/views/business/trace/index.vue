@@ -5,18 +5,28 @@
       <p class="page-header-desc">发票号 → 出库明细 SPDID → 追溯码；仓管可将大包装解析为中包装、最小包装</p>
     </div>
     <el-card>
-      <el-form inline>
+      <el-form inline @submit.prevent="handleSearch">
         <el-form-item label="发票号">
-          <el-input v-model="invoiceNo" placeholder="20位发票号，如 20260907000100000001" clearable style="width: 320px" @keyup.enter="handleSearch" />
+          <el-input v-model="invoiceNo" placeholder="20位全电号码、后10位顺序号或出库单号" clearable style="width: 360px" @keyup.enter="handleSearch" />
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="handleSearch">查询</el-button>
+          <el-button type="primary" native-type="button" :loading="searching" @click="handleSearch">查询</el-button>
         </el-form-item>
       </el-form>
+
+      <div v-if="recent.length && !order" class="recent">
+        <div class="recent-label">最近有发票的出库单，可点选查询：</div>
+        <el-button v-for="row in recent" :key="row.id" size="small" @click="pickRecent(row)">
+          {{ row.invoiceNo }}
+        </el-button>
+      </div>
 
       <el-descriptions v-if="order" :column="3" border class="mb16">
         <el-descriptions-item label="出库单号">{{ order.orderNo }}</el-descriptions-item>
         <el-descriptions-item label="发票号">{{ order.invoiceNo }}</el-descriptions-item>
+        <el-descriptions-item v-if="order.invoiceNo && String(order.invoiceNo).length === 20" label="年度/赋码/顺序号">
+          {{ String(order.invoiceNo).slice(0,2) }} / {{ String(order.invoiceNo).slice(2,10) }} / {{ String(order.invoiceNo).slice(10) }}
+        </el-descriptions-item>
         <el-descriptions-item label="客户">{{ order.customerName }}</el-descriptions-item>
         <el-descriptions-item label="仓库">{{ order.warehouseName }}</el-descriptions-item>
         <el-descriptions-item label="日期">{{ order.bizDate }}</el-descriptions-item>
@@ -61,8 +71,8 @@
       </el-table>
     </el-card>
 
-    <el-dialog v-model="collectVisible" title="采集追溯码" width="520px">
-      <p class="hint">SPDID：{{ currentSpdid }}</p>
+    <el-dialog v-model="collectVisible" title="采集追溯码" width="560px" @opened="focusScanInput">
+      <p class="hint">SPDID：{{ currentSpdid }}。扫码枪扫描后回车自动入列，也可手动输入。</p>
       <el-form label-width="90px">
         <el-form-item label="包装层级">
           <el-select v-model="packLevel" style="width: 100%">
@@ -71,13 +81,33 @@
             <el-option label="大包装" value="大包装" />
           </el-select>
         </el-form-item>
-        <el-form-item label="追溯码">
-          <el-input v-model="codeText" type="textarea" :rows="6" placeholder="每行一条追溯码" />
+        <el-form-item label="扫码录入">
+          <el-input
+            ref="scanInputRef"
+            v-model="scanInput"
+            placeholder="扫描或输入追溯码，回车入列"
+            clearable
+            @keyup.enter="appendScan"
+          />
+        </el-form-item>
+        <el-form-item :label="`已扫 ${scanList.length} 条`">
+          <div class="scan-list">
+            <span v-if="!scanList.length" class="scan-empty">暂无，请扫码</span>
+            <el-tag
+              v-for="(c, i) in scanList"
+              :key="c"
+              closable
+              class="scan-tag"
+              @close="scanList.splice(i, 1)"
+            >
+              {{ c }}
+            </el-tag>
+          </div>
         </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="collectVisible = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="handleCollect">保存</el-button>
+        <el-button type="primary" :loading="saving" :disabled="!scanList.length" @click="handleCollect">保存</el-button>
       </template>
     </el-dialog>
 
@@ -103,10 +133,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { addTraceCodes, loadTraceInvoice, parseTraceCodes, previewParse } from '@/api/trace'
+import { loadAllOutbound } from '@/api/outbound'
 import { usePermission } from '@/composables/usePermission'
 
 interface TraceRow {
@@ -127,13 +158,17 @@ const canCollect = computed(() => hasPermission('trace:collect'))
 const canParse = computed(() => hasPermission('trace:parse'))
 
 const invoiceNo = ref('')
+const searching = ref(false)
 const order = ref<any>(null)
 const traces = ref<TraceRow[]>([])
+const recent = ref<any[]>([])
 const collectVisible = ref(false)
 const parseVisible = ref(false)
 const currentSpdid = ref('')
 const packLevel = ref('最小包装')
-const codeText = ref('')
+const scanInput = ref('')
+const scanList = ref<string[]>([])
+const scanInputRef = ref()
 const parseCode = ref('')
 const previewRows = ref<TraceRow[]>([])
 const saving = ref(false)
@@ -166,14 +201,34 @@ const buildTraceTree = (list: TraceRow[]): TraceRow[] => {
   return prune(roots)
 }
 
-const handleSearch = async () => {
+const handleSearch = async (e?: Event) => {
+  if (e) e.preventDefault()
   if (!invoiceNo.value.trim()) {
-    ElMessage.warning('请输入发票号')
+    ElMessage.warning('请输入发票号、顺序号或出库单号')
     return
   }
-  const res: any = await loadTraceInvoice(invoiceNo.value.trim())
-  order.value = res.data
-  traces.value = res.traces || []
+  searching.value = true
+  try {
+    const res: any = await loadTraceInvoice(invoiceNo.value.trim())
+    order.value = res.data
+    traces.value = res.traces || []
+    if (order.value?.invoiceNo) {
+      invoiceNo.value = order.value.invoiceNo
+    }
+    if (!traces.value.length) {
+      ElMessage.info('已找到出库单，该发票尚未采集追溯码')
+    }
+  } catch {
+    order.value = null
+    traces.value = []
+  } finally {
+    searching.value = false
+  }
+}
+
+const pickRecent = (row: any) => {
+  invoiceNo.value = row.invoiceNo || row.orderNo
+  handleSearch()
 }
 
 const openCollect = (row: any) => {
@@ -183,8 +238,31 @@ const openCollect = (row: any) => {
   }
   currentSpdid.value = row.spdid
   packLevel.value = '最小包装'
-  codeText.value = ''
+  scanInput.value = ''
+  scanList.value = []
   collectVisible.value = true
+}
+
+const focusScanInput = () => {
+  nextTick(() => scanInputRef.value?.focus())
+}
+
+/** 扫码枪 HID 输入：回车入列，本地防重（待提交列表 + 已采集码） */
+const appendScan = () => {
+  const code = scanInput.value.trim()
+  if (!code) return
+  if (scanList.value.includes(code)) {
+    ElMessage.warning('重复扫码，已在列表中')
+    scanInput.value = ''
+    return
+  }
+  if (traces.value.some((t) => t.code === code)) {
+    ElMessage.warning('该码已采集过')
+    scanInput.value = ''
+    return
+  }
+  scanList.value.push(code)
+  scanInput.value = ''
 }
 
 const openParse = (row: any) => {
@@ -199,6 +277,10 @@ const openParse = (row: any) => {
 }
 
 onMounted(async () => {
+  try {
+    const res: any = await loadAllOutbound({ page: 1, limit: 8 })
+    recent.value = (res.data || []).filter((r: any) => r.invoiceNo)
+  } catch {}
   const q = route.query.invoiceNo
   if (typeof q === 'string' && q.trim()) {
     invoiceNo.value = q.trim()
@@ -207,20 +289,20 @@ onMounted(async () => {
 })
 
 const handleCollect = async () => {
-  const codes = codeText.value.split(/\r?\n/).map((s) => s.trim()).filter(Boolean)
-  if (!codes.length) {
-    ElMessage.warning('请录入追溯码')
+  if (!scanList.value.length) {
+    ElMessage.warning('请先扫码录入追溯码')
     return
   }
   saving.value = true
   try {
-    await addTraceCodes({
+    const res: any = await addTraceCodes({
       spdid: currentSpdid.value,
-      codes,
+      codes: scanList.value,
       packLevel: packLevel.value,
-      bizType: '出库'
+      bizType: '出库',
+      skipDuplicate: true
     })
-    ElMessage.success('采集成功')
+    ElMessage.success(res?.msg || '采集成功')
     collectVisible.value = false
     await handleSearch()
   } finally {
@@ -284,4 +366,24 @@ const handleParse = async () => {
   font-size: 13px;
   color: #1d4ed8;
 }
+.scan-list {
+  width: 100%;
+  min-height: 60px;
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px dashed #dcdfe6;
+  border-radius: 6px;
+  padding: 8px;
+}
+.scan-empty {
+  color: #9aa4b2;
+  font-size: 13px;
+}
+.scan-tag {
+  margin: 4px 8px 4px 0;
+  font-family: monospace;
+}
+.recent { margin: 8px 0 16px; }
+.recent-label { font-size: 12px; color: var(--text-secondary); margin-bottom: 8px; }
+.recent :deep(.el-button) { margin: 0 8px 8px 0; font-family: monospace; }
 </style>

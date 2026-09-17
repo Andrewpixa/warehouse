@@ -1,6 +1,7 @@
 package com.sunlee.sys.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
@@ -33,7 +34,20 @@ public class Dept implements Serializable {
 
     private Integer pid;
 
+    /** 部门名称 dept_name */
     private String name;
+
+    private String deptCode;
+
+    /** 公司 / 总经办 / 销售 / 仓储 / 质量 / 采购 / 财务 / 信息 / 其他 */
+    private String deptType;
+
+    private Integer managerUserId;
+
+    private String phone;
+
+    /** 逗号分隔：首营审核,收货验收,... */
+    private String gspRoles;
 
     /**
      * 是否展开，0不展开，1展开
@@ -56,5 +70,12 @@ public class Dept implements Serializable {
 
     private Date createtime;
 
+    @TableField(exist = false)
+    private String parentName;
 
+    @TableField(exist = false)
+    private String managerName;
+
+    @TableField(exist = false)
+    private Integer memberCount;
 }

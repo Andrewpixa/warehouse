@@ -31,6 +31,9 @@ public class PurchaseOrder implements Serializable {
 
     private String orderNo;
 
+    /** 供应商发票号 */
+    private String invoiceNo;
+
     private Long supplierId;
 
     private Long warehouseId;
@@ -70,4 +73,10 @@ public class PurchaseOrder implements Serializable {
 
     @TableField(exist = false)
     private List<PurchaseOrderItem> items = new ArrayList<>();
+
+    @TableField(exist = false)
+    private List<BizAttachment> attachments = new ArrayList<>();
+
+    @TableField(exist = false)
+    private List<BizSignature> signatures = new ArrayList<>();
 }

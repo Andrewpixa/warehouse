@@ -44,7 +44,12 @@ public class BatchStockServiceImpl extends ServiceImpl<BatchStockMapper, BatchSt
         qw.eq(vo.getDrugId() != null, "drug_id", vo.getDrugId());
         qw.eq(vo.getWarehouseId() != null, "warehouse_id", vo.getWarehouseId());
         qw.like(StringUtils.isNotBlank(vo.getBatchNo()), "batch_no", vo.getBatchNo());
-        qw.eq(StringUtils.isNotBlank(vo.getQualityStatus()), "quality_status", vo.getQualityStatus());
+        if ("非合格".equals(vo.getQualityStatus())) {
+            qw.ne("quality_status", "合格");
+            qw.gt("qty", java.math.BigDecimal.ZERO);
+        } else {
+            qw.eq(StringUtils.isNotBlank(vo.getQualityStatus()), "quality_status", vo.getQualityStatus());
+        }
         if ("near".equals(vo.getExpireFilter())) {
             int days = vo.getNearExpireDays() == null ? 90 : vo.getNearExpireDays();
             qw.ge("expire_date", LocalDate.now());
@@ -132,6 +137,39 @@ public class BatchStockServiceImpl extends ServiceImpl<BatchStockMapper, BatchSt
         } finally {
             redisBiz.unlock(lockKey);
         }
+    }
+
+    @Override
+    @Transactional
+    public void changeQualityStatus(Long id, String qualityStatus) {
+        if (id == null) {
+            throw new IllegalArgumentException("批号库存ID必填");
+        }
+        String quality = StringUtils.trimToEmpty(qualityStatus);
+        if (!("合格".equals(quality) || "待验".equals(quality) || "待复检".equals(quality)
+                || "不合格".equals(quality) || "停售".equals(quality))) {
+            throw new IllegalArgumentException("质量状态须为：合格 / 待验 / 待复检 / 不合格 / 停售");
+        }
+        BatchStock stock = this.getById(id);
+        if (stock == null) {
+            throw new IllegalArgumentException("批号库存不存在");
+        }
+        if (quality.equals(stock.getQualityStatus())) {
+            return;
+        }
+        BatchStock existed = findOne(stock.getDrugId(), stock.getWarehouseId(), stock.getBatchNo(), quality);
+        Date now = new Date();
+        if (existed != null && !existed.getId().equals(stock.getId())) {
+            BigDecimal add = stock.getQty() == null ? BigDecimal.ZERO : stock.getQty();
+            existed.setQty((existed.getQty() == null ? BigDecimal.ZERO : existed.getQty()).add(add));
+            existed.setLastMoveAt(now);
+            this.updateById(existed);
+            this.removeById(stock.getId());
+            return;
+        }
+        stock.setQualityStatus(quality);
+        stock.setLastMoveAt(now);
+        this.updateById(stock);
     }
 
     private BatchStock findOne(Long drugId, Long warehouseId, String batchNo, String qualityStatus) {

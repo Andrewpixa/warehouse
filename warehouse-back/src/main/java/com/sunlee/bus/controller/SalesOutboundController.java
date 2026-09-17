@@ -6,6 +6,7 @@ import com.sunlee.bus.service.ISalesOrderService;
 import com.sunlee.bus.service.ITraceCodeService;
 import com.sunlee.bus.vo.SalesOrderVo;
 import com.sunlee.sys.annotation.OperationLog;
+import com.sunlee.sys.common.AppFileUtils;
 import com.sunlee.sys.common.Constast;
 import com.sunlee.sys.common.DataGridView;
 import com.sunlee.sys.common.ResultObj;
@@ -107,6 +108,64 @@ public class SalesOutboundController {
             log.error("确认出库单失败: {}", e.getMessage(), e);
             return ResultObj.error(e.getMessage());
         }
+    }
+
+    @OperationLog(type = "添加", module = "出库单", description = "'模拟开具电子发票 ID: ' + #args[0]")
+    @RequestMapping("simulateEinvoice")
+    public Map<String, Object> simulateEinvoice(Long id) {
+        Map<String, Object> map = new java.util.HashMap<>();
+        try {
+            map.put("code", Constast.OK);
+            map.put("msg", "已模拟开具电子发票，草稿可改后重新开具");
+            map.put("data", salesOrderService.simulateEinvoice(id));
+        } catch (Exception e) {
+            log.error("模拟开票失败: {}", e.getMessage(), e);
+            map.put("code", Constast.ERROR);
+            map.put("msg", e.getMessage());
+        }
+        return map;
+    }
+
+    @OperationLog(type = "修改", module = "出库单", description = "'订单预处理 ID: ' + #args[0]")
+    @RequestMapping("preprocessOrder")
+    public Map<String, Object> preprocessOrder(Long id) {
+        Map<String, Object> map = new HashMap<>();
+        try {
+            map.put("code", Constast.OK);
+            map.put("msg", "预处理已执行");
+            map.put("data", salesOrderService.preprocess(id));
+        } catch (Exception e) {
+            log.error("预处理失败: {}", e.getMessage(), e);
+            map.put("code", Constast.ERROR);
+            map.put("msg", e.getMessage());
+        }
+        return map;
+    }
+
+    @OperationLog(type = "添加", module = "出库单", description = "'模拟接入全药网/药交网单'")
+    @RequestMapping("importPlatformOrder")
+    public Map<String, Object> importPlatformOrder() {
+        Map<String, Object> map = new HashMap<>();
+        try {
+            map.put("code", Constast.OK);
+            map.put("msg", "网单已进入系统，仍须预处理后才能开票");
+            map.put("data", salesOrderService.importPlatformOrder());
+        } catch (Exception e) {
+            log.error("接入网单失败: {}", e.getMessage(), e);
+            map.put("code", Constast.ERROR);
+            map.put("msg", e.getMessage());
+        }
+        return map;
+    }
+
+    @RequestMapping("downloadEinvoice")
+    public org.springframework.http.ResponseEntity<Object> downloadEinvoice(Long id) {
+        SalesOrder order = salesOrderService.getById(id);
+        if (order == null || org.apache.commons.lang3.StringUtils.isBlank(order.getEinvoicePath())) {
+            return org.springframework.http.ResponseEntity.notFound().build();
+        }
+        String name = "电子发票-" + (order.getEinvoiceNo() != null ? order.getEinvoiceNo() : order.getOrderNo()) + ".html";
+        return AppFileUtils.createDownloadEntity(order.getEinvoicePath(), name);
     }
 
     @RequestMapping("loadPendingReceipt")

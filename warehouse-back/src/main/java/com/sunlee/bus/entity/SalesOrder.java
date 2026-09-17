@@ -93,6 +93,24 @@ public class SalesOrder implements Serializable {
 
     private Date updatedAt;
 
+    /** PLATFORM 网单 / OFFLINE 开票员录入 BMS */
+    private String orderChannel;
+
+    private String platformNo;
+
+    /** 待预处理 / 已通过 / 未通过 */
+    private String preprocessStatus;
+
+    private Integer creditOk;
+
+    private Integer licenseOk;
+
+    private Integer allocateOk;
+
+    private Integer priceLocked;
+
+    private String preprocessRemark;
+
     @TableField(exist = false)
     private String customerName;
 
@@ -101,4 +119,10 @@ public class SalesOrder implements Serializable {
 
     @TableField(exist = false)
     private List<SalesOrderItem> items = new ArrayList<>();
+
+    @TableField(exist = false)
+    private List<BizAttachment> attachments = new ArrayList<>();
+
+    @TableField(exist = false)
+    private List<BizSignature> signatures = new ArrayList<>();
 }

@@ -3,7 +3,6 @@
   <scroll-view style="flex:1">
   <!-- #endif -->
   <view class="container">
-    <!-- 用户卡片 -->
     <view class="user-card">
       <view class="avatar">
         <text class="avatar-text">{{ avatarChar }}</text>
@@ -11,34 +10,49 @@
       <view class="user-info">
         <text class="user-name">{{ userName }}</text>
         <text class="user-detail">{{ userRoleDept }}</text>
+        <text class="user-tag">业务员现场端</text>
       </view>
     </view>
 
-    <!-- 菜单列表 -->
     <view class="menu-card">
       <view class="menu-item" @click="navigateTo('/pages/profile/profile-edit')">
-        <text class="menu-icon">👤</text>
         <text class="menu-label">个人信息</text>
         <text class="menu-arrow">></text>
       </view>
       <view class="menu-item" @click="navigateTo('/pages/profile/change-password')">
-        <text class="menu-icon">🔒</text>
         <text class="menu-label">修改密码</text>
         <text class="menu-arrow">></text>
       </view>
       <view class="menu-item" @click="navigateTo('/pages/profile/operation-log')">
-        <text class="menu-icon">📋</text>
         <text class="menu-label">操作日志</text>
         <text class="menu-arrow">></text>
       </view>
-      <view class="menu-item" @click="showAbout">
-        <text class="menu-icon">ℹ️</text>
-        <text class="menu-label">关于</text>
+      <view class="menu-item last" @click="goIntro">
+        <text class="menu-label">产品介绍</text>
         <text class="menu-arrow">></text>
       </view>
     </view>
 
-    <!-- 退出登录按钮 -->
+    <view v-if="showAdmin" class="menu-card">
+      <text class="group-title">系统管理（非现场作业）</text>
+      <view class="menu-item" @click="navigateTo('/pages/system/user')">
+        <text class="menu-label">用户管理</text>
+        <text class="menu-arrow">></text>
+      </view>
+      <view class="menu-item" @click="navigateTo('/pages/system/role')">
+        <text class="menu-label">角色管理</text>
+        <text class="menu-arrow">></text>
+      </view>
+      <view class="menu-item" @click="navigateTo('/pages/system/notice-manage')">
+        <text class="menu-label">公告管理</text>
+        <text class="menu-arrow">></text>
+      </view>
+      <view class="menu-item last" @click="navigateTo('/pages/system/loginfo')">
+        <text class="menu-label">登录日志</text>
+        <text class="menu-arrow">></text>
+      </view>
+    </view>
+
     <view class="btn-wrap">
       <button class="logout-btn" @click="handleLogout">退出登录</button>
     </view>
@@ -49,28 +63,24 @@
 </template>
 
 <script setup lang="uts">
-import { getUser, logout } from '../../stores/auth'
+import { getUser, logout, isSuperAdmin } from '../../stores/auth'
 
-// 用户头像首字
 const avatarChar = computed((): string => {
   const user = getUser()
   if (user != null && user.name.length > 0) {
     return user.name.substring(0, 1)
   }
-  return '用'
+  return '业'
 })
 
-// 用户名
 const userName = computed((): string => {
   const user = getUser()
   return user != null ? user.name : '未登录'
 })
 
-// 角色 + 部门信息
 const userRoleDept = computed((): string => {
   const user = getUser()
   if (user == null) return ''
-  // 从 userInfo 中获取角色和部门（如无则显示登录名）
   let parts : string[] = []
   if (user.departmentName != null && user.departmentName!.length > 0) {
     parts.push(user.departmentName!)
@@ -81,22 +91,18 @@ const userRoleDept = computed((): string => {
   return parts.join(' · ')
 })
 
-// 页面导航
+const showAdmin = computed((): boolean => {
+  return isSuperAdmin()
+})
+
 function navigateTo(url : string) : void {
   uni.navigateTo({ url: url })
 }
 
-// 显示关于弹窗
-function showAbout() : void {
-  uni.showModal({
-    title: '关于',
-    content: '仓图 v1.0.0\n仓库管理系统',
-    showCancel: false,
-    confirmText: '知道了'
-  })
+function goIntro() : void {
+  uni.switchTab({ url: '/pages/intro/index' })
 }
 
-// 退出登录
 function handleLogout() : void {
   uni.showModal({
     title: '提示',
@@ -107,7 +113,7 @@ function handleLogout() : void {
       if (res.confirm) {
         logout().then(() => {
           uni.reLaunch({
-            url: '/pages/login/login'
+            url: '/pages/intro/index'
           })
         })
       }
@@ -119,59 +125,69 @@ function handleLogout() : void {
 <style>
 .container {
   flex: 1;
-  background-color: #F5F7FA;
+  background-color: #F3F6F8;
   padding: 24rpx;
-  gap: 24rpx;
 }
 
-/* 用户卡片 */
 .user-card {
   flex-direction: row;
   align-items: center;
-  background-color: #FFFFFF;
-  border-radius: 16rpx;
+  background-color: #0F766E;
+  border-radius: 20rpx;
   padding: 40rpx 32rpx;
-  gap: 28rpx;
 }
 
 .avatar {
-  width: 112rpx;
-  height: 112rpx;
-  border-radius: 56rpx;
-  background-color: #409EFF;
+  width: 104rpx;
+  height: 104rpx;
+  border-radius: 52rpx;
+  background-color: rgba(255,255,255,0.18);
   align-items: center;
   justify-content: center;
+  margin-right: 24rpx;
 }
 
 .avatar-text {
-  font-size: 48rpx;
+  font-size: 40rpx;
   color: #FFFFFF;
-  font-weight: bold;
+  font-weight: 700;
 }
 
 .user-info {
   flex: 1;
   flex-direction: column;
-  gap: 10rpx;
 }
 
 .user-name {
   font-size: 36rpx;
-  font-weight: bold;
-  color: #333333;
+  font-weight: 700;
+  color: #FFFFFF;
 }
 
 .user-detail {
-  font-size: 26rpx;
-  color: #909399;
+  font-size: 24rpx;
+  color: rgba(255,255,255,0.78);
+  margin-top: 8rpx;
 }
 
-/* 菜单卡片 */
+.user-tag {
+  font-size: 22rpx;
+  color: #D1FAE5;
+  margin-top: 10rpx;
+}
+
 .menu-card {
   flex-direction: column;
   background-color: #FFFFFF;
-  border-radius: 16rpx;
+  border-radius: 18rpx;
+  margin-top: 24rpx;
   overflow: hidden;
+}
+
+.group-title {
+  font-size: 22rpx;
+  color: #94A3B8;
+  padding: 24rpx 32rpx 0;
 }
 
 .menu-item {
@@ -179,42 +195,35 @@ function handleLogout() : void {
   align-items: center;
   padding: 32rpx;
   border-bottom-width: 1rpx;
-  border-bottom-color: #F0F0F0;
+  border-bottom-color: #F1F5F9;
   border-bottom-style: solid;
 }
 
-.menu-icon {
-  font-size: 36rpx;
-  margin-right: 20rpx;
+.menu-item.last {
+  border-bottom-width: 0;
 }
 
 .menu-label {
   flex: 1;
   font-size: 30rpx;
-  color: #333333;
+  color: #1E293B;
 }
 
 .menu-arrow {
   font-size: 28rpx;
-  color: #C0C4CC;
+  color: #CBD5E1;
 }
 
-/* 退出按钮 */
 .btn-wrap {
-  margin-top: 16rpx;
+  margin-top: 32rpx;
 }
 
 .logout-btn {
   width: 100%;
   height: 88rpx;
   background-color: #FFFFFF;
-  color: #F56C6C;
-  font-size: 32rpx;
+  color: #DC2626;
+  font-size: 30rpx;
   border-radius: 16rpx;
-  justify-content: center;
-  align-items: center;
-  border-width: 1rpx;
-  border-color: #F56C6C;
-  border-style: solid;
 }
 </style>

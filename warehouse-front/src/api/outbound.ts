@@ -51,6 +51,18 @@ export function markPaid(data: { id: number; paidStatus: string; paidAmount?: nu
   return request.post('/outbound/markPaid', data)
 }
 
+export function simulateEinvoice(id: number) {
+  return request.post('/outbound/simulateEinvoice', null, { params: { id } })
+}
+
+export function preprocessOrder(id: number) {
+  return request.post('/outbound/preprocessOrder', null, { params: { id } })
+}
+
+export function importPlatformOrder() {
+  return request.post('/outbound/importPlatformOrder')
+}
+
 export function saveReversal(data: any) {
   return request.post('/outbound/saveReversal', data, { headers: jsonHeaders })
 }

@@ -54,12 +54,6 @@ const router = createRouter({
           meta: { title: '角色管理' }
         },
         {
-          path: 'system/dept',
-          name: 'DeptManager',
-          component: () => import('@/views/system/dept/index.vue'),
-          meta: { title: '部门管理' }
-        },
-        {
           path: 'system/menu',
           name: 'MenuManager',
           component: () => import('@/views/system/menu/index.vue'),
@@ -191,6 +185,18 @@ const router = createRouter({
           component: () => import('@/views/business/trace/index.vue'),
           meta: { title: '追溯码查询' }
         },
+        { path: 'business/stockout', name: 'Stockout', component: () => import('@/views/business/ops/index.vue'), meta: { title: '缺货补货', docType: 'STOCKOUT' } },
+        { path: 'business/inbound-ex', name: 'InboundEx', component: () => import('@/views/business/ops/index.vue'), meta: { title: '到货异常', docType: 'INBOUND_EX' } },
+        { path: 'business/return-notice', name: 'ReturnNotice', component: () => import('@/views/business/ops/index.vue'), meta: { title: '销退通知', docType: 'RETURN_NOTICE' } },
+        { path: 'business/offset', name: 'Offset', component: () => import('@/views/business/ops/index.vue'), meta: { title: '收款冲账', docType: 'OFFSET' } },
+        { path: 'business/allocate', name: 'Allocate', component: () => import('@/views/business/ops/index.vue'), meta: { title: '分货', docType: 'ALLOCATE' } },
+        { path: 'business/invoice', name: 'SimInvoice', component: () => import('@/views/business/invoice/index.vue'), meta: { title: '模拟开票' } },
+        { path: 'business/logistics', name: 'Logistics', component: () => import('@/views/business/ops/index.vue'), meta: { title: '物流联系单', docType: 'LOGISTICS' } },
+        { path: 'business/credit', name: 'Credit', component: () => import('@/views/business/ops/index.vue'), meta: { title: '信誉额', docType: 'CREDIT' } },
+        { path: 'business/quota', name: 'Quota', component: () => import('@/views/business/ops/index.vue'), meta: { title: '统筹值', docType: 'QUOTA' } },
+        { path: 'business/print-pack', name: 'PrintPack', component: () => import('@/views/business/print-pack/index.vue'), meta: { title: '出库打印包' } },
+        { path: 'business/maker-flow', name: 'MakerFlow', component: () => import('@/views/business/maker-flow/index.vue'), meta: { title: '厂家流向' } },
+        { path: 'business/dept-desk', name: 'DeptDesk', component: () => import('@/views/business/dept-desk/index.vue'), meta: { title: '部门作业台' } },
         {
           path: 'business/inport-pos',
           name: 'InportPOS',

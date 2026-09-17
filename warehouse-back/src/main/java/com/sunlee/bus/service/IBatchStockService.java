@@ -16,4 +16,6 @@ public interface IBatchStockService extends IService<BatchStock> {
                   BigDecimal qty, LocalDate productionDate, LocalDate expireDate);
 
     void decrease(Long drugId, Long warehouseId, String batchNo, String qualityStatus, BigDecimal qty);
+
+    void changeQualityStatus(Long id, String qualityStatus);
 }

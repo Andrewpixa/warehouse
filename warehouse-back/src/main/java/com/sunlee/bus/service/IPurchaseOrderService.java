@@ -16,4 +16,8 @@ public interface IPurchaseOrderService extends IService<PurchaseOrder> {
     void confirm(Long id);
 
     void deleteDraft(Long id);
+
+    String previewSupplierInvoiceNo(Long supplierId, java.time.LocalDate bizDate);
+
+    PurchaseOrder receiveSupplierInvoice(Long id);
 }

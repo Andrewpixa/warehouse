@@ -46,13 +46,19 @@ public class DeptController {
         //查询出所有的部门，存放进list中
 //        QueryWrapper<Dept> queryWrapper = new QueryWrapper<>();
 //        queryWrapper.eq('1');
-        List<Dept> list = deptService.list();
+        QueryWrapper<Dept> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("available", 1);
+        queryWrapper.orderByAsc("ordernum");
+        List<Dept> list = deptService.list(queryWrapper);
 
         List<TreeNode> treeNodes = new ArrayList<>();
         //将部门放入treeNodes中，组装成json
         for (Dept dept : list) {
-            Boolean open = dept.getOpen()==1?true:false;
-            treeNodes.add(new TreeNode(dept.getId(),dept.getPid(),dept.getName(),open));
+            boolean open = dept.getOpen() != null && dept.getOpen() == 1;
+            String title = StringUtils.isNotBlank(dept.getDeptCode())
+                    ? dept.getDeptCode() + " " + dept.getName()
+                    : dept.getName();
+            treeNodes.add(new TreeNode(dept.getId(), dept.getPid(), title, open));
         }
         //构造层级关系
         List<TreeNode> tree = TreeNodeBuilder.build(treeNodes, 0);
@@ -67,17 +73,27 @@ public class DeptController {
     @RequestMapping("loadAllDept")
     public DataGridView loadAllDept(DeptVo deptVo){
         IPage<Dept> page = new Page<>(deptVo.getPage(),deptVo.getLimit());
-        //进行模糊查询
         QueryWrapper<Dept> queryWrapper = new QueryWrapper<>();
+        queryWrapper.like(StringUtils.isNotBlank(deptVo.getDeptCode()), "dept_code", deptVo.getDeptCode());
         queryWrapper.like(StringUtils.isNotBlank(deptVo.getName()),"name",deptVo.getName());
-        queryWrapper.like(StringUtils.isNotBlank(deptVo.getRemark()),"remark",deptVo.getRemark());
-        queryWrapper.like(StringUtils.isNotBlank(deptVo.getAddress()),"address",deptVo.getAddress());
-        queryWrapper.eq(deptVo.getId()!=null,"id",deptVo.getId()).or().eq(deptVo.getId()!=null,"pid",deptVo.getId());
+        queryWrapper.eq(deptVo.getAvailable()!=null,"available",deptVo.getAvailable());
+        if (deptVo.getId() != null) {
+            queryWrapper.eq("pid", deptVo.getId());
+        }
         queryWrapper.orderByAsc("ordernum");
-        //进行查询
         deptService.page(page,queryWrapper);
-        //返回DataGridView
+        page.getRecords().forEach(deptService::fill);
         return new DataGridView(page.getTotal(),page.getRecords());
+    }
+
+    @RequestMapping("loadDeptDetail")
+    public DataGridView loadDeptDetail(Integer id) {
+        return new DataGridView(deptService.getDetail(id));
+    }
+
+    @RequestMapping("loadGspUsers")
+    public DataGridView loadGspUsers(String gspRole) {
+        return new DataGridView(deptService.listByGspRole(gspRole));
     }
 
     /**
@@ -88,12 +104,11 @@ public class DeptController {
     @RequestMapping("addDept")
     public ResultObj addDept(DeptVo deptVo){
         try {
-            deptVo.setCreatetime(new Date());
-            deptService.save(deptVo);
+            deptService.saveDept(deptVo);
             return ResultObj.ADD_SUCCESS;
         } catch (Exception e) {
             log.error("操作失败: {}", e.getMessage(), e);
-            return ResultObj.error("添加失败: " + e.getMessage());
+            return ResultObj.error(e.getMessage());
         }
     }
 
@@ -124,11 +139,11 @@ public class DeptController {
     @RequestMapping("updateDept")
     public ResultObj updateDept(DeptVo deptVo){
         try {
-            deptService.updateById(deptVo);
+            deptService.saveDept(deptVo);
             return ResultObj.UPDATE_SUCCESS;
         } catch (Exception e) {
             log.error("操作失败: {}", e.getMessage(), e);
-            return ResultObj.error("修改失败: " + e.getMessage());
+            return ResultObj.error(e.getMessage());
         }
     }
 
@@ -159,11 +174,11 @@ public class DeptController {
     @RequestMapping("deleteDept")
     public ResultObj deleteDept(DeptVo deptVo){
         try {
-            deptService.removeById(deptVo.getId());
-            return ResultObj.DELETE_SUCCESS;
+            deptService.disableDept(deptVo.getId());
+            return ResultObj.ok("已停用");
         } catch (Exception e) {
             log.error("操作失败: {}", e.getMessage(), e);
-            return ResultObj.error("删除失败: " + e.getMessage());
+            return ResultObj.error(e.getMessage());
         }
     }
 

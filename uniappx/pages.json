@@ -1,6 +1,14 @@
 {
 	"pages": [
 		{
+			"path": "pages/intro/index",
+			"style": {
+				"navigationBarTitleText": "业务员工作台",
+				"navigationBarBackgroundColor": "#0F766E",
+				"navigationBarTextStyle": "white"
+			}
+		},
+		{
 			"path": "pages/login/login",
 			"style": {
 				"navigationBarTitleText": "登录",
@@ -10,7 +18,9 @@
 		{
 			"path": "pages/workbench/index",
 			"style": {
-				"navigationBarTitleText": "工作台"
+				"navigationBarTitleText": "工作台",
+				"navigationBarBackgroundColor": "#0F766E",
+				"navigationBarTextStyle": "white"
 			}
 		},
 		{
@@ -26,27 +36,39 @@
 			}
 		},
 		{
-			"path": "pages/business/goods",
+			"path": "pages/business/drug",
 			"style": {
-				"navigationBarTitleText": "商品管理"
+				"navigationBarTitleText": "药品档案"
 			}
 		},
 		{
-			"path": "pages/business/goods-detail",
+			"path": "pages/business/batch-stock",
 			"style": {
-				"navigationBarTitleText": "商品详情"
+				"navigationBarTitleText": "批号库存"
+			}
+		},
+		{
+			"path": "pages/query/trace",
+			"style": {
+				"navigationBarTitleText": "药品追溯查询"
 			}
 		},
 		{
 			"path": "pages/business/inport",
 			"style": {
-				"navigationBarTitleText": "进货入库"
+				"navigationBarTitleText": "采购入库"
 			}
 		},
 		{
 			"path": "pages/business/sales",
 			"style": {
-				"navigationBarTitleText": "销售开单"
+				"navigationBarTitleText": "销售出库"
+			}
+		},
+		{
+			"path": "pages/business/trace-collect",
+			"style": {
+				"navigationBarTitleText": "扫码采码"
 			}
 		},
 		{
@@ -97,27 +119,12 @@
 				"navigationBarTitleText": "操作日志"
 			}
 		},
-		{ "path": "pages/business/inport-pos", "style": { "navigationBarTitleText": "进货开单" } },
-		{ "path": "pages/business/inport-order", "style": { "navigationBarTitleText": "进货订单" } },
-		{ "path": "pages/business/inport-record", "style": { "navigationBarTitleText": "进货记录" } },
-		{ "path": "pages/business/sales-pos", "style": { "navigationBarTitleText": "销售POS" } },
-		{ "path": "pages/business/sales-order", "style": { "navigationBarTitleText": "销售订单" } },
-		{ "path": "pages/business/sales-record", "style": { "navigationBarTitleText": "销售记录" } },
-		{ "path": "pages/business/retail", "style": { "navigationBarTitleText": "零售开单" } },
-		{ "path": "pages/business/retail-order", "style": { "navigationBarTitleText": "零售订单" } },
-		{ "path": "pages/business/retail-record", "style": { "navigationBarTitleText": "零售记录" } },
 		{ "path": "pages/business/customer-manage", "style": { "navigationBarTitleText": "客户管理" } },
+		{ "path": "pages/business/ops", "style": { "navigationBarTitleText": "公司运作" } },
+		{ "path": "pages/query/maker-flow", "style": { "navigationBarTitleText": "厂家流向" } },
 		{ "path": "pages/business/provider-manage", "style": { "navigationBarTitleText": "供应商管理" } },
-		{ "path": "pages/business/category", "style": { "navigationBarTitleText": "分类管理" } },
-		{ "path": "pages/business/member", "style": { "navigationBarTitleText": "会员管理" } },
-		{ "path": "pages/business/member-level", "style": { "navigationBarTitleText": "会员等级" } },
-		{ "path": "pages/business/report", "style": { "navigationBarTitleText": "报表分析" } },
-		{ "path": "pages/business/performance", "style": { "navigationBarTitleText": "业绩排名" } },
-		{ "path": "pages/business/commission", "style": { "navigationBarTitleText": "提成管理" } },
-		{ "path": "pages/business/my-commission", "style": { "navigationBarTitleText": "我的提成" } },
 		{ "path": "pages/system/user", "style": { "navigationBarTitleText": "用户管理" } },
 		{ "path": "pages/system/role", "style": { "navigationBarTitleText": "角色管理" } },
-		{ "path": "pages/system/dept", "style": { "navigationBarTitleText": "部门管理" } },
 		{ "path": "pages/system/menu", "style": { "navigationBarTitleText": "菜单管理" } },
 		{ "path": "pages/system/permission", "style": { "navigationBarTitleText": "权限管理" } },
 		{ "path": "pages/system/notice-manage", "style": { "navigationBarTitleText": "公告管理" } },
@@ -126,21 +133,27 @@
 	],
 	"globalStyle": {
 		"navigationBarTextStyle": "black",
-		"navigationBarTitleText": "仓图",
+		"navigationBarTitleText": "业务员工作台",
 		"navigationBarBackgroundColor": "#FFFFFF",
-		"backgroundColor": "#FFFFFF"
+		"backgroundColor": "#F3F6F8"
 	},
 	"tabBar": {
-		"color": "#999999",
-		"selectedColor": "#409EFF",
+		"color": "#94A3B8",
+		"selectedColor": "#0F766E",
 		"backgroundColor": "#FFFFFF",
-		"borderStyle": "black",
+		"borderStyle": "white",
 		"list": [
 			{
 				"pagePath": "pages/workbench/index",
 				"text": "工作台",
 				"iconPath": "static/tab-home.png",
 				"selectedIconPath": "static/tab-home-active.png"
+			},
+			{
+				"pagePath": "pages/intro/index",
+				"text": "介绍",
+				"iconPath": "static/tab-query.png",
+				"selectedIconPath": "static/tab-query-active.png"
 			},
 			{
 				"pagePath": "pages/profile/index",

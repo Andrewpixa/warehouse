@@ -3,6 +3,8 @@
 {
     "targets": [
         "APP-ANDROID",
-        "H5"
+        "APP-IOS",
+        "H5",
+        "MP-WEIXIN"
     ]
 }

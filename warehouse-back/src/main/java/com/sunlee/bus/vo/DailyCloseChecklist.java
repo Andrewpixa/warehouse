@@ -28,6 +28,9 @@ public class DailyCloseChecklist {
         private List<OrderRow> cashUnpaid = new ArrayList<>();
     private List<OrderRow> monthlyUnpaid = new ArrayList<>();
     private List<OrderRow> pendingReceipts = new ArrayList<>();
+    private List<VoucherIssue> missingTickets = new ArrayList<>();
+    private List<VoucherIssue> missingSigns = new ArrayList<>();
+    private List<VoucherIssue> amountMismatches = new ArrayList<>();
 
     @Data
     public static class Summary {
@@ -42,6 +45,9 @@ public class DailyCloseChecklist {
         private long cashUnpaidCount;
         private long monthlyUnpaidCount;
         private long pendingReceiptCount;
+        private long missingTicketCount;
+        private long missingSignCount;
+        private long amountMismatchCount;
     }
 
     @Data

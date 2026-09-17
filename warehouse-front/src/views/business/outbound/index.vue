@@ -2,7 +2,7 @@
   <div class="page-container">
     <div class="page-header animate-fade-in-up">
       <h1 class="page-header-title">销售出库单</h1>
-      <p class="page-header-desc">填写数量、金额、批号、发货时间、电子发票后确认发货；扣库存并推给下游医院签收</p>
+      <p class="page-header-desc">确认发货须挂发票影像、随货同行单并完成送货签字；数量、批号、金额与批号库存勾稽后才能过账。</p>
     </div>
     <el-card>
       <SearchForm v-model="searchParams" @search="handleSearch" @reset="handleReset">
@@ -43,7 +43,14 @@
 
       <CrudTable ref="tableRef" :load-api="loadAllOutbound" :search-params="searchParams">
         <el-table-column prop="orderNo" label="出库单号" min-width="140" />
-        <el-table-column prop="invoiceNo" label="发票号" min-width="200" />
+        <el-table-column label="全电发票" min-width="220">
+          <template #default="{ row }">
+            <div>{{ row.invoiceNo }}</div>
+            <div v-if="row.invoiceNo && String(row.invoiceNo).length === 20" class="inv-sub">
+              年度 {{ String(row.invoiceNo).slice(0,2) }} · 赋码 {{ String(row.invoiceNo).slice(2,10) }} · 顺序号 {{ String(row.invoiceNo).slice(10) }}
+            </div>
+          </template>
+        </el-table-column>
         <el-table-column label="类型" width="90">
           <template #default="{ row }">
             <el-tag :type="row.orderType === '红冲' ? 'danger' : 'primary'" size="small">{{ row.orderType || '正常' }}</el-tag>
@@ -113,7 +120,7 @@
           </el-col>
           <el-col :span="8">
             <el-form-item label="发票号">
-              <el-input v-model="form.invoiceNo" maxlength="20" placeholder="留空自动生成（20位：日期+0001+流水）" :disabled="readonly" />
+              <el-input v-model="form.invoiceNo" maxlength="20" placeholder="留空按全电规则生成：年度+95700000+10位顺序号" :disabled="readonly" />
             </el-form-item>
           </el-col>
           <el-col :span="8">
@@ -122,6 +129,19 @@
                 <el-option label="月结" value="月结" />
                 <el-option label="现结" value="现结" />
               </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
+            <el-form-item label="进单入口">
+              <el-select v-model="form.orderChannel" style="width: 100%" :disabled="readonly">
+                <el-option label="线下 BMS（开票员录入）" value="OFFLINE" />
+                <el-option label="全药网/药交网单" value="PLATFORM" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col v-if="form.orderChannel === 'PLATFORM'" :span="8">
+            <el-form-item label="平台单号">
+              <el-input v-model="form.platformNo" :disabled="readonly" />
             </el-form-item>
           </el-col>
           <el-col v-if="form.orderType === '红冲'" :span="8">
@@ -291,7 +311,8 @@
                 accept=".pdf,image/*"
               >
                 <el-button type="primary" plain>上传 PDF / 图片</el-button>
-                <span v-if="shipForm.einvoicePath" class="upload-ok">已上传</span>
+                <el-button type="success" plain style="margin-left: 8px" :loading="simulating" @click.stop.prevent="handleSimulateEinvoice">模拟开具电子发票</el-button>
+                <a v-if="shipForm.einvoicePath" class="upload-ok" :href="einvoiceHref" target="_blank" rel="noopener">查看模拟发票</a>
               </el-upload>
             </el-form-item>
           </el-col>
@@ -316,15 +337,16 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import SearchForm from '@/components/SearchForm.vue'
 import CrudTable from '@/components/CrudTable.vue'
-import { loadAllOutbound, loadOutboundDetail, saveOutbound, confirmOutbound, deleteOutbound, markPaid, saveReversal } from '@/api/outbound'
+import { loadAllOutbound, loadOutboundDetail, saveOutbound, confirmOutbound, deleteOutbound, markPaid, saveReversal, simulateEinvoice } from '@/api/outbound'
 import { loadAllCustomerForSelect } from '@/api/customer'
 import { loadAllWarehouseForSelect } from '@/api/warehouse'
 import { loadAllDrugForSelect } from '@/api/drug'
 import { BASE_URL } from '@/utils/request'
+import { getImageUrl } from '@/api/file'
 
 const tableRef = ref()
 const customers = ref<any[]>([])
@@ -353,7 +375,9 @@ const revForm = reactive({
 })
 const shipVisible = ref(false)
 const shipSaving = ref(false)
+const simulating = ref(false)
 const uploadUrl = BASE_URL + '/file/uploadFile'
+const einvoiceHref = computed(() => shipForm.einvoicePath ? getImageUrl(shipForm.einvoicePath) : '')
 const shipForm = reactive({
   id: 0,
   orderType: '正常',
@@ -382,6 +406,8 @@ const emptyForm = () => ({
   orderType: '正常',
   originalInvoiceNo: '',
   payType: '月结',
+  orderChannel: 'OFFLINE',
+  platformNo: '',
   bizDate: '',
   shipTime: '',
   einvoiceNo: '',
@@ -440,6 +466,8 @@ const fillForm = (data: any) => {
     orderType: data.orderType || '正常',
     originalInvoiceNo: data.originalInvoiceNo || '',
     payType: data.payType || '月结',
+    orderChannel: data.orderChannel || 'OFFLINE',
+    platformNo: data.platformNo || '',
     bizDate: data.bizDate,
     shipTime: data.shipTime || '',
     einvoiceNo: data.einvoiceNo || '',
@@ -551,6 +579,23 @@ const handleInvoiceSuccess = (res: any) => {
     ElMessage.success('电子发票已上传')
   } else {
     ElMessage.error(res?.msg || '上传失败')
+  }
+}
+
+const handleSimulateEinvoice = async () => {
+  if (!shipForm.id) return
+  simulating.value = true
+  try {
+    const res: any = await simulateEinvoice(shipForm.id)
+    if (res.code === 200 && res.data) {
+      shipForm.einvoiceNo = res.data.einvoiceNo
+      shipForm.einvoicePath = res.data.einvoicePath
+      ElMessage.success(res.msg || '已模拟开票')
+    } else {
+      ElMessage.error(res.msg || '模拟开票失败')
+    }
+  } finally {
+    simulating.value = false
   }
 }
 
@@ -682,5 +727,10 @@ onMounted(async () => {
   margin-left: 8px;
   color: #67c23a;
   font-size: 13px;
+}
+.inv-sub {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 2px;
 }
 </style>

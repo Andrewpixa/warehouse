@@ -19,6 +19,7 @@
 
       <CrudTable ref="tableRef" :load-api="loadAllPurchase" :search-params="searchParams">
         <el-table-column prop="orderNo" label="采购单号" min-width="150" />
+        <el-table-column prop="invoiceNo" label="供应商发票" min-width="150" />
         <el-table-column prop="supplierName" label="供应商" min-width="140" />
         <el-table-column prop="warehouseName" label="仓库" min-width="130" />
         <el-table-column prop="bizDate" label="入库日期" width="120" />
@@ -45,7 +46,7 @@
       </CrudTable>
     </el-card>
 
-    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="980px" destroy-on-close>
+    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="1040px" destroy-on-close>
       <el-form :model="form" label-width="90px">
         <el-row :gutter="12">
           <el-col :span="8">
@@ -77,16 +78,29 @@
               </el-select>
             </el-form-item>
           </el-col>
-          <el-col :span="16">
+          <el-col :span="8">
+            <el-form-item label="供应商发票" required>
+              <el-input v-model="form.invoiceNo" maxlength="64" placeholder="选供应商后自动带出，草稿可改" :disabled="readonly" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
             <el-form-item label="备注">
               <el-input v-model="form.remark" :disabled="readonly" />
             </el-form-item>
           </el-col>
         </el-row>
-      </el-form>
+        <el-alert
+          type="info"
+          :closable="false"
+          show-icon
+          title="供应商发票由供方随货提供，不是仓库自己开。选供应商后自动模拟带出发票号；草稿状态可改错票，再点「模拟接收供应商票据」。确认入库后锁定。"
+          style="margin-bottom: 12px"
+        />
 
       <div class="item-toolbar" v-if="!readonly">
         <el-button type="primary" size="small" @click="addItem">添加明细</el-button>
+        <el-button type="success" size="small" :disabled="!form.id" :loading="receiving" @click="handleReceiveInvoice">模拟接收供应商票据</el-button>
+        <span class="hint-inline">须先保存草稿。会生成供方发票和随货同行单（演示用）。</span>
       </div>
       <el-table :data="form.items" border size="small">
         <el-table-column label="品种" min-width="220">
@@ -132,24 +146,34 @@
         </el-table-column>
       </el-table>
 
+        <VoucherPanel
+          ref="voucherRef"
+          biz-type="purchase"
+          :biz-id="form.id"
+          :readonly="readonly && form.status === '已确认'"
+          :sign-roles="purchaseSignRoles"
+        />
+      </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">关闭</el-button>
         <el-button v-if="!readonly" type="primary" :loading="saving" @click="handleSave">保存草稿</el-button>
+        <el-button v-if="form.id && form.status !== '已确认' && canConfirm" type="success" :loading="confirming" @click="handleConfirmDialog">确认入库</el-button>
       </template>
     </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import SearchForm from '@/components/SearchForm.vue'
 import CrudTable from '@/components/CrudTable.vue'
-import { loadAllPurchase, loadPurchaseDetail, savePurchase, confirmPurchase, deletePurchase } from '@/api/purchase'
+import { loadAllPurchase, loadPurchaseDetail, savePurchase, confirmPurchase, deletePurchase, previewSupplierInvoice, receiveSupplierInvoice } from '@/api/purchase'
 import { loadAllSupplierForSelect } from '@/api/supplier'
 import { loadAllWarehouseForSelect } from '@/api/warehouse'
 import { loadAllDrugForSelect } from '@/api/drug'
 import { usePermission } from '@/composables/usePermission'
+import VoucherPanel from '@/components/VoucherPanel.vue'
 
 const { hasPermission } = usePermission()
 const canCreate = computed(() => hasPermission('inport:create'))
@@ -163,7 +187,14 @@ const drugs = ref<any[]>([])
 const dialogVisible = ref(false)
 const readonly = ref(false)
 const saving = ref(false)
+const confirming = ref(false)
+const receiving = ref(false)
+const voucherRef = ref()
 const dialogTitle = ref('开采购入库单')
+const purchaseSignRoles = [
+  { role: 'purchase_check', label: '进货验收签字' },
+  { role: 'purchase_keep', label: '到货保管签字' }
+]
 
 const searchParams = reactive({
   orderNo: '',
@@ -176,6 +207,8 @@ const emptyForm = () => ({
   warehouseId: undefined as number | undefined,
   bizDate: '',
   checkResult: '' as string,
+  invoiceNo: '',
+  status: '',
   remark: '',
   items: [] as any[]
 })
@@ -210,6 +243,8 @@ const fillForm = (data: any) => {
     warehouseId: data.warehouseId,
     bizDate: data.bizDate,
     checkResult: data.checkResult || '',
+    invoiceNo: data.invoiceNo || '',
+    status: data.status || '',
     remark: data.remark,
     items: (data.items || []).map((it: any) => ({ ...it }))
   })
@@ -235,23 +270,73 @@ const addItem = () => {
   form.items.push({ qualityStatus: '合格', stockInQty: 1, purchasePrice: 0 })
 }
 
+watch(() => form.supplierId, async (id) => {
+  if (readonly.value || !id) return
+  const cur = form.invoiceNo || ''
+  if (cur && !cur.startsWith('FP')) return
+  try {
+    const res: any = await previewSupplierInvoice(id, form.bizDate)
+    if (res.invoiceNo) form.invoiceNo = res.invoiceNo
+  } catch {}
+})
+
+const handleReceiveInvoice = async () => {
+  if (!form.id) {
+    ElMessage.warning('请先保存草稿')
+    return
+  }
+  receiving.value = true
+  try {
+    const res: any = await receiveSupplierInvoice(form.id)
+    if (res.code !== 200) {
+      ElMessage.error(res.msg || '模拟接收失败')
+      return
+    }
+    ElMessage.success(res.msg || '已接收供应商发票')
+    fillForm(res.data || {})
+    voucherRef.value?.reload?.()
+    tableRef.value?.reload()
+  } finally {
+    receiving.value = false
+  }
+}
+
 const handleSave = async () => {
   saving.value = true
   try {
-    await savePurchase({ ...form })
-    ElMessage.success('已保存草稿')
-    dialogVisible.value = false
+    const wasNew = !form.id
+    const res: any = await savePurchase({ ...form })
+    ElMessage.success('草稿已保存')
+    fillForm(res.data || {})
     tableRef.value?.reload()
+    if (wasNew && form.id) {
+      await handleReceiveInvoice()
+    }
   } finally {
     saving.value = false
   }
 }
 
+const handleConfirmDialog = async () => {
+  if (!form.id) return
+  await ElMessageBox.confirm('确认后将增加批号库存，且不能再改。须已挂发票、随货同行单并完成验收/到货签字。', '确认入库', { type: 'warning' })
+  confirming.value = true
+  try {
+    await confirmPurchase(form.id)
+    ElMessage.success('已确认入库')
+    dialogVisible.value = false
+    tableRef.value?.reload()
+  } finally {
+    confirming.value = false
+  }
+}
+
 const handleConfirm = async (row: any) => {
-  await ElMessageBox.confirm('确认后将增加批号库存，且不能再改。请确认已验收合格。', '确认入库', { type: 'warning' })
-  await confirmPurchase(row.id)
-  ElMessage.success('已确认入库')
-  tableRef.value?.reload()
+  const res: any = await loadPurchaseDetail(row.id)
+  dialogTitle.value = '确认采购入库 ' + (res.data?.orderNo || '')
+  readonly.value = true
+  fillForm(res.data)
+  dialogVisible.value = true
 }
 
 const handleDelete = async (row: any) => {
@@ -275,5 +360,13 @@ onMounted(async () => {
 <style scoped>
 .item-toolbar {
   margin: 8px 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.hint-inline {
+  font-size: 12px;
+  color: var(--text-secondary);
 }
 </style>

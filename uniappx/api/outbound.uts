@@ -1,0 +1,73 @@
+import { get, post, postJson, postWithParams } from './request'
+
+/**
+ * 药企销售出库单（sales_orders + sales_order_items 表）
+ * 后端：SalesOutboundController @RequestMapping("/outbound")
+ */
+
+/** 出库单列表（分页，正常+红冲） */
+export function loadAllOutbound(params: any) {
+  return get('/outbound/loadAllOutbound', params as UTSJSONObject)
+}
+
+/** 出库单详情（含明细 items + 客户 + 仓库） */
+export function loadOutboundDetail(id: number) {
+  const params = {} as UTSJSONObject
+  params['id'] = id
+  return get('/outbound/loadOutboundDetail', params)
+}
+
+/** 保存出库单草稿 */
+export function saveOutbound(data: any) {
+  return post('/outbound/saveOutbound', data as UTSJSONObject)
+}
+
+/** 确认出库（发货 → 扣减批号库存） */
+export function confirmOutbound(id: number, shipTime?: string, einvoiceNo?: string, einvoicePath?: string) {
+  const params = {} as UTSJSONObject
+  params['id'] = id
+  if (shipTime != null && shipTime.length > 0) params['shipTime'] = shipTime
+  if (einvoiceNo != null && einvoiceNo.length > 0) params['einvoiceNo'] = einvoiceNo
+  if (einvoicePath != null && einvoicePath.length > 0) params['einvoicePath'] = einvoicePath
+  return postWithParams('/outbound/confirmOutbound', params)
+}
+
+/** 删除出库单（仅草稿可删） */
+export function deleteOutbound(id: number) {
+  const params = {} as UTSJSONObject
+  params['id'] = id
+  return postWithParams('/outbound/deleteOutbound', params)
+}
+
+/** 按 20 位发票号查询：返回订单 + 追溯码 + 红冲记录 */
+export function loadByInvoice(invoiceNo: string) {
+  const params = {} as UTSJSONObject
+  params['invoiceNo'] = invoiceNo
+  return get('/outbound/loadByInvoice', params)
+}
+
+/** 未回款出库单列表 */
+export function loadUnpaidOutbound(params: any) {
+  return get('/outbound/loadUnpaidOutbound', params as UTSJSONObject)
+}
+
+/** 标记回款状态 */
+export function markPaid(id: number, paidStatus: string, paidAmount: number) {
+  const params = {} as UTSJSONObject
+  params['id'] = id
+  params['paidStatus'] = paidStatus
+  params['paidAmount'] = paidAmount
+  return postWithParams('/outbound/markPaid', params)
+}
+
+/** 保存红冲单（对蓝字发票开红冲） */
+export function saveReversal(data: any) {
+  return post('/outbound/saveReversal', data as UTSJSONObject)
+}
+
+/** 查询某蓝字发票对应的全部红冲单 */
+export function loadReversals(originalInvoiceNo: string) {
+  const params = {} as UTSJSONObject
+  params['originalInvoiceNo'] = originalInvoiceNo
+  return get('/outbound/loadReversals', params)
+}

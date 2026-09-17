@@ -5,8 +5,25 @@
       <div class="greeting-bar">
         <div class="greeting-text">
           <span class="greeting-hello">{{ greeting }}，{{ authStore.user?.name || '管理员' }}</span>
-          <span class="greeting-sub">药企进销存 · 实时数据概览</span>
+          <span class="greeting-sub">六个部门作业台已挂上，用 admin 可进全部，分权后再按角色裁菜单</span>
         </div>
+      </div>
+      <div class="todo-row" v-if="todos.length">
+        <router-link v-for="t in todos" :key="t.to" class="todo-chip" :to="t.to">
+          <strong>{{ t.count }}</strong>
+          <span>{{ t.label }}</span>
+        </router-link>
+      </div>
+      <div class="dept-row">
+        <router-link
+          v-for="d in deptCards"
+          :key="d.type"
+          class="dept-card"
+          :to="'/business/dept-desk?type=' + d.type"
+        >
+          <span class="dept-name">{{ d.type }}</span>
+          <span class="dept-desc">{{ d.desc }}</span>
+        </router-link>
       </div>
       <div class="stats-row">
         <div class="stat-card" v-for="stat in statCards" :key="stat.key">
@@ -163,6 +180,7 @@ import { useAuthStore } from '@/stores/auth'
 import { loadAllWarningGoods, loadDashboardStats } from '@/api/goods'
 import { loadAllOperationLog } from '@/api/operationLog'
 import { loadAllNotice } from '@/api/notice'
+import { loadOpsWorkbench } from '@/api/ops'
 
 const authStore = useAuthStore()
 
@@ -182,6 +200,30 @@ const warningGoods = ref<any[]>([])
 const goodsTotal = ref(0)
 const todayInport = ref(0)
 const todaySales = ref(0)
+const wb = ref<any>({})
+const todos = computed(() => {
+  const w = wb.value || {}
+  return [
+    { count: w.stockoutOpen || 0, label: '缺货待补', to: '/business/stockout' },
+    { count: w.inboundExOpen || 0, label: '到货异常', to: '/business/inbound-ex' },
+    { count: w.returnOpen || 0, label: '销退在途', to: '/business/return-notice' },
+    { count: w.offsetOpen || 0, label: '待冲账', to: '/business/offset' },
+    { count: w.allocateOpen || 0, label: '待分货', to: '/business/allocate' },
+    { count: w.logisticsOpen || 0, label: '物流联系', to: '/business/logistics' },
+    { count: w.pendingReceipt || 0, label: '待收货', to: '/business/receipt' },
+    { count: w.unpaidOrders || 0, label: '未回款', to: '/business/offset' }
+  ].filter((x) => x.count > 0)
+})
+
+const deptCards = [
+  { type: '采购', desc: '入库草稿 / 缺货补货' },
+  { type: '销售', desc: '出库 / 收货 / 销退' },
+  { type: '仓储', desc: '确认入库 / 批号 / 日清' },
+  { type: '质量', desc: '首营 / 放行停售' },
+  { type: '财务', desc: '回款 / 冲账 / 月结' },
+  { type: '信息', desc: 'IT 模拟开票 / 账号菜单' },
+  { type: '物流', desc: '联系单 / 打印包 / 发运' }
+]
 
 const greeting = computed(() => {
   const hour = new Date().getHours()
@@ -202,6 +244,10 @@ const statCards = computed(() => [
 onMounted(async () => {
   try {
     await fetchOps(1)
+  } catch {}
+  try {
+    const wres: any = await loadOpsWorkbench()
+    wb.value = wres.data || {}
   } catch {}
 
   try {
@@ -289,6 +335,45 @@ function handleNoticeClick(item: any) {
   color: var(--text-secondary);
 }
 
+.todo-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.dept-row {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 10px;
+}
+@media (max-width: 1100px) {
+  .dept-row { grid-template-columns: repeat(3, 1fr); }
+}
+.dept-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 12px;
+  border-radius: 12px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-light);
+  text-decoration: none;
+  color: inherit;
+}
+.dept-name { font-weight: 700; font-size: 15px; }
+.dept-desc { font-size: 12px; color: var(--text-secondary); }
+.todo-chip {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: var(--primary-subtle);
+  color: var(--primary-dark);
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: 600;
+}
+.todo-chip strong { font-size: 16px; }
 .stats-row {
   display: grid;
   grid-template-columns: repeat(4, 1fr);

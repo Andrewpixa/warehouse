@@ -1,0 +1,10 @@
+import { get } from './request'
+
+/**
+ * 批号库存（batch_stocks 表，按批号维度管理效期/质量状态）
+ * 后端：BatchStockController#loadAllBatchStock → DataGridView(code=0, count, data)
+ * 支持参数：page / limit / drugName / batchNo / expireFilter(all|near|expired) / nearExpireDays
+ */
+export function loadAllBatchStock(params: any) {
+  return get('/batchStock/loadAllBatchStock', params as UTSJSONObject)
+}

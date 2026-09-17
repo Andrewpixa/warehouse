@@ -16,4 +16,5 @@ export interface User {
   salt?: string
   leadername?: string
   deptname?: string
+  deptType?: string
 }

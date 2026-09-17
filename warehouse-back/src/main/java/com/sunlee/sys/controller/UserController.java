@@ -60,12 +60,15 @@ public class UserController {
     public DataGridView loadAllUser(UserVo userVo){
         IPage<User> page = new Page<User>(userVo.getPage(),userVo.getLimit());
         QueryWrapper<User> queryWrapper = new QueryWrapper<User>();
-        //根据用户登录名称以及用户名称模糊查询用户
-        queryWrapper.like(StringUtils.isNotBlank(userVo.getName()),"loginname",userVo.getName()).or().eq(StringUtils.isNotBlank(userVo.getName()),"name",userVo.getName());
+        if (StringUtils.isNotBlank(userVo.getName())) {
+            String kw = userVo.getName();
+            queryWrapper.and(w -> w.like("loginname", kw).or().like("name", kw));
+        }
         queryWrapper.like(StringUtils.isNotBlank(userVo.getAddress()),"address",userVo.getAddress());
-        //查询系统用户（包含超级管理员和普通用户）
         queryWrapper.in("type", Constast.USER_TYPE_SUPER, Constast.USER_TYPE_NORMAL);
-        queryWrapper.eq(userVo.getDeptid()!=null,"deptid",userVo.getDeptid());
+        if (userVo.getDeptid() != null) {
+            queryWrapper.in("deptid", deptService.listSelfAndDescendantIds(userVo.getDeptid()));
+        }
         queryWrapper.orderByDesc("id");
         userService.page(page,queryWrapper);
 
@@ -120,7 +123,9 @@ public class UserController {
     @RequestMapping("loadUsersByDeptId")
     public DataGridView loadUsersByDeptIp(Integer deptId){
         QueryWrapper<User> queryWrapper = new QueryWrapper<User>();
-        queryWrapper.eq(deptId!=null,"deptid",deptId);
+        if (deptId != null) {
+            queryWrapper.in("deptid", deptService.listSelfAndDescendantIds(deptId));
+        }
         queryWrapper.eq("available",Constast.AVAILABLE_TRUE);
         queryWrapper.eq("type",Constast.USER_TYPE_NORMAL);
         List<User> list = userService.list(queryWrapper);
@@ -167,6 +172,7 @@ public class UserController {
             if (userVo.getDeptid() == null) {
                 return ResultObj.error("部门不能为空");
             }
+            deptService.assertEnabled(userVo.getDeptid());
             // 校验用户名是否已存在
             QueryWrapper<User> checkWrapper = new QueryWrapper<>();
             checkWrapper.eq("loginname", userVo.getLoginname());
@@ -213,6 +219,9 @@ public class UserController {
             userVo.setPwd(null);
             userVo.setSalt(null);
             userVo.setType(null);
+            if (userVo.getDeptid() != null) {
+                deptService.assertEnabled(userVo.getDeptid());
+            }
             userService.updateById(userVo);
             return ResultObj.UPDATE_SUCCESS;
         } catch (Exception e) {

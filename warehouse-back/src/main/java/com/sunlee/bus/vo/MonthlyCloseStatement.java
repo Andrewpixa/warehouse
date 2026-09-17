@@ -17,6 +17,9 @@ public class MonthlyCloseStatement {
     private Summary summary = new Summary();
     private List<PartnerRow> customers = new ArrayList<>();
     private List<PartnerRow> suppliers = new ArrayList<>();
+    private List<VoucherIssue> missingTickets = new ArrayList<>();
+    private List<VoucherIssue> missingSigns = new ArrayList<>();
+    private List<VoucherIssue> amountMismatches = new ArrayList<>();
 
     @Data
     public static class Summary {

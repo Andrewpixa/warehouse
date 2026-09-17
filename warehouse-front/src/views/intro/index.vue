@@ -299,9 +299,10 @@ const flowSteps = [
 ]
 
 const trusts = [
-  { n: '01', t: '批号级精度', d: '库存不再只到品种。每一批的数量、效期、位置都可核对。' },
-  { n: '02', t: '全链路追溯', d: 'GS1 / 01 码可查询来源与去向，对接码上放心业务节奏。' },
-  { n: '03', t: '作业可审计', d: '入出库、收货、日清月结留下操作痕迹，对账与检查有据可依。' }
+  { n: '01', t: '批号库存可核对', d: '库存落到批号：数量、效期、仓位都能逐批核对，不再只看到品种合计。' },
+  { n: '02', t: 'GS1 / 01 码可查来源去向', d: '扫码即可看到入库来源与出库流向，对接码上放心的业务节奏。' },
+  { n: '03', t: '入出库、收货、日清月结留痕', d: '采购入库、销售出库、医院收货、日清月结都留下操作记录，对账与检查有据可依。' },
+  { n: '04', t: '近效期预警、红冲可追溯', d: '近效期批号提前告警；红冲单关联原发票，冲减数量与库存回补可完整回溯。' }
 ]
 
 let io: IntersectionObserver | null = null
@@ -1140,8 +1141,8 @@ onUnmounted(() => {
 
 .trust-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 48px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 48px 56px;
 }
 
 .trust-num {
@@ -1153,7 +1154,7 @@ onUnmounted(() => {
 }
 
 .trust-item h3 {
-  font-size: 28px;
+  font-size: 24px;
   letter-spacing: -0.03em;
   margin-bottom: 12px;
 }
@@ -1289,8 +1290,7 @@ onUnmounted(() => {
   }
 
   .bento,
-  .flow,
-  .trust-grid { grid-template-columns: 1fr; }
+  .flow { grid-template-columns: 1fr; }
 
   .c-lg { grid-row: auto; grid-column: auto; }
   .flow-line { display: none; }
@@ -1298,6 +1298,10 @@ onUnmounted(() => {
   .nav-links { display: none; }
   .device-body { grid-template-columns: 1fr; }
   .side { display: none; }
+}
+
+@media (max-width: 720px) {
+  .trust-grid { grid-template-columns: 1fr; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -1,0 +1,289 @@
+<template>
+  <view class="page">
+    <!-- 查询卡 -->
+    <view class="query-card">
+      <view class="seg-row">
+        <view class="seg" :class="mode == 'invoice' ? 'seg-on-l' : ''" @click="switchMode('invoice')">
+          <text class="seg-text" :class="mode == 'invoice' ? 'seg-text-on' : ''">发票号查询</text>
+        </view>
+        <view class="seg" :class="mode == 'spdid' ? 'seg-on-r' : ''" @click="switchMode('spdid')">
+          <text class="seg-text" :class="mode == 'spdid' ? 'seg-text-on' : ''">追溯码查询</text>
+        </view>
+      </view>
+      <view class="input-box">
+        <text class="input-icon">{{ mode == 'invoice' ? '🧾' : '🔖' }}</text>
+        <input
+          class="kw-input"
+          v-model="keyword"
+          :placeholder="mode == 'invoice' ? '请输入发票号（完整匹配）' : '请输入 SPDID 追溯码'"
+          placeholder-class="kw-ph"
+          confirm-type="search"
+          @confirm="onSearch"
+        />
+        <text v-if="keyword.length > 0" class="kw-clear" @click="onClear">✕</text>
+      </view>
+      <view class="query-btn" :class="loading ? 'btn-disabled' : ''" @click="onSearch">
+        <text class="query-btn-text">{{ loading ? '查询中...' : '立即查询' }}</text>
+      </view>
+    </view>
+
+    <scroll-view class="result-scroll" scroll-y>
+      <!-- 未查询 -->
+      <view v-if="!searched" class="hint-wrap">
+        <text class="hint-emoji">💊</text>
+        <text class="hint-title">药品追溯查询</text>
+        <text class="hint-sub">输入发票号查看该票出库药品及追溯码</text>
+        <text class="hint-sub">或输入 SPDID 查看单品流转记录</text>
+      </view>
+
+      <!-- 发票结果 -->
+      <template v-else>
+        <!-- 订单摘要 -->
+        <view v-if="mode == 'invoice' && order != null" class="order-card">
+          <view class="order-head">
+            <view class="order-badge"><text class="badge-text">销售出库</text></view>
+            <view class="order-status"><text class="status-text">{{ orderStatus }}</text></view>
+          </view>
+          <view class="order-title-row">
+            <text class="order-title">{{ invoiceNoText }}</text>
+          </view>
+          <view class="order-meta">
+            <view class="meta-line"><text class="meta-label">订单编号</text><text class="meta-value meta-mono">{{ orderNoText }}</text></view>
+            <view class="meta-line"><text class="meta-label">客户</text><text class="meta-value">{{ customerText }}</text></view>
+            <view class="meta-line"><text class="meta-label">业务日期</text><text class="meta-value">{{ bizDateText }}</text></view>
+            <view class="meta-line"><text class="meta-label">备注</text><text class="meta-value">{{ remarkText }}</text></view>
+          </view>
+          <view class="amount-row">
+            <view class="amount-box">
+              <text class="amount-num">{{ totalQtyText }}</text>
+              <text class="amount-cap">总数量</text>
+            </view>
+            <view class="amount-box">
+              <text class="amount-num price">¥{{ totalAmountText }}</text>
+              <text class="amount-cap">总金额</text>
+            </view>
+          </view>
+        </view>
+
+        <view v-if="mode == 'invoice' && order != null" class="section-bar">
+          <text class="section-title">追溯码明细</text>
+          <text class="section-count">{{ traceRows.length }} 条</text>
+        </view>
+
+        <!-- 无数据 -->
+        <view v-if="hasNoData" class="hint-wrap">
+          <text class="hint-emoji">🔍</text>
+          <text class="hint-title">未查询到相关记录</text>
+          <text class="hint-sub">请核对{{ mode == 'invoice' ? '发票号' : '追溯码' }}是否正确</text>
+        </view>
+
+        <!-- 追溯码卡片 -->
+        <view class="trace-list">
+          <view v-for="(t, i) in traceRows" :key="i" class="trace-card">
+            <view class="trace-top">
+              <text class="trace-name">{{ traceName(t) }}</text>
+              <view v-if="str(t, 'sourceType').length > 0" class="tag" :class="sourceTagClass(t)">
+                <text class="tag-text" :class="sourceTextClass(t)">{{ sourceText(t) }}</text>
+              </view>
+            </view>
+            <view class="trace-code">
+              <text class="code-label">SPDID</text>
+              <text class="code-value">{{ str(t, 'spdid') }}</text>
+            </view>
+            <view class="trace-meta">
+              <text class="meta-chip">批号 {{ str(t, 'batchNo') }}</text>
+              <text class="meta-chip">效期 {{ str(t, 'expireDate') }}</text>
+              <text v-if="str(t, 'codeLevel').length > 0" class="meta-chip">{{ str(t, 'codeLevel') }}级码</text>
+            </view>
+            <view v-if="str(t, 'packageSpec').length > 0" class="meta-line"><text class="meta-label">包装规格</text><text class="meta-value">{{ str(t, 'packageSpec') }}</text></view>
+          </view>
+        </view>
+      </template>
+    </scroll-view>
+  </view>
+</template>
+
+<script setup lang="uts">
+import { ref } from 'vue'
+import { loadInvoice, loadTraceBySpdid } from '../../api/trace'
+
+const mode = ref<string>('invoice')
+const keyword = ref('')
+const loading = ref(false)
+const searched = ref(false)
+const order = ref<UTSJSONObject | null>(null)
+const traceRows = ref<UTSJSONObject[]>([])
+
+const hasNoData = computed((): boolean => {
+  if (!searched.value) return false
+  if (mode.value == 'invoice') return order.value == null
+  return traceRows.value.length == 0
+})
+
+const orderStatus = computed((): string => {
+  if (order.value == null) return ''
+  return str(order.value!, 'status')
+})
+const customerText = computed((): string => {
+  if (order.value == null) return ''
+  const c = str(order.value!, 'customerName')
+  if (c.length > 0) return c
+  return '客户 #' + ((order.value!['customerId'] as number) ?? 0).toString()
+})
+const remarkText = computed((): string => {
+  if (order.value == null) return ''
+  const r = str(order.value!, 'remark')
+  return r.length > 0 ? r : '—'
+})
+const invoiceNoText = computed((): string => order.value == null ? '' : str(order.value!, 'invoiceNo'))
+const orderNoText = computed((): string => order.value == null ? '' : str(order.value!, 'orderNo'))
+const bizDateText = computed((): string => order.value == null ? '' : str(order.value!, 'bizDate'))
+const totalQtyText = computed((): string => order.value == null ? '' : str(order.value!, 'totalQty'))
+const totalAmountText = computed((): string => order.value == null ? '' : str(order.value!, 'totalAmount'))
+
+function str(o: UTSJSONObject, key: string): string {
+  const v = o[key]
+  if (v == null) return ''
+  if (typeof v == 'string') return v as string
+  return v.toString()
+}
+function traceName(t: UTSJSONObject): string {
+  const n = str(t, 'drugName')
+  return n.length > 0 ? n : '药品 #' + ((t['drugId'] as number) ?? 0).toString()
+}
+function sourceText(t: UTSJSONObject): string {
+  const s = str(t, 'sourceType')
+  if (s == 'in') return '入库'
+  if (s == 'out') return '出库'
+  return s
+}
+function sourceTagClass(t: UTSJSONObject): string {
+  return str(t, 'sourceType') == 'in' ? 'tag-green' : 'tag-blue'
+}
+function sourceTextClass(t: UTSJSONObject): string {
+  return str(t, 'sourceType') == 'in' ? 'tag-text-green' : 'tag-text-blue'
+}
+
+function switchMode(m: string): void {
+  if (mode.value == m) return
+  mode.value = m
+  keyword.value = ''
+  searched.value = false
+  order.value = null
+  traceRows.value = []
+}
+function onClear(): void { keyword.value = '' }
+
+function onSearch(): void {
+  if (loading.value) return
+  const kw = keyword.value.trim()
+  if (kw.length == 0) {
+    uni.showToast({ title: mode.value == 'invoice' ? '请输入发票号' : '请输入追溯码', icon: 'none' })
+    return
+  }
+  loading.value = true
+  searched.value = false
+  order.value = null
+  traceRows.value = []
+
+  if (mode.value == 'invoice') {
+    loadInvoice(kw).then((res: any) => {
+      const r = res as UTSJSONObject
+      if ((r['code'] as number) == 200) {
+        order.value = (r['data'] as UTSJSONObject | null) ?? null
+        traceRows.value = (r['traces'] as UTSJSONObject[] | null) ?? []
+      }
+      searched.value = true
+    }).catch((err: Error) => {
+      searched.value = true
+      uni.showToast({ title: '查询失败', icon: 'none' })
+    }).finally(() => {
+      loading.value = false
+    })
+  } else {
+    loadTraceBySpdid(kw).then((res: any) => {
+      const r = res as UTSJSONObject
+      if ((r['code'] as number) == 0) {
+        traceRows.value = (r['data'] as UTSJSONObject[] | null) ?? []
+      }
+      searched.value = true
+    }).catch((err: Error) => {
+      searched.value = true
+      uni.showToast({ title: '查询失败', icon: 'none' })
+    }).finally(() => {
+      loading.value = false
+    })
+  }
+}
+</script>
+
+<style>
+.page { flex: 1; background-color: #F4F6FB; }
+
+.query-card { background-color: #FFFFFF; padding: 24rpx; }
+.seg-row { flex-direction: row; background-color: #F1F4F9; border-radius: 16rpx; padding: 6rpx; }
+.seg { flex: 1; height: 68rpx; align-items: center; justify-content: center; border-radius: 12rpx; }
+.seg-on-l { background-color: #1D4ED8; }
+.seg-on-r { background-color: #1D4ED8; }
+.seg-text { font-size: 27rpx; color: #5B6572; }
+.seg-text-on { color: #FFFFFF; font-weight: 600; }
+
+.input-box { margin-top: 20rpx; height: 88rpx; background-color: #F8FAFC; border-width: 1rpx; border-style: solid; border-color: #E5E9F0; border-radius: 16rpx; flex-direction: row; align-items: center; padding: 0 24rpx; }
+.input-icon { font-size: 32rpx; margin-right: 14rpx; }
+.kw-input { flex: 1; height: 88rpx; font-size: 29rpx; color: #111827; }
+.kw-ph { color: #9AA4B2; }
+.kw-clear { font-size: 24rpx; color: #9AA4B2; padding: 8rpx; }
+
+.query-btn { margin-top: 20rpx; height: 92rpx; border-radius: 16rpx; background: linear-gradient(135deg, #3B82F6, #1D4ED8); align-items: center; justify-content: center; }
+.btn-disabled { opacity: 0.6; }
+.query-btn-text { color: #FFFFFF; font-size: 31rpx; font-weight: 600; letter-spacing: 4rpx; }
+
+.result-scroll { flex: 1; }
+
+.hint-wrap { align-items: center; padding-top: 160rpx; }
+.hint-emoji { font-size: 96rpx; }
+.hint-title { font-size: 32rpx; color: #1F2937; font-weight: 700; margin-top: 24rpx; }
+.hint-sub { font-size: 25rpx; color: #9AA4B2; margin-top: 12rpx; }
+
+.order-card { margin: 24rpx; background-color: #FFFFFF; border-radius: 20rpx; padding: 26rpx; border-width: 1rpx; border-style: solid; border-color: #EEF1F6; }
+.order-head { flex-direction: row; justify-content: space-between; align-items: center; }
+.order-badge { padding: 6rpx 18rpx; border-radius: 8rpx; background-color: #EAF1FE; }
+.badge-text { font-size: 22rpx; color: #1D4ED8; font-weight: 600; }
+.order-status { padding: 6rpx 18rpx; border-radius: 8rpx; background-color: #E8F5EE; }
+.status-text { font-size: 22rpx; color: #16A34A; font-weight: 600; }
+.order-title-row { margin-top: 16rpx; }
+.order-title { font-size: 36rpx; font-weight: 700; color: #111827; }
+.order-meta { margin-top: 14rpx; }
+.meta-line { flex-direction: row; margin-top: 10rpx; }
+.meta-label { width: 130rpx; font-size: 25rpx; color: #9AA4B2; }
+.meta-value { flex: 1; font-size: 25rpx; color: #374151; }
+.meta-mono { color: #4B5563; }
+
+.amount-row { flex-direction: row; margin-top: 20rpx; background-color: #F8FAFC; border-radius: 14rpx; padding: 20rpx 0; }
+.amount-box { flex: 1; align-items: center; }
+.amount-num { font-size: 32rpx; font-weight: 700; color: #111827; }
+.price { color: #C2410C; }
+.amount-cap { font-size: 22rpx; color: #9AA4B2; margin-top: 6rpx; }
+
+.section-bar { flex-direction: row; justify-content: space-between; align-items: center; padding: 4rpx 28rpx 12rpx; }
+.section-title { font-size: 28rpx; font-weight: 700; color: #1F2937; }
+.section-count { font-size: 24rpx; color: #9AA4B2; }
+
+.trace-list { padding: 0 24rpx 24rpx; }
+.trace-card { background-color: #FFFFFF; border-radius: 18rpx; padding: 24rpx; margin-bottom: 16rpx; border-width: 1rpx; border-style: solid; border-color: #EEF1F6; }
+.trace-top { flex-direction: row; justify-content: space-between; align-items: center; }
+.trace-name { flex: 1; font-size: 29rpx; font-weight: 700; color: #111827; padding-right: 16rpx; }
+.tag { padding: 5rpx 16rpx; border-radius: 8rpx; }
+.tag-blue { background-color: #EAF1FE; }
+.tag-green { background-color: #E8F5EE; }
+.tag-text { font-size: 21rpx; }
+.tag-text-blue { color: #1D4ED8; }
+.tag-text-green { color: #16A34A; }
+
+.trace-code { margin-top: 14rpx; background-color: #F8FAFC; border-radius: 12rpx; padding: 16rpx 20rpx; flex-direction: row; align-items: center; }
+.code-label { font-size: 21rpx; color: #9AA4B2; margin-right: 16rpx; }
+.code-value { flex: 1; font-size: 27rpx; color: #1D4ED8; font-weight: 600; }
+
+.trace-meta { flex-direction: row; flex-wrap: wrap; margin-top: 14rpx; }
+.meta-chip { font-size: 22rpx; color: #6B7280; background-color: #F1F3F6; border-radius: 8rpx; padding: 6rpx 14rpx; margin-right: 12rpx; margin-bottom: 8rpx; }
+</style>

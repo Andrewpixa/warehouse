@@ -146,7 +146,7 @@ defineExpose({ reload, loadData, selectedRows, pagination })
     transition: all var(--transition-fast);
 
     &:hover > td {
-      background-color: var(--primary-subtle) !important;
+      background-color: color-mix(in srgb, var(--primary-color) 8%, var(--bg-primary)) !important;
     }
 
     td {

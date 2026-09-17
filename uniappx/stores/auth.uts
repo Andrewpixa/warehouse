@@ -303,9 +303,11 @@ export function clearAuth() : void {
 // 后端菜单 href → uniappx 页面路径 映射
 export const ROUTE_MAP : Record<string, string> = {
   '/dashboard': '/pages/workbench/index',
+  '/business/drug': '/pages/business/drug',
+  '/business/batch-stock': '/pages/business/batch-stock',
+  '/business/trace': '/pages/query/trace',
   '/system/user': '/pages/system/user',
   '/system/role': '/pages/system/role',
-  '/system/dept': '/pages/system/dept',
   '/system/menu': '/pages/system/menu',
   '/system/permission': '/pages/system/permission',
   '/system/notice': '/pages/system/notice-manage',

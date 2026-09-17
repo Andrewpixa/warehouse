@@ -21,17 +21,46 @@ export function clearSaToken() : void {
 	uni.removeStorageSync(SA_TOKEN_KEY)
 }
 
-// 根据平台设置不同的 BASE_URL
-// 后端 Spring Boot 实际运行在 8899 端口，context-path 为 /warehouse
-// #ifdef APP-ANDROID
-export const BASE_URL = 'http://10.0.2.2:8899/warehouse'
-// #endif
-// #ifdef MP-WEIXIN
-export const BASE_URL = 'http://172.20.10.3:8899/warehouse'
-// #endif
-// #ifdef H5
-export const BASE_URL = 'http://localhost:8899/warehouse'
-// #endif
+// 首选：Nginx 反代 + HTTPS 域名（微信小程序合法域名 / 真机网络）
+const PRIMARY_BASE_URL = 'https://yaoheng.cloud/warehouse'
+
+// 兜底：直连 Spring Boot 8899 端口（HTTP 明文）。
+// 部分网络下 yaoheng.cloud:443 的 TLS 握手会被链路 reset，
+// 且 http://123.57.134.57 的 80 端口已被 Nginx 301 强制跳转 HTTPS，
+// 故连接失败/收到 301 时自动降级到 8899 直连（同一后端进程，token 一致）。
+// 注意：微信小程序真机正式版不允许明文 HTTP，兜底仅在开发者工具/真机调试下生效。
+const FALLBACK_BASE_URL = 'http://123.57.134.57:8899/warehouse'
+
+let activeBaseUrl = PRIMARY_BASE_URL
+
+/** 当前生效的接口地址（随网络故障自动切换） */
+export function getBaseUrl() : string {
+	return activeBaseUrl
+}
+
+function switchBaseUrl() : void {
+	activeBaseUrl = activeBaseUrl == PRIMARY_BASE_URL ? FALLBACK_BASE_URL : PRIMARY_BASE_URL
+}
+
+/** 判断是否为需要换线路重试的响应（重定向或无有效状态码） */
+export function isRetriableStatus(statusCode : number) : boolean {
+	return statusCode == 0 || statusCode == 301 || statusCode == 302 || statusCode == 307 || statusCode == 308
+}
+
+/** 连接故障/重定向后切换到另一条线路（上传等场景复用） */
+export function switchApiBaseUrl() : void {
+	switchBaseUrl()
+}
+
+/** 构建带 SA-Token 的请求头（uploadFile 等场景复用） */
+export function getSaTokenHeader() : UTSJSONObject {
+	const header : UTSJSONObject = {}
+	const saToken = getSaToken()
+	if (saToken.length > 0) {
+		header['satoken'] = saToken
+	}
+	return header
+}
 
 /**
  * 后端响应格式：DataGridView / ResultObj
@@ -92,15 +121,13 @@ export function request<T>(options : RequestOptions) : Promise<T> {
 			})
 		}
 
-		// 构建完整 URL
-		let fullUrl = BASE_URL + options.url
-
-		// GET 请求拼接查询参数
+		// 接口路径 + GET 查询串（base 部分在每次发起时按当前线路拼接）
+		let pathWithQuery = options.url
 		if (options.method == 'GET' && options.data != null) {
 			const qs = buildQueryString(options.data)
 			if (qs.length > 0) {
-				const separator = fullUrl.includes('?') ? '&' : '?'
-				fullUrl = fullUrl + separator + qs
+				const separator = pathWithQuery.includes('?') ? '&' : '?'
+				pathWithQuery = pathWithQuery + separator + qs
 			}
 		}
 
@@ -135,82 +162,101 @@ export function request<T>(options : RequestOptions) : Promise<T> {
 			}
 		}
 
-		uni.request({
-			url: fullUrl,
-			method: options.method,
-			data: postData,
-			header: header,
-			dataType: options.dataType ?? 'json',
-			responseType: options.responseType ?? 'text',
-			withCredentials: true,
-			success: (res) => {
-				if (options.showLoading == true) {
-					uni.hideLoading()
-				}
+		// 发起一次请求；网络失败或被 301/302 跳转时切换线路再试一次
+		const fire = (attempt : number) => {
+			const fullUrl = activeBaseUrl + pathWithQuery
+			uni.request({
+				url: fullUrl,
+				method: options.method,
+				data: postData,
+				header: header,
+				dataType: options.dataType ?? 'json',
+				responseType: options.responseType ?? 'text',
+				withCredentials: true,
+				success: (res) => {
+					const statusCode = res.statusCode
 
-				const statusCode = res.statusCode
-
-				// 从响应头保存 SA-Token
-				const resHeader = res.header as UTSJSONObject | null
-				if (resHeader != null) {
-					const token = resHeader!['satoken'] as string | null
-					if (token != null && token!.length > 0) {
-						saveSaToken(token!)
+					// 被重定向（80 端口强制跳 HTTPS）→ 换线路重试一次
+					if (isRetriableStatus(statusCode) && attempt < 2) {
+						switchBaseUrl()
+						fire(attempt + 1)
+						return
 					}
-				}
 
-				// 401 未授权 → 跳转登录页
-				if (statusCode == 401) {
-					uni.showToast({
-						title: '登录已过期，请重新登录',
-						icon: 'none',
-						duration: 1500
-					})
-					setTimeout(() => {
-						uni.reLaunch({
-							url: '/pages/login/login'
+					if (options.showLoading == true) {
+						uni.hideLoading()
+					}
+
+					// 从响应头保存 SA-Token
+					const resHeader = res.header as UTSJSONObject | null
+					if (resHeader != null) {
+						const token = resHeader!['satoken'] as string | null
+						if (token != null && token!.length > 0) {
+							saveSaToken(token!)
+						}
+					}
+
+					// 401 未授权 → 跳转登录页
+					if (statusCode == 401) {
+						uni.showToast({
+							title: '登录已过期，请重新登录',
+							icon: 'none',
+							duration: 1500
 						})
-					}, 1500)
-					reject(new Error('未授权'))
-					return
-				}
+						setTimeout(() => {
+							uni.reLaunch({
+								url: '/pages/login/login'
+							})
+						}, 1500)
+						reject(new Error('未授权'))
+						return
+					}
 
-				// HTTP 错误
-				if (statusCode < 200 || statusCode >= 300) {
+					// HTTP 错误
+					if (statusCode < 200 || statusCode >= 300) {
+						uni.showToast({
+							title: '请求失败 (' + statusCode.toString() + ')',
+							icon: 'none'
+						})
+						reject(new Error('HTTP错误: ' + statusCode.toString()))
+						return
+					}
+
+					// 解析响应体
+					const result = res.data as ApiResponse
+
+					// 业务错误处理：code === -1
+					if (result.code == -1) {
+						uni.showToast({
+							title: result.msg.length > 0 ? result.msg : '操作失败',
+							icon: 'none'
+						})
+						reject(new Error(result.msg.length > 0 ? result.msg : '操作失败'))
+						return
+					}
+
+					resolve(result as T)
+				},
+				fail: (err) => {
+					// TLS reset / 连接超时 / 域名不通 → 换线路重试一次
+					if (attempt < 2) {
+						switchBaseUrl()
+						fire(attempt + 1)
+						return
+					}
+					if (options.showLoading == true) {
+						uni.hideLoading()
+					}
 					uni.showToast({
-						title: '请求失败 (' + statusCode.toString() + ')',
+						title: '网络错误',
 						icon: 'none'
 					})
-					reject(new Error('HTTP错误: ' + statusCode.toString()))
-					return
+					reject(new Error(err.errMsg))
 				}
+			})
+		}
 
-				// 解析响应体
-				const result = res.data as ApiResponse
-
-				// 业务错误处理：code === -1
-				if (result.code == -1) {
-					uni.showToast({
-						title: result.msg.length > 0 ? result.msg : '操作失败',
-						icon: 'none'
-					})
-					reject(new Error(result.msg.length > 0 ? result.msg : '操作失败'))
-					return
-				}
-
-				resolve(result as T)
-			},
-			fail: (err) => {
-				if (options.showLoading == true) {
-					uni.hideLoading()
-				}
-				uni.showToast({
-					title: '网络错误',
-					icon: 'none'
-				})
-				reject(new Error(err.errMsg))
-			}
-		})
+		fire(1)
 	})
 }
 
@@ -268,39 +314,69 @@ export function postWithParams<T>(url : string, params : UTSJSONObject | null = 
  */
 export function postJson<T>(url : string, data : any = null) : Promise<T> {
 	return new Promise<T>((resolve, reject) => {
-		uni.request({
-			url: BASE_URL + url,
-			method: 'POST',
-			data: data,
-			header: { 'Content-Type': 'application/json' } as UTSJSONObject,
-			dataType: 'json',
-			responseType: 'text',
-			withCredentials: true,
-			success: (res) => {
-				const statusCode = res.statusCode
-				if (statusCode == 401) {
-					uni.showToast({ title: '登录已过期', icon: 'none' })
-					setTimeout(() => { uni.reLaunch({ url: '/pages/login/login' }) }, 1500)
-					reject(new Error('未授权'))
-					return
+		const header : UTSJSONObject = {
+			'Content-Type': 'application/json'
+		}
+		const saToken = getSaToken()
+		if (saToken.length > 0) {
+			header['satoken'] = saToken
+		}
+
+		const fire = (attempt : number) => {
+			uni.request({
+				url: activeBaseUrl + url,
+				method: 'POST',
+				data: data,
+				header: header,
+				dataType: 'json',
+				responseType: 'text',
+				withCredentials: true,
+				success: (res) => {
+					const statusCode = res.statusCode
+					// 被重定向 → 换线路重试一次
+					if (isRetriableStatus(statusCode) && attempt < 2) {
+						switchBaseUrl()
+						fire(attempt + 1)
+						return
+					}
+					const resHeader = res.header as UTSJSONObject | null
+					if (resHeader != null) {
+						const token = resHeader!['satoken'] as string | null
+						if (token != null && token!.length > 0) {
+							saveSaToken(token!)
+						}
+					}
+					if (statusCode == 401) {
+						uni.showToast({ title: '登录已过期', icon: 'none' })
+						setTimeout(() => { uni.reLaunch({ url: '/pages/login/login' }) }, 1500)
+						reject(new Error('未授权'))
+						return
+					}
+					if (statusCode < 200 || statusCode >= 300) {
+						uni.showToast({ title: '请求失败', icon: 'none' })
+						reject(new Error('HTTP错误'))
+						return
+					}
+					const result = res.data as ApiResponse
+					if (result.code == -1) {
+						uni.showToast({ title: result.msg.length > 0 ? result.msg : '操作失败', icon: 'none' })
+						reject(new Error(result.msg))
+						return
+					}
+					resolve(result as T)
+				},
+				fail: (err) => {
+					if (attempt < 2) {
+						switchBaseUrl()
+						fire(attempt + 1)
+						return
+					}
+					uni.showToast({ title: '网络错误', icon: 'none' })
+					reject(new Error(err.errMsg))
 				}
-				if (statusCode < 200 || statusCode >= 300) {
-					uni.showToast({ title: '请求失败', icon: 'none' })
-					reject(new Error('HTTP错误'))
-					return
-				}
-				const result = res.data as ApiResponse
-				if (result.code == -1) {
-					uni.showToast({ title: result.msg.length > 0 ? result.msg : '操作失败', icon: 'none' })
-					reject(new Error(result.msg))
-					return
-				}
-				resolve(result as T)
-			},
-			fail: (err) => {
-				uni.showToast({ title: '网络错误', icon: 'none' })
-				reject(new Error(err.errMsg))
-			}
-		})
+			})
+		}
+
+		fire(1)
 	})
 }

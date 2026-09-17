@@ -252,6 +252,48 @@
   background-color: var(--bg-tertiary);
 }
 
+// 冻结列必须用不透明底，否则横向滚动时后面的单元格会透出来
+.el-table .el-table-fixed-column--left,
+.el-table .el-table-fixed-column--right {
+  background-color: var(--bg-primary) !important;
+}
+
+.el-table__header .el-table-fixed-column--left,
+.el-table__header .el-table-fixed-column--right {
+  background-color: var(--bg-tertiary) !important;
+}
+
+.el-table--striped .el-table__body tr.el-table__row--striped .el-table-fixed-column--left,
+.el-table--striped .el-table__body tr.el-table__row--striped .el-table-fixed-column--right {
+  background-color: var(--bg-tertiary) !important;
+}
+
+.el-table__body tr:hover > .el-table-fixed-column--left,
+.el-table__body tr:hover > .el-table-fixed-column--right {
+  background-color: color-mix(in srgb, var(--primary-color) 8%, var(--bg-primary)) !important;
+}
+
+.el-table__fixed,
+.el-table__fixed-right {
+  background-color: var(--bg-primary);
+
+  .el-table__header th.el-table__cell {
+    background-color: var(--bg-tertiary) !important;
+  }
+
+  .el-table__body td.el-table__cell {
+    background-color: var(--bg-primary);
+  }
+
+  .el-table__body tr.el-table__row--striped td.el-table__cell {
+    background-color: var(--bg-tertiary);
+  }
+
+  .el-table__body tr:hover > td.el-table__cell {
+    background-color: color-mix(in srgb, var(--primary-color) 8%, var(--bg-primary)) !important;
+  }
+}
+
 .el-table--border {
   border-color: var(--border-lighter);
 

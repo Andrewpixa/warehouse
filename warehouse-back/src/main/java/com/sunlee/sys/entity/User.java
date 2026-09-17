@@ -95,5 +95,9 @@ public class User implements Serializable {
     @TableField(exist = false)
     private String deptname;
 
+    /** 部门类型：采购 / 销售 / 仓储 / 质量 / 财务 / 信息 / 总经办 */
+    @TableField(exist = false)
+    private String deptType;
+
 
 }

@@ -1,0 +1,59 @@
+<template>
+  <view class="page">
+    <view class="hero">
+      <text class="title">厂家流向</text>
+      <text class="sub">演示账号 gzyy / 123456，流向次日可见</text>
+    </view>
+    <view class="form">
+      <input class="inp" v-model="loginName" placeholder="账号" />
+      <input class="inp" v-model="password" password placeholder="密码" />
+      <view class="btn" @click="query"><text class="btn-t">查询</text></view>
+    </view>
+    <scroll-view class="list">
+      <view v-for="(row, i) in flows" :key="i" class="card">
+        <text class="ttl">{{ str(row, 'drugName') }} × {{ str(row, 'qty') }}</text>
+        <text class="meta">{{ str(row, 'customerName') }}</text>
+        <text class="meta">{{ str(row, 'invoiceNo') }} · {{ str(row, 'flowStatus') }}</text>
+      </view>
+    </scroll-view>
+  </view>
+</template>
+
+<script setup lang="uts">
+import { makerQuery } from '../../api/ops'
+
+const loginName = ref('gzyy')
+const password = ref('123456')
+const flows = ref<UTSJSONObject[]>([])
+
+function str(obj: UTSJSONObject, key: string): string {
+  const v = obj[key]
+  return v == null ? '' : (v as string)
+}
+
+function query(): void {
+  makerQuery(loginName.value, password.value).then((res: any) => {
+    const data = res as UTSJSONObject
+    if ((data['code'] as number) == -1) {
+      uni.showToast({ title: (data['msg'] as string) ?? '失败', icon: 'none' })
+      return
+    }
+    const inner = (data['data'] as UTSJSONObject) ?? {}
+    flows.value = (inner['flows'] as UTSJSONObject[] | null) ?? []
+  })
+}
+</script>
+
+<style>
+.page { flex: 1; background-color: #FAF7F5; }
+.hero { padding: 20px 16px 8px; }
+.title { font-size: 22px; font-weight: 700; color: #9F1239; }
+.sub { font-size: 12px; color: #78716C; margin-top: 4px; }
+.form { padding: 0 16px; }
+.inp { background-color: #fff; border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; }
+.btn { background-color: #E11D48; border-radius: 10px; align-items: center; padding: 12px; }
+.btn-t { color: #fff; font-weight: 600; }
+.card { margin: 10px 16px; padding: 14px; background-color: #fff; border-radius: 14px; }
+.ttl { font-size: 15px; font-weight: 600; }
+.meta { font-size: 12px; color: #78716C; margin-top: 4px; }
+</style>

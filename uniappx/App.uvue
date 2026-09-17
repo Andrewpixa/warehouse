@@ -1,5 +1,5 @@
 <script setup lang="uts">
-import { restoreAuth, isLoggedIn, fetchCurrentUser, clearAuth } from './stores/auth'
+import { restoreAuth, fetchCurrentUser, clearAuth } from './stores/auth'
 
 	// #ifdef APP-ANDROID || APP-HARMONY
 	let firstBackTime = 0
@@ -9,22 +9,17 @@ import { restoreAuth, isLoggedIn, fetchCurrentUser, clearAuth } from './stores/a
 		console.log('App Launch')
 		const restored = restoreAuth()
 		if (restored) {
-			// 验证后端 session 是否仍然有效
-			fetchCurrentUser().catch((err : Error) => {
-				console.log('Session 失效，跳转登录')
+			fetchCurrentUser().catch((_err : Error) => {
+				console.log('Session 失效，回到介绍页')
 				clearAuth()
-				uni.reLaunch({ url: '/pages/login/login' })
+				uni.reLaunch({ url: '/pages/intro/index' })
 			})
 		}
 	})
 
 	onAppShow(() => {
 		console.log('App Show')
-		// 如果没有本地存储的登录状态，直接跳登录
-		// 有本地状态时，由 onLaunch 的 fetchCurrentUser 验证
-		if (!restoreAuth()) {
-			uni.reLaunch({ url: '/pages/login/login' })
-		}
+		restoreAuth()
 	})
 
 	onAppHide(() => {

@@ -1,0 +1,277 @@
+<template>
+  <view class="page">
+    <!-- 顶部搜索区 -->
+    <view class="search-panel">
+      <view class="search-row">
+        <view class="search-box">
+          <text class="search-icon">🔍</text>
+          <input
+            class="search-input"
+            v-model="keyword"
+            placeholder="通用名 / 商品名 / 编码"
+            placeholder-class="search-ph"
+            confirm-type="search"
+            @confirm="onSearch"
+          />
+          <text v-if="keyword.length > 0" class="search-clear" @click="onClearKeyword">✕</text>
+        </view>
+        <view class="search-btn" @click="onSearch"><text class="search-btn-text">查询</text></view>
+      </view>
+      <scroll-view scroll-x class="chip-scroll" :show-scrollbar="false">
+        <view class="chip-row">
+          <view
+            v-for="(c, i) in categoryChips"
+            :key="i"
+            class="chip"
+            :class="c.value == category ? 'chip-on' : ''"
+            @click="onCategory(c.value)"
+          >
+            <text class="chip-text" :class="c.value == category ? 'chip-text-on' : ''">{{ c.label }}</text>
+          </view>
+          <view class="chip-divider"></view>
+          <view
+            v-for="(s, j) in statusChips"
+            :key="j"
+            class="chip chip-plain"
+            :class="s.value == status ? 'chip-on' : ''"
+            @click="onStatus(s.value)"
+          >
+            <text class="chip-text" :class="s.value == status ? 'chip-text-on' : ''">{{ s.label }}</text>
+          </view>
+        </view>
+      </scroll-view>
+    </view>
+
+    <!-- 结果统计 -->
+    <view class="result-bar">
+      <text class="result-total">共 {{ total }} 条</text>
+      <text class="result-loaded">已加载 {{ rows.length }} 条</text>
+    </view>
+
+    <!-- 列表 -->
+    <scroll-view
+      class="list-scroll"
+      @scrolltolower="loadMore"
+      refresher-enabled
+      :refresher-triggered="refreshing"
+      @refresherrefresh="onRefresh"
+    >
+      <view v-if="rows.length > 0" class="list-wrap">
+        <view v-for="(d, idx) in rows" :key="idx" class="drug-card">
+          <view class="card-top">
+            <view class="name-wrap">
+              <text class="drug-name">{{ displayName(d) }}</text>
+            </view>
+            <view class="tag" :style="{ backgroundColor: statusOn(d) ? '#E8F5EE' : '#FDECEC' }">
+              <text class="tag-text" :style="{ color: statusOn(d) ? '#16A34A' : '#DC2626' }">{{ statusOn(d) ? '启用' : '停用' }}</text>
+            </view>
+          </view>
+          <view class="tag-line">
+            <view class="tag tag-blue"><text class="tag-text tag-text-blue">{{ categoryText(d) }}</text></view>
+            <view v-if="isCold(d)" class="tag tag-cyan"><text class="tag-text tag-text-cyan">冷链</text></view>
+            <view v-if="rxText(d).length > 0" class="tag tag-gray"><text class="tag-text tag-text-gray">{{ rxText(d) }}</text></view>
+          </view>
+          <view class="meta-line"><text class="meta-label">编码</text><text class="meta-value">{{ str(d, 'code') }}</text></view>
+          <view v-if="specText(d).length > 0" class="meta-line"><text class="meta-label">规格</text><text class="meta-value">{{ specText(d) }}</text></view>
+          <view v-if="str(d, 'manufacturer').length > 0" class="meta-line"><text class="meta-label">厂家</text><text class="meta-value">{{ str(d, 'manufacturer') }}</text></view>
+          <view v-if="str(d, 'approvalNo').length > 0" class="meta-line"><text class="meta-label">批准文号</text><text class="meta-value meta-mono">{{ str(d, 'approvalNo') }}</text></view>
+          <view v-if="str(d, 'barcode').length > 0" class="meta-line"><text class="meta-label">条码</text><text class="meta-value meta-mono">{{ str(d, 'barcode') }}</text></view>
+          <view v-if="priceText(d).length > 0" class="meta-line"><text class="meta-label">参考价</text><text class="meta-value price">{{ priceText(d) }}</text></view>
+        </view>
+        <view class="load-row"><text class="load-text">{{ loading ? '加载中...' : (noMore ? '— 没有更多了 —' : '上拉加载更多') }}</text></view>
+      </view>
+
+      <view v-else-if="!loading && !failed" class="empty-wrap">
+        <text class="empty-emoji">💊</text>
+        <text class="empty-title">暂无药品数据</text>
+        <text class="empty-sub">换个关键词或筛选条件试试</text>
+      </view>
+      <view v-else-if="failed" class="empty-wrap">
+        <text class="empty-emoji">⚠️</text>
+        <text class="empty-title">加载失败</text>
+        <view class="retry-btn" @click="onRefresh"><text class="retry-text">点击重试</text></view>
+      </view>
+      <view v-else class="empty-wrap"><text class="empty-sub">加载中...</text></view>
+    </scroll-view>
+  </view>
+</template>
+
+<script setup lang="uts">
+import { ref } from 'vue'
+import { loadAllDrug } from '../../api/drug'
+
+interface Chip { label: string; value: string }
+interface NumChip { label: string; value: number }
+
+const categoryChips: Chip[] = [
+  { label: '全部', value: '' },
+  { label: '药品', value: 'drug' },
+  { label: '器械', value: 'device' }
+]
+const statusChips: NumChip[] = [
+  { label: '启用', value: 1 },
+  { label: '停用', value: 0 }
+]
+
+const keyword = ref('')
+const category = ref('')
+const status = ref(-1)
+const rows = ref<UTSJSONObject[]>([])
+const total = ref(0)
+const page = ref(1)
+const limit = 20
+const loading = ref(false)
+const refreshing = ref(false)
+const noMore = ref(false)
+const failed = ref(false)
+
+function str(d: UTSJSONObject, key: string): string {
+  const v = d[key]
+  if (v == null) return ''
+  if (typeof v == 'string') return v as string
+  return v.toString()
+}
+function numVal(d: UTSJSONObject, key: string): number {
+  return (d[key] as number) ?? 0
+}
+function displayName(d: UTSJSONObject): string {
+  const g = str(d, 'genericName')
+  const t = str(d, 'tradeName')
+  if (g.length > 0 && t.length > 0) return g + ' ' + t
+  if (g.length > 0) return g
+  if (t.length > 0) return t
+  return str(d, 'code')
+}
+function statusOn(d: UTSJSONObject): boolean {
+  return numVal(d, 'status') == 1
+}
+function isCold(d: UTSJSONObject): boolean {
+  return numVal(d, 'isColdChain') == 1
+}
+function categoryText(d: UTSJSONObject): string {
+  const c = str(d, 'category')
+  if (c == 'drug') return '药品'
+  if (c == 'device') return '器械'
+  return '其他'
+}
+function rxText(d: UTSJSONObject): string {
+  return str(d, 'rxType')
+}
+function specText(d: UTSJSONObject): string {
+  const s = str(d, 'spec')
+  const u = str(d, 'unit')
+  if (s.length > 0 && u.length > 0) return s + ' · ' + u
+  return s
+}
+function priceText(d: UTSJSONObject): string {
+  const p = str(d, 'refSalePrice')
+  if (p.length > 0) return '售价 ¥' + p
+  return ''
+}
+
+function fetchList(isRefresh: boolean): void {
+  if (loading.value) return
+  if (isRefresh) {
+    page.value = 1
+    noMore.value = false
+  }
+  if (noMore.value) return
+  loading.value = true
+  failed.value = false
+
+  const params = {} as UTSJSONObject
+  params['page'] = page.value
+  params['limit'] = limit
+  if (keyword.value.trim().length > 0) params['genericName'] = keyword.value.trim()
+  if (category.value.length > 0) params['category'] = category.value
+  if (status.value != -1) params['status'] = status.value
+
+  loadAllDrug(params).then((res: any) => {
+    const result = res as UTSJSONObject
+    if (result['code'] as number == 0) {
+      const list = (result['data'] as UTSJSONObject[] | null) ?? []
+      total.value = (result['count'] as number) ?? 0
+      if (isRefresh) {
+        rows.value = list
+      } else {
+        rows.value = rows.value.concat(list)
+      }
+      if (list.length < limit) noMore.value = true
+      else page.value = page.value + 1
+    }
+  }).catch((err: Error) => {
+    failed.value = true
+    uni.showToast({ title: '加载失败', icon: 'none' })
+  }).finally(() => {
+    loading.value = false
+    refreshing.value = false
+  })
+}
+
+function onSearch(): void { fetchList(true) }
+function onClearKeyword(): void { keyword.value = ''; fetchList(true) }
+function onCategory(v: string): void { category.value = v; fetchList(true) }
+function onStatus(v: number): void { status.value = status.value == v ? -1 : v; fetchList(true) }
+function onRefresh(): void { refreshing.value = true; fetchList(true) }
+function loadMore(): void { if (!noMore.value && !loading.value) fetchList(false) }
+
+onMounted(() => { fetchList(true) })
+</script>
+
+<style>
+.page { flex: 1; background-color: #F4F6FB; }
+
+.search-panel { background-color: #FFFFFF; padding: 20rpx 24rpx 16rpx; }
+.search-row { flex-direction: row; align-items: center; }
+.search-box { flex: 1; height: 76rpx; background-color: #F1F4F9; border-radius: 38rpx; flex-direction: row; align-items: center; padding: 0 24rpx; }
+.search-icon { font-size: 28rpx; margin-right: 12rpx; }
+.search-input { flex: 1; height: 76rpx; font-size: 28rpx; color: #1F2937; }
+.search-ph { color: #9AA4B2; }
+.search-clear { font-size: 24rpx; color: #9AA4B2; padding: 8rpx; }
+.search-btn { margin-left: 16rpx; height: 76rpx; padding: 0 36rpx; border-radius: 38rpx; background: linear-gradient(135deg, #3B82F6, #1D4ED8); align-items: center; justify-content: center; }
+.search-btn-text { color: #FFFFFF; font-size: 28rpx; font-weight: 600; }
+
+.chip-scroll { margin-top: 16rpx; }
+.chip-row { flex-direction: row; align-items: center; }
+.chip { padding: 10rpx 28rpx; border-radius: 30rpx; background-color: #F1F4F9; margin-right: 14rpx; }
+.chip-plain { background-color: #F8FAFC; border-width: 1rpx; border-style: solid; border-color: #E5E9F0; }
+.chip-divider { width: 2rpx; height: 28rpx; background-color: #E5E9F0; margin: 0 10rpx 0 0; }
+.chip-on { background-color: #1D4ED8; border-color: #1D4ED8; }
+.chip-text { font-size: 25rpx; color: #5B6572; }
+.chip-text-on { color: #FFFFFF; font-weight: 600; }
+
+.result-bar { flex-direction: row; justify-content: space-between; padding: 18rpx 28rpx 6rpx; }
+.result-total { font-size: 24rpx; color: #4B5563; font-weight: 600; }
+.result-loaded { font-size: 24rpx; color: #9AA4B2; }
+
+.list-scroll { flex: 1; }
+.list-wrap { padding: 8rpx 24rpx 24rpx; }
+.drug-card { background-color: #FFFFFF; border-radius: 20rpx; padding: 26rpx 26rpx 20rpx; margin-bottom: 18rpx; border-width: 1rpx; border-style: solid; border-color: #EEF1F6; }
+.card-top { flex-direction: row; justify-content: space-between; align-items: flex-start; }
+.name-wrap { flex: 1; padding-right: 16rpx; }
+.drug-name { font-size: 32rpx; font-weight: 700; color: #111827; line-height: 42rpx; }
+.tag-line { flex-direction: row; margin-top: 14rpx; }
+.tag { padding: 5rpx 16rpx; border-radius: 8rpx; margin-right: 12rpx; }
+.tag-blue { background-color: #EAF1FE; }
+.tag-cyan { background-color: #E6F7F7; }
+.tag-gray { background-color: #F1F3F6; }
+.tag-text { font-size: 21rpx; color: #4B5563; }
+.tag-text-blue { color: #1D4ED8; }
+.tag-text-cyan { color: #0E7490; }
+.tag-text-gray { color: #6B7280; }
+.meta-line { flex-direction: row; margin-top: 10rpx; }
+.meta-label { width: 120rpx; font-size: 25rpx; color: #9AA4B2; }
+.meta-value { flex: 1; font-size: 25rpx; color: #374151; }
+.meta-mono { color: #4B5563; }
+.price { color: #C2410C; font-weight: 600; }
+
+.load-row { align-items: center; padding: 20rpx 0 30rpx; }
+.load-text { font-size: 24rpx; color: #9AA4B2; }
+
+.empty-wrap { align-items: center; padding-top: 180rpx; }
+.empty-emoji { font-size: 88rpx; }
+.empty-title { font-size: 30rpx; color: #4B5563; margin-top: 20rpx; font-weight: 600; }
+.empty-sub { font-size: 25rpx; color: #9AA4B2; margin-top: 10rpx; }
+.retry-btn { margin-top: 24rpx; padding: 16rpx 48rpx; border-radius: 36rpx; background-color: #1D4ED8; }
+.retry-text { color: #FFFFFF; font-size: 27rpx; }
+</style>

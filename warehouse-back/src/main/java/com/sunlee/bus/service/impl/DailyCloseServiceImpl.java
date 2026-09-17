@@ -7,6 +7,7 @@ import com.sunlee.bus.entity.Customer;
 import com.sunlee.bus.entity.DailyCloseRecord;
 import com.sunlee.bus.entity.Drug;
 import com.sunlee.bus.entity.PurchaseOrder;
+import com.sunlee.bus.entity.PurchaseOrderItem;
 import com.sunlee.bus.entity.SalesOrder;
 import com.sunlee.bus.entity.SalesOrderItem;
 import com.sunlee.bus.entity.Supplier;
@@ -17,7 +18,9 @@ import com.sunlee.bus.mapper.DailyCloseRecordMapper;
 import com.sunlee.bus.service.ICustomerService;
 import com.sunlee.bus.service.IDailyCloseService;
 import com.sunlee.bus.service.IDrugService;
+import com.sunlee.bus.service.IPurchaseOrderItemService;
 import com.sunlee.bus.service.IPurchaseOrderService;
+import com.sunlee.bus.service.IBizVoucherService;
 import com.sunlee.bus.service.ISalesOrderItemService;
 import com.sunlee.bus.service.ISalesOrderService;
 import com.sunlee.bus.service.ISupplierService;
@@ -28,6 +31,7 @@ import com.sunlee.bus.vo.DailyCloseChecklist;
 import com.sunlee.bus.vo.DailyCloseChecklist.OrderRow;
 import com.sunlee.bus.vo.DailyCloseChecklist.Summary;
 import com.sunlee.bus.vo.DailyCloseChecklist.TraceRow;
+import com.sunlee.bus.vo.VoucherIssue;
 import com.sunlee.sys.entity.User;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -78,6 +82,12 @@ public class DailyCloseServiceImpl implements IDailyCloseService {
     @Autowired
     private DailyCloseRecordMapper dailyCloseRecordMapper;
 
+    @Autowired
+    private IBizVoucherService voucherService;
+
+    @Autowired
+    private IPurchaseOrderItemService purchaseOrderItemService;
+
     @Override
     public DailyCloseChecklist loadChecklist(LocalDate bizDate) {
         if (bizDate == null) {
@@ -91,10 +101,12 @@ public class DailyCloseServiceImpl implements IDailyCloseService {
         List<SalesOrder> sales = listSalesByDate(bizDate);
         List<SurplusOrder> surplus = listByDate(surplusOrderService, bizDate);
 
+        List<PurchaseOrder> confirmedPurchases = new ArrayList<>();
         for (PurchaseOrder order : purchases) {
             if (PharmaNos.STATUS_DRAFT.equals(order.getStatus())) {
                 result.getDraftPurchases().add(toPurchaseRow(order));
             } else if (PharmaNos.STATUS_CONFIRMED.equals(order.getStatus())) {
+                confirmedPurchases.add(order);
                 summary.setConfirmedPurchaseCount(summary.getConfirmedPurchaseCount() + 1);
                 summary.setConfirmedPurchaseAmount(add(summary.getConfirmedPurchaseAmount(), order.getTotalAmount()));
             }
@@ -128,6 +140,7 @@ public class DailyCloseServiceImpl implements IDailyCloseService {
         }
 
         result.setMissingTraces(findMissingTraces(confirmedSales));
+        collectVoucherIssues(result, confirmedPurchases, confirmedSales);
 
         summary.setDraftPurchaseCount(result.getDraftPurchases().size());
         summary.setDraftOutboundCount(result.getDraftOutbounds().size());
@@ -136,12 +149,18 @@ public class DailyCloseServiceImpl implements IDailyCloseService {
         summary.setCashUnpaidCount(result.getCashUnpaid().size());
         summary.setMonthlyUnpaidCount(result.getMonthlyUnpaid().size());
         summary.setPendingReceiptCount(result.getPendingReceipts().size());
+        summary.setMissingTicketCount(result.getMissingTickets().size());
+        summary.setMissingSignCount(result.getMissingSigns().size());
+        summary.setAmountMismatchCount(result.getAmountMismatches().size());
 
         int blockers = (int) (summary.getDraftPurchaseCount()
                 + summary.getDraftOutboundCount()
                 + summary.getDraftSurplusCount()
                 + summary.getMissingTraceCount()
-                + summary.getCashUnpaidCount());
+                + summary.getCashUnpaidCount()
+                + summary.getMissingTicketCount()
+                + summary.getMissingSignCount()
+                + summary.getAmountMismatchCount());
         result.setBlockerCount(blockers);
         result.setCleared(blockers == 0);
         fillClosed(result, bizDate);
@@ -361,6 +380,59 @@ public class DailyCloseServiceImpl implements IDailyCloseService {
         }
         Warehouse warehouse = warehouseService.getById(id);
         return warehouse == null ? null : warehouse.getName();
+    }
+
+    private void collectVoucherIssues(DailyCloseChecklist result, List<PurchaseOrder> purchases, List<SalesOrder> sales) {
+        Map<Long, List<PurchaseOrderItem>> purchaseItems = loadPurchaseItems(purchases);
+        for (PurchaseOrder order : purchases) {
+            classifyIssues(result, voucherService.inspectPurchase(
+                    order, purchaseItems.getOrDefault(order.getId(), List.of()), supplierName(order.getSupplierId())));
+        }
+        Map<Long, List<SalesOrderItem>> salesItems = loadSalesItems(sales);
+        for (SalesOrder order : sales) {
+            classifyIssues(result, voucherService.inspectSales(
+                    order, salesItems.getOrDefault(order.getId(), List.of()), customerName(order.getCustomerId())));
+        }
+    }
+
+    private void classifyIssues(DailyCloseChecklist result, List<VoucherIssue> issues) {
+        for (VoucherIssue issue : issues) {
+            if (VoucherIssue.MISSING_TICKET.equals(issue.getIssueType())) {
+                result.getMissingTickets().add(issue);
+            } else if (VoucherIssue.MISSING_SIGN.equals(issue.getIssueType())) {
+                result.getMissingSigns().add(issue);
+            } else {
+                result.getAmountMismatches().add(issue);
+            }
+        }
+    }
+
+    private Map<Long, List<PurchaseOrderItem>> loadPurchaseItems(List<PurchaseOrder> orders) {
+        Map<Long, List<PurchaseOrderItem>> map = new HashMap<>();
+        if (orders.isEmpty()) {
+            return map;
+        }
+        List<Long> ids = orders.stream().map(PurchaseOrder::getId).collect(Collectors.toList());
+        QueryWrapper<PurchaseOrderItem> qw = new QueryWrapper<>();
+        qw.in("order_id", ids);
+        for (PurchaseOrderItem item : purchaseOrderItemService.list(qw)) {
+            map.computeIfAbsent(item.getOrderId(), k -> new ArrayList<>()).add(item);
+        }
+        return map;
+    }
+
+    private Map<Long, List<SalesOrderItem>> loadSalesItems(List<SalesOrder> orders) {
+        Map<Long, List<SalesOrderItem>> map = new HashMap<>();
+        if (orders.isEmpty()) {
+            return map;
+        }
+        List<Long> ids = orders.stream().map(SalesOrder::getId).collect(Collectors.toList());
+        QueryWrapper<SalesOrderItem> qw = new QueryWrapper<>();
+        qw.in("order_id", ids);
+        for (SalesOrderItem item : salesOrderItemService.list(qw)) {
+            map.computeIfAbsent(item.getOrderId(), k -> new ArrayList<>()).add(item);
+        }
+        return map;
     }
 
     private static BigDecimal add(BigDecimal a, BigDecimal b) {

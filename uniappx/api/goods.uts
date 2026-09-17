@@ -1,28 +1,27 @@
 import { get, post, postWithParams } from './request'
 
+/**
+ * 商品/药品相关混合 API
+ * 注意：loadDashboardStats / loadAllWarningGoods 已改查新药企表
+ * loadGoodsForPOS / loadAllGoodsForSelect 等暂时仍查旧 bus_goods 表（待页面改造后统一调 /drug）
+ */
+
+/** 工作台：加载首页统计（已改查新药企表 drugs + purchase_orders + sales_orders） */
+export function loadDashboardStats() {
+  return get('/goods/loadDashboardStats')
+}
+
+/** 工作台：加载库存预警（查 batch_stocks + drugs） */
+export function loadAllWarningGoods() {
+  return get('/goods/loadAllWarningGoods')
+}
+
+/** 加载全部商品（旧 bus_goods 表，待改造为查 /drug） */
 export function loadAllGoods(params: any) {
   return get('/goods/loadAllGoods', params as UTSJSONObject)
 }
 
-export function addGoods(data: any) {
-  return post('/goods/addGoods', data as UTSJSONObject)
-}
-
-export function updateGoods(data: any) {
-  return post('/goods/updateGoods', data as UTSJSONObject)
-}
-
-export function deleteGoods(id: number, goodsimg: string) {
-  const params = {} as UTSJSONObject
-  params['id'] = id
-  params['goodsimg'] = goodsimg
-  return postWithParams('/goods/deleteGoods', params)
-}
-
-export function loadAllGoodsForSelect() {
-  return get('/goods/loadAllGoodsForSelect')
-}
-
+/** POS 页面加载商品列表（旧 bus_goods，待改造为查 /drug） */
 export function loadGoodsForPOS(page: number, limit: number, keyword: string) {
   const params = {} as UTSJSONObject
   params['page'] = page
@@ -31,28 +30,15 @@ export function loadGoodsForPOS(page: number, limit: number, keyword: string) {
   return get('/goods/loadGoodsForPOS', params)
 }
 
+/** 全部可用商品（下拉选择） */
+export function loadAllGoodsForSelect() {
+  return get('/goods/loadAllGoodsForSelect')
+}
+
+/** 按供应商 ID 查询商品 */
 export function loadGoodsByProviderId(providerid: number, allStatus: number = 0) {
   const params = {} as UTSJSONObject
   params['providerid'] = providerid
   params['allStatus'] = allStatus
   return get('/goods/loadGoodsByProviderId', params)
-}
-
-export function updateGoodsAvailable(id: number, available: number) {
-  const params = {} as UTSJSONObject
-  params['id'] = id
-  params['available'] = available
-  return postWithParams('/goods/updateGoodsAvailable', params)
-}
-
-export function loadAllWarningGoods() {
-  return get('/goods/loadAllWarningGoods')
-}
-
-export function loadDashboardStats() {
-  return get('/goods/loadDashboardStats')
-}
-
-export function loadRecentOperations() {
-  return get('/goods/loadRecentOperations')
 }

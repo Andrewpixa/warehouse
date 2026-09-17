@@ -20,6 +20,14 @@ export function deleteDept(id: number) {
   return request.post('/dept/deleteDept', null, { params: { id } })
 }
 
+export function loadDeptDetail(id: number) {
+  return request.get('/dept/loadDeptDetail', { params: { id } })
+}
+
+export function loadGspUsers(gspRole?: string) {
+  return request.get('/dept/loadGspUsers', { params: { gspRole } })
+}
+
 export function loadDeptMaxOrderNum() {
   return request.get('/dept/loadDeptMaxOrderNum')
 }

@@ -1,0 +1,272 @@
+<template>
+  <view class="page">
+    <!-- 搜索区 -->
+    <view class="search-panel">
+      <view class="search-row">
+        <view class="search-box">
+          <text class="search-icon">🔍</text>
+          <input
+            class="search-input"
+            v-model="drugName"
+            placeholder="药品名称"
+            placeholder-class="search-ph"
+            confirm-type="search"
+            @confirm="onSearch"
+          />
+        </view>
+        <view class="search-box box-small">
+          <input
+            class="search-input"
+            v-model="batchNo"
+            placeholder="批号"
+            placeholder-class="search-ph"
+            confirm-type="search"
+            @confirm="onSearch"
+          />
+        </view>
+        <view class="search-btn" @click="onSearch"><text class="search-btn-text">查询</text></view>
+      </view>
+      <view class="chip-row">
+        <view
+          v-for="(c, i) in filters"
+          :key="i"
+          class="chip"
+          :class="c.value == expireFilter ? 'chip-on' : ''"
+          @click="onFilter(c.value)"
+        >
+          <text class="chip-text" :class="c.value == expireFilter ? 'chip-text-on' : ''">{{ c.label }}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 结果统计 -->
+    <view class="result-bar">
+      <text class="result-total">共 {{ total }} 条批次</text>
+      <text class="result-loaded">{{ filterHint }}</text>
+    </view>
+
+    <scroll-view
+      class="list-scroll"
+      @scrolltolower="loadMore"
+      refresher-enabled
+      :refresher-triggered="refreshing"
+      @refresherrefresh="onRefresh"
+    >
+      <view v-if="rows.length > 0" class="list-wrap">
+        <view v-for="(s, idx) in rows" :key="idx" class="stock-card">
+          <view class="card-top">
+            <text class="drug-name">{{ nameText(s) }}</text>
+            <view class="tag" :style="{ backgroundColor: expireInfo(s).bg }">
+              <text class="tag-text" :style="{ color: expireInfo(s).fg }">{{ expireInfo(s).label }}</text>
+            </view>
+          </view>
+          <view class="batch-line">
+            <text class="batch-no">批号 {{ str(s, 'batchNo') }}</text>
+            <view v-if="str(s, 'qualityStatus').length > 0" class="tag tag-gray">
+              <text class="tag-text tag-text-gray">{{ str(s, 'qualityStatus') }}</text>
+            </view>
+          </view>
+          <view class="meta-grid">
+            <view class="meta-box">
+              <text class="meta-num">{{ str(s, 'qty') }}</text>
+              <text class="meta-cap">库存数量</text>
+            </view>
+            <view class="meta-box">
+              <text class="meta-num" :class="expireInfo(s).danger ? 'num-danger' : ''">{{ str(s, 'expireDate') }}</text>
+              <text class="meta-cap">有效期至</text>
+            </view>
+          </view>
+          <view v-if="str(s, 'drugSpec').length > 0" class="meta-line"><text class="meta-label">规格</text><text class="meta-value">{{ str(s, 'drugSpec') }}</text></view>
+          <view v-if="str(s, 'productionDate').length > 0" class="meta-line"><text class="meta-label">生产日期</text><text class="meta-value">{{ str(s, 'productionDate') }}</text></view>
+          <view v-if="str(s, 'warehouseName').length > 0" class="meta-line"><text class="meta-label">仓库</text><text class="meta-value">{{ str(s, 'warehouseName') }}</text></view>
+        </view>
+        <view class="load-row"><text class="load-text">{{ loading ? '加载中...' : (noMore ? '— 没有更多了 —' : '上拉加载更多') }}</text></view>
+      </view>
+
+      <view v-else-if="!loading && !failed" class="empty-wrap">
+        <text class="empty-emoji">📦</text>
+        <text class="empty-title">暂无批号库存</text>
+        <text class="empty-sub">调整筛选条件后再试试</text>
+      </view>
+      <view v-else-if="failed" class="empty-wrap">
+        <text class="empty-emoji">⚠️</text>
+        <text class="empty-title">加载失败</text>
+        <view class="retry-btn" @click="onRefresh"><text class="retry-text">点击重试</text></view>
+      </view>
+      <view v-else class="empty-wrap"><text class="empty-sub">加载中...</text></view>
+    </scroll-view>
+  </view>
+</template>
+
+<script setup lang="uts">
+import { ref } from 'vue'
+import { loadAllBatchStock } from '../../api/batchStock'
+
+interface Filter { label: string; value: string }
+interface ExpireInfo { label: string; fg: string; bg: string; danger: boolean }
+
+const filters: Filter[] = [
+  { label: '全部批次', value: 'all' },
+  { label: '近效期 90 天', value: 'near' },
+  { label: '已过期', value: 'expired' }
+]
+
+const drugName = ref('')
+const batchNo = ref('')
+const expireFilter = ref('all')
+const rows = ref<UTSJSONObject[]>([])
+const total = ref(0)
+const page = ref(1)
+const limit = 20
+const loading = ref(false)
+const refreshing = ref(false)
+const noMore = ref(false)
+const failed = ref(false)
+
+const filterHint = computed((): string => {
+  if (expireFilter.value == 'near') return '效期 ≤ 90 天'
+  if (expireFilter.value == 'expired') return '已过有效期'
+  return '全部在库批次'
+})
+
+function str(s: UTSJSONObject, key: string): string {
+  const v = s[key]
+  if (v == null) return ''
+  if (typeof v == 'string') return v as string
+  return v.toString()
+}
+function nameText(s: UTSJSONObject): string {
+  const n = str(s, 'drugName')
+  if (n.length > 0) return n
+  return '药品 #' + ((s['drugId'] as number) ?? 0).toString()
+}
+
+function expireInfo(s: UTSJSONObject): ExpireInfo {
+  const dateStr = str(s, 'expireDate')
+  if (dateStr.length == 0) {
+    return { label: '效期未知', fg: '#6B7280', bg: '#F1F3F6', danger: false }
+  }
+  const days = daysUntil(dateStr)
+  if (days == -99999) {
+    return { label: '效期未知', fg: '#6B7280', bg: '#F1F3F6', danger: false }
+  }
+  if (days < 0) return { label: '已过期', fg: '#DC2626', bg: '#FDECEC', danger: true }
+  if (days <= 90) return { label: '近效期', fg: '#C2410C', bg: '#FEF3E2', danger: true }
+  return { label: '正常', fg: '#16A34A', bg: '#E8F5EE', danger: false }
+}
+
+function daysUntil(dateStr: string): number {
+  // 兼容 "YYYY-MM-DD" 与 "YYYY-MM-DDTHH:mm:ss"
+  const parts = dateStr.split('T')[0].split('-')
+  if (parts.length < 3) return -99999
+  const y = parseInt(parts[0])
+  const m = parseInt(parts[1])
+  const d = parseInt(parts[2])
+  const target = new Date(y, m - 1, d).getTime()
+  // 非法日期时 getTime() 为 NaN（NaN 不等于自身）
+  if (target != target) return -99999
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+  return Math.floor((target - today) / 86400000)
+}
+
+function fetchList(isRefresh: boolean): void {
+  if (loading.value) return
+  if (isRefresh) {
+    page.value = 1
+    noMore.value = false
+  }
+  if (noMore.value) return
+  loading.value = true
+  failed.value = false
+
+  const params = {} as UTSJSONObject
+  params['page'] = page.value
+  params['limit'] = limit
+  params['expireFilter'] = expireFilter.value
+  params['nearExpireDays'] = 90
+  if (drugName.value.trim().length > 0) params['drugName'] = drugName.value.trim()
+  if (batchNo.value.trim().length > 0) params['batchNo'] = batchNo.value.trim()
+
+  loadAllBatchStock(params).then((res: any) => {
+    const result = res as UTSJSONObject
+    if (result['code'] as number == 0) {
+      const list = (result['data'] as UTSJSONObject[] | null) ?? []
+      total.value = (result['count'] as number) ?? 0
+      if (isRefresh) rows.value = list
+      else rows.value = rows.value.concat(list)
+      if (list.length < limit) noMore.value = true
+      else page.value = page.value + 1
+    }
+  }).catch((err: Error) => {
+    failed.value = true
+    uni.showToast({ title: '加载失败', icon: 'none' })
+  }).finally(() => {
+    loading.value = false
+    refreshing.value = false
+  })
+}
+
+function onSearch(): void { fetchList(true) }
+function onFilter(v: string): void { expireFilter.value = v; fetchList(true) }
+function onRefresh(): void { refreshing.value = true; fetchList(true) }
+function loadMore(): void { if (!noMore.value && !loading.value) fetchList(false) }
+
+onMounted(() => { fetchList(true) })
+</script>
+
+<style>
+.page { flex: 1; background-color: #F4F6FB; }
+
+.search-panel { background-color: #FFFFFF; padding: 20rpx 24rpx 18rpx; }
+.search-row { flex-direction: row; align-items: center; }
+.search-box { flex: 1; height: 76rpx; background-color: #F1F4F9; border-radius: 38rpx; flex-direction: row; align-items: center; padding: 0 24rpx; }
+.box-small { margin-left: 14rpx; width: 200rpx; flex: 0; }
+.search-icon { font-size: 28rpx; margin-right: 12rpx; }
+.search-input { flex: 1; height: 76rpx; font-size: 28rpx; color: #1F2937; }
+.search-ph { color: #9AA4B2; }
+.search-btn { margin-left: 14rpx; height: 76rpx; padding: 0 32rpx; border-radius: 38rpx; background: linear-gradient(135deg, #3B82F6, #1D4ED8); align-items: center; justify-content: center; }
+.search-btn-text { color: #FFFFFF; font-size: 28rpx; font-weight: 600; }
+
+.chip-row { flex-direction: row; margin-top: 16rpx; }
+.chip { padding: 10rpx 28rpx; border-radius: 30rpx; background-color: #F1F4F9; margin-right: 14rpx; }
+.chip-on { background-color: #1D4ED8; }
+.chip-text { font-size: 25rpx; color: #5B6562; }
+.chip-text-on { color: #FFFFFF; font-weight: 600; }
+
+.result-bar { flex-direction: row; justify-content: space-between; padding: 18rpx 28rpx 6rpx; }
+.result-total { font-size: 24rpx; color: #4B5563; font-weight: 600; }
+.result-loaded { font-size: 24rpx; color: #9AA4B2; }
+
+.list-scroll { flex: 1; }
+.list-wrap { padding: 8rpx 24rpx 24rpx; }
+.stock-card { background-color: #FFFFFF; border-radius: 20rpx; padding: 26rpx; margin-bottom: 18rpx; border-width: 1rpx; border-style: solid; border-color: #EEF1F6; }
+.card-top { flex-direction: row; justify-content: space-between; align-items: center; }
+.drug-name { flex: 1; font-size: 31rpx; font-weight: 700; color: #111827; padding-right: 16rpx; }
+.tag { padding: 5rpx 16rpx; border-radius: 8rpx; }
+.tag-gray { background-color: #F1F3F6; }
+.tag-text { font-size: 21rpx; }
+.tag-text-gray { color: #6B7280; }
+.batch-line { flex-direction: row; align-items: center; margin-top: 12rpx; }
+.batch-no { font-size: 26rpx; color: #1D4ED8; font-weight: 600; margin-right: 14rpx; }
+
+.meta-grid { flex-direction: row; margin-top: 18rpx; background-color: #F8FAFC; border-radius: 14rpx; padding: 18rpx 0; }
+.meta-box { flex: 1; align-items: center; }
+.meta-num { font-size: 30rpx; font-weight: 700; color: #111827; }
+.num-danger { color: #DC2626; }
+.meta-cap { font-size: 22rpx; color: #9AA4B2; margin-top: 6rpx; }
+
+.meta-line { flex-direction: row; margin-top: 12rpx; }
+.meta-label { width: 120rpx; font-size: 25rpx; color: #9AA4B2; }
+.meta-value { flex: 1; font-size: 25rpx; color: #374151; }
+
+.load-row { align-items: center; padding: 20rpx 0 30rpx; }
+.load-text { font-size: 24rpx; color: #9AA4B2; }
+
+.empty-wrap { align-items: center; padding-top: 180rpx; }
+.empty-emoji { font-size: 88rpx; }
+.empty-title { font-size: 30rpx; color: #4B5563; margin-top: 20rpx; font-weight: 600; }
+.empty-sub { font-size: 25rpx; color: #9AA4B2; margin-top: 10rpx; }
+.retry-btn { margin-top: 24rpx; padding: 16rpx 48rpx; border-radius: 36rpx; background-color: #1D4ED8; }
+.retry-text { color: #FFFFFF; font-size: 27rpx; }
+</style>

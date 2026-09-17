@@ -43,6 +43,10 @@ mybatis-plus:
     db-config:
       id-type: auto
 
+# 业务数据归档配置
+archive:
+  retention-days: 365
+
 # SA-Token 配置
 sa-token:
   token-name: satoken

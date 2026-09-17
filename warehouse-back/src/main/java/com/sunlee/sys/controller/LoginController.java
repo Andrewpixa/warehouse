@@ -9,6 +9,8 @@ import com.sunlee.sys.common.*;
 import com.sunlee.sys.entity.Loginfo;
 import com.sunlee.sys.entity.Permission;
 import com.sunlee.sys.entity.User;
+import com.sunlee.sys.entity.Dept;
+import com.sunlee.sys.service.IDeptService;
 import com.sunlee.sys.service.ILoginfoService;
 import com.sunlee.sys.service.IPermissionService;
 import com.sunlee.sys.service.IRoleService;
@@ -44,7 +46,7 @@ public class LoginController {
         HREF_MAP.put("/sys/toDeskManager", "/dashboard");
         HREF_MAP.put("/sys/toUserManager", "/system/user");
         HREF_MAP.put("/sys/toRoleManager", "/system/role");
-        HREF_MAP.put("/sys/toDeptManager", "/system/dept");
+        HREF_MAP.put("/sys/toDeptManager", "/system/user");
         HREF_MAP.put("/sys/toMenuManager", "/system/menu");
         HREF_MAP.put("/sys/toPermissionManager", "/system/permission");
         HREF_MAP.put("/sys/toNoticeManager", "/system/notice");
@@ -66,6 +68,18 @@ public class LoginController {
         HREF_MAP.put("/bus/toGoodsAnalysis", "/business/goods-analysis");
         HREF_MAP.put("/bus/toProfitAnalysis", "/business/profit-analysis");
         HREF_MAP.put("/bus/toStocktakeManager", "/business/stocktake");
+        HREF_MAP.put("/bus/toStockout", "/business/stockout");
+        HREF_MAP.put("/bus/toInboundEx", "/business/inbound-ex");
+        HREF_MAP.put("/bus/toReturnNotice", "/business/return-notice");
+        HREF_MAP.put("/bus/toOffset", "/business/offset");
+        HREF_MAP.put("/bus/toPrintPack", "/business/print-pack");
+        HREF_MAP.put("/bus/toAllocate", "/business/allocate");
+        HREF_MAP.put("/bus/toCredit", "/business/credit");
+        HREF_MAP.put("/bus/toQuota", "/business/quota");
+        HREF_MAP.put("/bus/toLogistics", "/business/logistics");
+        HREF_MAP.put("/bus/toMakerFlow", "/business/maker-flow");
+        HREF_MAP.put("/bus/toDeptDesk", "/business/dept-desk");
+        HREF_MAP.put("/business/dept-desk", "/business/dept-desk");
     }
 
     @Autowired
@@ -79,6 +93,9 @@ public class LoginController {
 
     @Autowired
     private IUserService userService;
+
+    @Autowired
+    private IDeptService deptService;
 
     @Autowired
     private Environment environment;
@@ -242,6 +259,13 @@ public class LoginController {
                 return map;
             }
             map.put("code", 200);
+            if (user.getDeptid() != null) {
+                Dept dept = deptService.getById(user.getDeptid());
+                if (dept != null) {
+                    user.setDeptname(dept.getName());
+                    user.setDeptType(dept.getDeptType());
+                }
+            }
             map.put("user", user);
 
             // 查询菜单
@@ -271,6 +295,9 @@ public class LoginController {
 
             List<TreeNode> treeNodes = new ArrayList<>();
             for (Permission p : list) {
+                if (isDeptManagerMenu(p.getTitle(), p.getHref())) {
+                    continue;
+                }
                 Integer id = p.getId();
                 Integer pid = p.getPid();
                 String title = p.getTitle();
@@ -363,6 +390,16 @@ public class LoginController {
             }
         }
         StpUtil.getSession().set("permissions", permissions);
+    }
+
+    private static boolean isDeptManagerMenu(String title, String href) {
+        if ("部门管理".equals(title)) {
+            return true;
+        }
+        if (href == null) {
+            return false;
+        }
+        return href.contains("toDeptManager") || "/system/dept".equals(href);
     }
 
 }

@@ -15,6 +15,8 @@ public interface ISalesOrderService extends IService<SalesOrder> {
 
     SalesOrder getByInvoiceNo(String invoiceNo);
 
+    SalesOrder findByInvoiceQuery(String invoiceNo);
+
     SalesOrder saveDraft(SalesOrderVo vo);
 
     void confirm(Long id);
@@ -34,4 +36,10 @@ public interface ISalesOrderService extends IService<SalesOrder> {
     SalesOrder saveReversal(SalesOrderVo vo);
 
     java.util.List<SalesOrder> listReversals(String originalInvoiceNo);
+
+    SalesOrder simulateEinvoice(Long id);
+
+    SalesOrder preprocess(Long id);
+
+    SalesOrder importPlatformOrder();
 }

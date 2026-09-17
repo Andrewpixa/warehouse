@@ -1,23 +1,28 @@
 import { get, post, postWithParams } from './request'
 
+/**
+ * 药企供应商档案（suppliers 表）
+ * 后端：SupplierController @RequestMapping("/supplier")
+ */
 export function loadAllProvider(params: any) {
-  return get('/provider/loadAllProvider', params as UTSJSONObject)
+  return get('/supplier/loadAllSupplier', params as UTSJSONObject)
 }
 
 export function addProvider(data: any) {
-  return post('/provider/addProvider', data as UTSJSONObject)
+  return post('/supplier/addSupplier', data as UTSJSONObject)
 }
 
 export function updateProvider(data: any) {
-  return post('/provider/updateProvider', data as UTSJSONObject)
+  return post('/supplier/updateSupplier', data as UTSJSONObject)
 }
 
 export function deleteProvider(id: number) {
   const params = {} as UTSJSONObject
   params['id'] = id
-  return postWithParams('/provider/deleteProvider', params)
+  return postWithParams('/supplier/deleteSupplier', params)
 }
 
+/** 全部启用供应商下拉选择 */
 export function loadAllProviderForSelect() {
-  return get('/provider/loadAllProviderForSelect')
+  return get('/supplier/loadAllSupplierForSelect')
 }

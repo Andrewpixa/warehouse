@@ -1,0 +1,34 @@
+import { get, postWithParams } from './request'
+
+export function loadAllOps(params: UTSJSONObject) {
+	return get('/ops/loadAll', params)
+}
+
+export function loadOpsDetail(id: number) {
+	const params = {} as UTSJSONObject
+	params['id'] = id
+	return get('/ops/loadDetail', params)
+}
+
+export function confirmOps(id: number) {
+	const params = {} as UTSJSONObject
+	params['id'] = id
+	return postWithParams('/ops/confirm', params)
+}
+
+export function loadOpsWorkbench() {
+	return get('/ops/workbench')
+}
+
+export function makerQuery(loginName: string, password: string) {
+	const params = {} as UTSJSONObject
+	params['loginName'] = loginName
+	params['password'] = password
+	return get('/ops/makerQuery', params)
+}
+
+export function loadPrintPack(invoiceNo: string) {
+	const params = {} as UTSJSONObject
+	params['invoiceNo'] = invoiceNo
+	return get('/ops/printPack', params)
+}

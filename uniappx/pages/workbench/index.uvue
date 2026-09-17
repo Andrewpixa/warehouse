@@ -2,87 +2,152 @@
   <!-- #ifdef APP -->
   <scroll-view style="flex:1">
   <!-- #endif -->
-  <view class="container">
-    <!-- 问候区域 -->
-    <view class="greeting-section">
-      <view class="greeting-left">
-        <text class="greeting-text">{{ greeting }}</text>
-        <text class="greeting-name">{{ userName }}</text>
+  <view class="page">
+    <view class="hero">
+      <view class="hero-top">
+        <view class="hero-left">
+          <text class="hero-greeting">{{ greeting }}，{{ userName }}</text>
+          <text class="hero-role">业务员现场作业</text>
+          <text v-if="deptName.length > 0" class="hero-dept">{{ deptName }}</text>
+        </view>
+        <view class="bell" @click="goNotice">
+          <text class="bell-t">公告</text>
+        </view>
       </view>
-      <view class="notice-btn" @click="goNotice">
-        <text class="notice-icon">🔔</text>
-      </view>
-    </view>
-
-    <!-- 统计卡片 -->
-    <view class="stats-grid">
-      <view class="stat-card">
-        <text class="stat-value" style="color: #409EFF;">{{ stats.totalGoods }}</text>
-        <text class="stat-label">商品总数</text>
-      </view>
-      <view class="stat-card">
-        <text class="stat-value" style="color: #E6A23C;">{{ stats.warningCount }}</text>
-        <text class="stat-label">库存预警</text>
-      </view>
-      <view class="stat-card">
-        <text class="stat-value" style="color: #67C23A;">{{ stats.todayInport }}</text>
-        <text class="stat-label">今日入库</text>
-      </view>
-      <view class="stat-card">
-        <text class="stat-value" style="color: #909399;">{{ stats.todaySales }}</text>
-        <text class="stat-label">今日销售</text>
-      </view>
-    </view>
-
-    <!-- 分组功能菜单 -->
-    <view
-      v-for="(group, gi) in visibleGroups"
-      :key="gi"
-      class="group-card"
-    >
-      <view class="group-header">
-        <text class="group-icon">{{ group.icon }}</text>
-        <text class="group-title">{{ group.title }}</text>
-      </view>
-      <view class="group-grid">
-        <view
-          v-for="(item, ii) in group.items"
-          :key="ii"
-          class="grid-item"
-          @click="navigateTo(item.page)"
-        >
-          <text class="grid-icon">{{ item.icon }}</text>
-          <text class="grid-label">{{ item.title }}</text>
+      <view class="stats-card">
+        <view class="stat">
+          <text class="stat-value">{{ stats.drugTotal }}</text>
+          <text class="stat-label">在册品种</text>
+        </view>
+        <view class="stat">
+          <text class="stat-value warn">{{ stats.warningCount }}</text>
+          <text class="stat-label">库存预警</text>
+        </view>
+        <view class="stat">
+          <text class="stat-value">{{ stats.todayInport }}</text>
+          <text class="stat-label">今日入库</text>
+        </view>
+        <view class="stat stat-last">
+          <text class="stat-value">{{ stats.todaySales }}</text>
+          <text class="stat-label">今日出库</text>
         </view>
       </view>
     </view>
 
-    <!-- 库存预警 -->
-    <view class="group-card">
-      <view class="group-header">
-        <text class="group-icon">⚠️</text>
-        <text class="group-title">库存预警</text>
+    <view class="section-head">
+      <text class="section-title">现场主操作</text>
+      <text class="section-sub">医院门口先办这四件</text>
+    </view>
+    <view class="main-row">
+      <view class="main-item" @click="navigateTo('/pages/business/trace-collect')">
+        <view class="main-badge b-teal"><text class="main-letter">扫</text></view>
+        <text class="main-name">扫码采码</text>
+        <text class="main-desc">采追溯码</text>
       </view>
-      <view v-if="warningGoods.length > 0" class="warning-list">
+      <view class="main-item" @click="navigateTo('/pages/business/ops?type=STOCKOUT')">
+        <view class="main-badge b-blue"><text class="main-letter">缺</text></view>
+        <text class="main-name">缺货补货</text>
+        <text class="main-desc">提给内勤</text>
+      </view>
+    </view>
+    <view class="main-row">
+      <view class="main-item" @click="navigateTo('/pages/business/ops?type=RETURN_NOTICE')">
+        <view class="main-badge b-amber"><text class="main-letter">退</text></view>
+        <text class="main-name">销退通知</text>
+        <text class="main-desc">先留痕</text>
+      </view>
+      <view class="main-item" @click="navigateTo('/pages/business/ops?type=OFFSET')">
+        <view class="main-badge b-green"><text class="main-letter">账</text></view>
+        <text class="main-name">收款冲账</text>
+        <text class="main-desc">对发票</text>
+      </view>
+    </view>
+
+    <view class="section-head">
+      <text class="section-title">查询与单据</text>
+    </view>
+    <view class="list-card">
+      <view class="list-row" @click="navigateTo('/pages/query/trace')">
+        <text class="list-name">药品追溯查询</text>
+        <text class="list-arrow">查码</text>
+      </view>
+      <view class="list-row" @click="navigateTo('/pages/business/batch-stock')">
+        <text class="list-name">批号库存</text>
+        <text class="list-arrow">批号·效期</text>
+      </view>
+      <view class="list-row" @click="navigateTo('/pages/business/drug')">
+        <text class="list-name">药品档案</text>
+        <text class="list-arrow">品种</text>
+      </view>
+      <view v-if="canPurchase" class="list-row" @click="navigateTo('/pages/business/inport')">
+        <text class="list-name">采购入库</text>
+        <text class="list-arrow">单据</text>
+      </view>
+      <view v-if="canOutbound" class="list-row" @click="navigateTo('/pages/business/sales')">
+        <text class="list-name">销售出库</text>
+        <text class="list-arrow">单据</text>
+      </view>
+      <view class="list-row" @click="navigateTo('/pages/business/stocktake')">
+        <text class="list-name">库存盘点</text>
+        <text class="list-arrow">现场盘</text>
+      </view>
+      <view v-if="canCustomer" class="list-row" @click="navigateTo('/pages/business/customer-manage')">
+        <text class="list-name">客户档案</text>
+        <text class="list-arrow">医院客户</text>
+      </view>
+      <view class="list-row last" @click="navigateTo('/pages/query/maker-flow')">
+        <text class="list-name">厂家流向</text>
+        <text class="list-arrow">查询</text>
+      </view>
+    </view>
+
+    <view class="section-head">
+      <text class="section-title">协同单据</text>
+    </view>
+    <view class="list-card">
+      <view class="list-row" @click="navigateTo('/pages/business/ops?type=INBOUND_EX')">
+        <text class="list-name">到货异常</text>
+        <text class="list-arrow">上报</text>
+      </view>
+      <view class="list-row" @click="navigateTo('/pages/business/ops?type=ALLOCATE')">
+        <text class="list-name">分货</text>
+        <text class="list-arrow">协同</text>
+      </view>
+      <view class="list-row last" @click="navigateTo('/pages/business/ops?type=LOGISTICS')">
+        <text class="list-name">物流联系</text>
+        <text class="list-arrow">协同</text>
+      </view>
+    </view>
+
+    <view class="warn-card">
+      <view class="warn-head">
+        <text class="section-title">库存与效期预警</text>
+        <text class="warn-count">{{ warningGoods.length }} 项</text>
+      </view>
+      <view v-if="warningGoods.length > 0" class="warn-list">
         <view
           v-for="(item, index) in warningGoods"
           :key="index"
-          class="warning-item"
-          @click="goGoodsDetail(item.id)"
+          class="warn-item"
+          @click="goBatchStock"
         >
-          <text class="warning-name">{{ item.name }}</text>
-          <text
-            class="warning-count"
-            :style="{ color: item.number <= 0 ? '#F56C6C' : '#E6A23C' }"
-          >
-            剩余 {{ item.number }}
-          </text>
+          <view class="warn-main">
+            <text class="warn-name">{{ item.name }}</text>
+            <view class="warn-tag" :class="item.danger ? 'tag-danger' : 'tag-warn'">
+              <text class="warn-tag-text" :class="item.danger ? 'tag-danger-t' : 'tag-warn-t'">{{ item.reason }}</text>
+            </view>
+          </view>
+          <view class="warn-sub">
+            <text class="warn-qty">库存 {{ item.number }}</text>
+            <text v-if="item.expireDate.length > 0" class="warn-expire">效期至 {{ item.expireDate }}</text>
+          </view>
         </view>
       </view>
       <view v-else class="empty-state">
-        <text class="empty-text">暂无预警商品</text>
+        <text class="empty-text">库存状态良好，暂无预警</text>
       </view>
     </view>
+    <view class="footer-space"></view>
   </view>
   <!-- #ifdef APP -->
   </scroll-view>
@@ -91,364 +156,190 @@
 
 <script setup lang="uts">
 import { loadDashboardStats, loadAllWarningGoods } from '../../api/goods'
-import { getUser, hasMenu, isSuperAdmin } from '../../stores/auth'
+import { getUser, hasMenu, isSuperAdmin, isLoggedIn, restoreAuth } from '../../stores/auth'
 
-// 统计数据类型
 interface DashboardStats {
-  totalGoods : number
-  warningCount : number
-  todayInport : number
-  todaySales : number
+  drugTotal: number
+  warningCount: number
+  todayInport: number
+  todaySales: number
 }
 
-// 预警商品类型
-interface WarningGoodsItem {
-  id : number
-  name : string
-  number : number
+interface WarningItem {
+  id: number
+  name: string
+  number: string
+  reason: string
+  expireDate: string
+  danger: boolean
 }
-
-// 功能项类型
-interface GridItem {
-  title : string
-  icon : string
-  page : string
-  menuHref : string
-}
-
-// 功能分组类型
-interface MenuGroup {
-  title : string
-  icon : string
-  items : GridItem[]
-}
-
-// 所有菜单分组配置
-const ALL_GROUPS : MenuGroup[] = [
-  {
-    title: '业务管理',
-    icon: '📊',
-    items: [
-      { title: '进货入库', icon: '📥', page: '/pages/business/inport', menuHref: '/business/inport' },
-      { title: '进货开单', icon: '📝', page: '/pages/business/inport-pos', menuHref: '/business/inport-pos' },
-      { title: '进货订单', icon: '📋', page: '/pages/business/inport-order', menuHref: '/business/inport-order' },
-      { title: '销售开单', icon: '🛒', page: '/pages/business/sales', menuHref: '/business/sales' },
-      { title: '销售POS', icon: '💰', page: '/pages/business/sales-pos', menuHref: '/business/sales-pos' },
-      { title: '销售订单', icon: '📋', page: '/pages/business/sales-order', menuHref: '/business/sales-order' },
-      { title: '零售开单', icon: '🏪', page: '/pages/business/retail', menuHref: '/business/retail' },
-      { title: '零售订单', icon: '📋', page: '/pages/business/retail-order', menuHref: '/business/retail-order' },
-      { title: '商品管理', icon: '📦', page: '/pages/business/goods', menuHref: '/business/goods' },
-      { title: '盘点管理', icon: '📋', page: '/pages/business/stocktake', menuHref: '/business/stocktake' },
-      { title: '会员管理', icon: '👤', page: '/pages/business/member', menuHref: '/business/member' },
-      { title: '提成管理', icon: '💎', page: '/pages/business/commission', menuHref: '/business/commission' }
-    ]
-  },
-  {
-    title: '报表中心',
-    icon: '📈',
-    items: [
-      { title: '报表分析', icon: '📊', page: '/pages/business/report', menuHref: '/business/report' },
-      { title: '业绩排名', icon: '🏆', page: '/pages/business/performance', menuHref: '/business/performance' },
-      { title: '我的提成', icon: '💰', page: '/pages/business/my-commission', menuHref: '/business/my-commission' }
-    ]
-  },
-  {
-    title: '基础数据',
-    icon: '🗄️',
-    items: [
-      { title: '客户管理', icon: '👥', page: '/pages/business/customer-manage', menuHref: '/business/customer' },
-      { title: '供应商管理', icon: '🏭', page: '/pages/business/provider-manage', menuHref: '/business/provider' },
-      { title: '分类管理', icon: '📂', page: '/pages/business/category', menuHref: '/business/category' }
-    ]
-  },
-  {
-    title: '系统管理',
-    icon: '⚙️',
-    items: [
-      { title: '用户管理', icon: '👤', page: '/pages/system/user', menuHref: '/system/user' },
-      { title: '角色管理', icon: '🎭', page: '/pages/system/role', menuHref: '/system/role' },
-      { title: '部门管理', icon: '🏢', page: '/pages/system/dept', menuHref: '/system/dept' },
-      { title: '菜单管理', icon: '📋', page: '/pages/system/menu', menuHref: '/system/menu' },
-      { title: '权限管理', icon: '🔐', page: '/pages/system/permission', menuHref: '/system/permission' },
-      { title: '公告管理', icon: '📢', page: '/pages/system/notice-manage', menuHref: '/system/notice' },
-      { title: '登录日志', icon: '📝', page: '/pages/system/loginfo', menuHref: '/system/loginfo' }
-    ]
-  },
-  {
-    title: '查询中心',
-    icon: '🔍',
-    items: [
-      { title: '客户查询', icon: '👥', page: '/pages/query/customer-detail', menuHref: '/business/customer' },
-      { title: '供应商查询', icon: '🏭', page: '/pages/query/provider-detail', menuHref: '/business/provider' }
-    ]
-  }
-]
 
 const stats = ref<DashboardStats>({
-  totalGoods: 0,
+  drugTotal: 0,
   warningCount: 0,
   todayInport: 0,
   todaySales: 0
 })
 
-const warningGoods = ref<WarningGoodsItem[]>([])
+const warningGoods = ref<WarningItem[]>([])
 
-// 根据权限过滤分组
-const visibleGroups = computed((): MenuGroup[] => {
-  return ALL_GROUPS.map((group : MenuGroup) => {
-    const filteredItems = group.items.filter((item : GridItem) => {
-      // 盘点无 HREF_MAP 条目时默认可见
-      if (item.menuHref == '/business/stocktake') {
-        return isSuperAdmin() || hasMenu(item.menuHref) || true
-      }
-      return isSuperAdmin() || hasMenu(item.menuHref)
-    })
-    return {
-      title: group.title,
-      icon: group.icon,
-      items: filteredItems
-    } as MenuGroup
-  }).filter((group : MenuGroup) => group.items.length > 0)
+const canPurchase = computed((): boolean => {
+  return isSuperAdmin() || hasMenu('/business/purchase')
 })
 
-// 问候语
+const canOutbound = computed((): boolean => {
+  return isSuperAdmin() || hasMenu('/business/outbound')
+})
+
+const canCustomer = computed((): boolean => {
+  return isSuperAdmin() || hasMenu('/business/customer')
+})
+
 const greeting = computed((): string => {
   const hour = new Date().getHours()
-  if (hour < 12) return '上午好 ☀️'
-  if (hour < 18) return '下午好 🌤'
-  return '晚上好 🌙'
+  if (hour < 6) return '夜深了'
+  if (hour < 12) return '上午好'
+  if (hour < 14) return '中午好'
+  if (hour < 18) return '下午好'
+  return '晚上好'
 })
 
-// 用户名
 const userName = computed((): string => {
   const user = getUser()
-  return user != null ? user.name : '用户'
+  return user != null ? user.name : '同事'
 })
 
-// 加载统计数据
-function loadStats() : void {
-  loadDashboardStats().then((res : any) => {
+const deptName = computed((): string => {
+  const user = getUser()
+  if (user != null && user.departmentName != null) return user.departmentName!
+  return ''
+})
+
+function loadStats(): void {
+  loadDashboardStats().then((res: any) => {
     const data = res as UTSJSONObject
     stats.value = {
-      totalGoods: (data['totalGoods'] as number) ?? 0,
-      warningCount: (data['warningCount'] as number) ?? 0,
+      drugTotal: (data['goodsTotal'] as number) ?? 0,
+      warningCount: stats.value.warningCount,
       todayInport: (data['todayInport'] as number) ?? 0,
       todaySales: (data['todaySales'] as number) ?? 0
     }
-  }).catch((err : Error) => {
+  }).catch((err: Error) => {
     console.error('加载统计数据失败:', err.message)
   })
 }
 
-// 加载预警商品
-function loadWarnings() : void {
-  loadAllWarningGoods().then((res : any) => {
+function loadWarnings(): void {
+  loadAllWarningGoods().then((res: any) => {
     const result = res as UTSJSONObject
-    const code = result['code'] as number
-    if (code == 0) {
-      const list = result['data'] as UTSJSONObject[] | null
-      if (list != null) {
-        const items = list!.slice(0, 5)
-        warningGoods.value = items.map((item : UTSJSONObject) => {
-          return {
-            id: (item['id'] as number) ?? 0,
-            name: (item['name'] as string) ?? '',
-            number: (item['number'] as number) ?? 0
-          } as WarningGoodsItem
-        })
+    if ((result['code'] as number) == 0) {
+      stats.value = {
+        drugTotal: stats.value.drugTotal,
+        warningCount: (result['count'] as number) ?? 0,
+        todayInport: stats.value.todayInport,
+        todaySales: stats.value.todaySales
       }
+      const list = (result['data'] as UTSJSONObject[] | null) ?? []
+      warningGoods.value = list.slice(0, 5).map((item: UTSJSONObject): WarningItem => {
+        const reason = (item['dangernum'] as string) ?? '库存预警'
+        const qtyRaw = item['number']
+        const qtyText = qtyRaw == null ? '0' : (qtyRaw as number).toString()
+        return {
+          id: (item['id'] as number) ?? 0,
+          name: (item['goodsname'] as string) ?? '未知药品',
+          number: qtyText,
+          reason: reason,
+          expireDate: (item['expireDate'] as string) ?? '',
+          danger: reason.indexOf('近效期') >= 0
+        } as WarningItem
+      })
     }
-  }).catch((err : Error) => {
+  }).catch((err: Error) => {
     console.error('加载预警商品失败:', err.message)
   })
 }
 
-// 导航
-function navigateTo(url : string) : void {
+function navigateTo(url: string): void {
   uni.navigateTo({ url: url })
 }
 
-// 跳转公告
-function goNotice() : void {
+function goNotice(): void {
   uni.navigateTo({ url: '/pages/notice/list' })
 }
 
-// 跳转商品详情
-function goGoodsDetail(id : number) : void {
-  uni.navigateTo({ url: '/pages/business/goods-detail?id=' + id.toString() })
+function goBatchStock(): void {
+  uni.navigateTo({ url: '/pages/business/batch-stock' })
 }
 
 onShow(() => {
+  let ok = restoreAuth()
+  if (!ok) {
+    ok = isLoggedIn()
+  }
+  if (!ok) {
+    uni.navigateTo({ url: '/pages/login/login' })
+    return
+  }
   loadStats()
   loadWarnings()
 })
 </script>
 
 <style>
-.container {
-  flex: 1;
-  background-color: #F5F7FA;
-  padding: 24rpx;
-  gap: 24rpx;
-}
+.page { flex: 1; background-color: #F3F6F8; }
+.hero { background: linear-gradient(165deg, #0F766E 0%, #0B5F59 55%, #134E4A 100%); padding: 36rpx 32rpx 32rpx; }
+.hero-top { flex-direction: row; justify-content: space-between; align-items: flex-start; }
+.hero-left { flex-direction: column; flex: 1; padding-right: 16rpx; }
+.hero-greeting { font-size: 36rpx; font-weight: 700; color: #FFFFFF; }
+.hero-role { font-size: 24rpx; color: rgba(255,255,255,0.78); margin-top: 8rpx; }
+.hero-dept { font-size: 22rpx; color: rgba(255,255,255,0.88); margin-top: 12rpx; background-color: rgba(255,255,255,0.14); padding: 4rpx 16rpx; border-radius: 20rpx; }
+.bell { padding: 12rpx 20rpx; border-radius: 20rpx; background-color: rgba(255,255,255,0.16); }
+.bell-t { font-size: 24rpx; color: #FFFFFF; }
 
-/* 问候区域 */
-.greeting-section {
-  flex-direction: row;
-  justify-content: space-between;
-  align-items: center;
-  padding: 32rpx 16rpx;
-}
+.stats-card { flex-direction: row; background-color: #FFFFFF; border-radius: 18rpx; padding: 28rpx 8rpx; margin-top: 28rpx; }
+.stat { flex: 1; align-items: center; border-right-width: 1rpx; border-right-style: solid; border-right-color: #E8EEF0; }
+.stat-last { border-right-width: 0; }
+.stat-value { font-size: 36rpx; font-weight: 700; color: #0F172A; }
+.stat-value.warn { color: #C2410C; }
+.stat-label { font-size: 22rpx; color: #64748B; margin-top: 6rpx; }
 
-.greeting-left {
-  flex-direction: column;
-  gap: 8rpx;
-}
+.section-head { padding: 32rpx 32rpx 12rpx; flex-direction: column; }
+.section-title { font-size: 30rpx; font-weight: 700; color: #0F172A; }
+.section-sub { font-size: 22rpx; color: #64748B; margin-top: 6rpx; }
 
-.greeting-text {
-  font-size: 32rpx;
-  color: #666666;
-}
+.main-row { flex-direction: row; margin: 0 16rpx; }
+.main-item { flex: 1; align-items: flex-start; background-color: #FFFFFF; border-radius: 18rpx; padding: 28rpx 24rpx; margin: 8rpx; }
+.main-badge { width: 64rpx; height: 64rpx; border-radius: 16rpx; align-items: center; justify-content: center; }
+.main-letter { font-size: 28rpx; font-weight: 700; color: #FFFFFF; }
+.b-teal { background-color: #0F766E; }
+.b-blue { background-color: #1D4ED8; }
+.b-amber { background-color: #C2410C; }
+.b-green { background-color: #15803D; }
+.main-name { font-size: 28rpx; font-weight: 600; color: #111827; margin-top: 16rpx; }
+.main-desc { font-size: 22rpx; color: #64748B; margin-top: 4rpx; }
 
-.greeting-name {
-  font-size: 48rpx;
-  font-weight: bold;
-  color: #333333;
-}
+.list-card { background-color: #FFFFFF; border-radius: 18rpx; margin: 0 24rpx; }
+.list-row { flex-direction: row; align-items: center; justify-content: space-between; padding: 30rpx 28rpx; border-bottom-width: 1rpx; border-bottom-style: solid; border-bottom-color: #F1F5F9; }
+.list-row.last { border-bottom-width: 0; }
+.list-name { font-size: 28rpx; color: #1E293B; }
+.list-arrow { font-size: 22rpx; color: #94A3B8; }
 
-.notice-btn {
-  width: 80rpx;
-  height: 80rpx;
-  border-radius: 40rpx;
-  background-color: #FFFFFF;
-  align-items: center;
-  justify-content: center;
-}
-
-.notice-icon {
-  font-size: 40rpx;
-}
-
-/* 统计卡片 */
-.stats-grid {
-  flex-direction: row;
-  flex-wrap: wrap;
-  gap: 16rpx;
-}
-
-.stat-card {
-  flex: 1;
-  min-width: 45%;
-  background-color: #FFFFFF;
-  border-radius: 16rpx;
-  padding: 24rpx;
-  flex-direction: column;
-  align-items: center;
-  gap: 8rpx;
-}
-
-.stat-value {
-  font-size: 48rpx;
-  font-weight: bold;
-}
-
-.stat-label {
-  font-size: 24rpx;
-  color: #909399;
-}
-
-/* 分组卡片 */
-.group-card {
-  flex-direction: column;
-  background-color: #FFFFFF;
-  border-radius: 16rpx;
-  overflow: hidden;
-}
-
-.group-header {
-  flex-direction: row;
-  align-items: center;
-  padding: 24rpx 28rpx;
-  border-bottom-width: 1rpx;
-  border-bottom-color: #F0F0F0;
-  border-bottom-style: solid;
-  gap: 12rpx;
-}
-
-.group-icon {
-  font-size: 36rpx;
-}
-
-.group-title {
-  font-size: 30rpx;
-  font-weight: bold;
-  color: #333333;
-}
-
-.group-grid {
-  flex-direction: row;
-  flex-wrap: wrap;
-  padding: 20rpx 16rpx;
-  gap: 12rpx;
-}
-
-.grid-item {
-  flex: 1;
-  max-width: 32%;
-  min-width: 28%;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 24rpx 8rpx;
-  border-radius: 12rpx;
-  background-color: #F5F7FA;
-  gap: 10rpx;
-}
-
-.grid-icon {
-  font-size: 48rpx;
-}
-
-.grid-label {
-  font-size: 24rpx;
-  color: #333333;
-}
-
-/* 预警列表 */
-.warning-list {
-  flex-direction: column;
-}
-
-.warning-item {
-  flex-direction: row;
-  justify-content: space-between;
-  align-items: center;
-  padding: 24rpx 28rpx;
-  border-bottom-width: 1rpx;
-  border-bottom-color: #F0F0F0;
-  border-bottom-style: solid;
-}
-
-.warning-name {
-  font-size: 28rpx;
-  color: #333333;
-  flex: 1;
-}
-
-.warning-count {
-  font-size: 28rpx;
-  font-weight: bold;
-}
-
-/* 空状态 */
-.empty-state {
-  align-items: center;
-  justify-content: center;
-  padding: 32rpx;
-}
-
-.empty-text {
-  font-size: 26rpx;
-  color: #909399;
-}
+.warn-card { background-color: #FFFFFF; border-radius: 18rpx; margin: 28rpx 24rpx 0; padding: 28rpx 24rpx 12rpx; }
+.warn-head { flex-direction: row; align-items: center; justify-content: space-between; margin-bottom: 8rpx; }
+.warn-count { font-size: 22rpx; color: #C2410C; background-color: #FFF7ED; padding: 4rpx 14rpx; border-radius: 16rpx; }
+.warn-item { padding: 18rpx 0; border-top-width: 1rpx; border-top-style: solid; border-top-color: #F1F5F9; }
+.warn-main { flex-direction: row; justify-content: space-between; align-items: center; }
+.warn-name { flex: 1; font-size: 27rpx; color: #1F2937; font-weight: 600; padding-right: 16rpx; }
+.warn-tag { padding: 4rpx 14rpx; border-radius: 8rpx; }
+.tag-danger { background-color: #FEF2F2; }
+.tag-warn { background-color: #FFF7ED; }
+.warn-tag-text { font-size: 21rpx; }
+.tag-danger-t { color: #DC2626; }
+.tag-warn-t { color: #C2410C; }
+.warn-sub { flex-direction: row; margin-top: 10rpx; }
+.warn-qty { font-size: 24rpx; color: #6B7280; margin-right: 24rpx; }
+.warn-expire { font-size: 24rpx; color: #94A3B8; }
+.empty-state { align-items: center; padding: 36rpx 0; }
+.empty-text { font-size: 25rpx; color: #94A3B8; }
+.footer-space { height: 40rpx; }
 </style>

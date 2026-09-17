@@ -1,0 +1,37 @@
+import { get, post, postJson, postWithParams } from './request'
+
+/**
+ * 药企采购入库单（purchase_orders + purchase_order_items 表）
+ * 后端：PurchaseOrderController @RequestMapping("/purchase")
+ */
+
+/** 采购单列表（分页） */
+export function loadAllPurchase(params: any) {
+  return get('/purchase/loadAllPurchase', params as UTSJSONObject)
+}
+
+/** 采购单详情（含明细 items + 供应商名称 + 仓库名称） */
+export function loadPurchaseDetail(id: number) {
+  const params = {} as UTSJSONObject
+  params['id'] = id
+  return get('/purchase/loadPurchaseDetail', params)
+}
+
+/** 保存采购单草稿（@RequestBody PurchaseOrderVo） */
+export function savePurchase(data: any) {
+  return post('/purchase/savePurchase', data as UTSJSONObject)
+}
+
+/** 确认采购单（验收通过 → 更新批号库存） */
+export function confirmPurchase(id: number) {
+  const params = {} as UTSJSONObject
+  params['id'] = id
+  return postWithParams('/purchase/confirmPurchase', params)
+}
+
+/** 删除采购单（仅草稿可删） */
+export function deletePurchase(id: number) {
+  const params = {} as UTSJSONObject
+  params['id'] = id
+  return postWithParams('/purchase/deletePurchase', params)
+}

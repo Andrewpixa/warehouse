@@ -1,0 +1,14 @@
+import { get } from './request'
+
+/**
+ * 药品档案（drugs 表，药企核心商品目录）
+ * 后端：DrugController#loadAllDrug → DataGridView(code=0, count, data)
+ */
+export function loadAllDrug(params: any) {
+  return get('/drug/loadAllDrug', params as UTSJSONObject)
+}
+
+/** 全部启用药品（下拉选择用） */
+export function loadAllDrugForSelect() {
+  return get('/drug/loadAllDrugForSelect')
+}

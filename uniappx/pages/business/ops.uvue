@@ -1,0 +1,107 @@
+<template>
+  <view class="page">
+    <view class="hero">
+      <text class="title">{{ pageTitle }}</text>
+      <text class="sub">与公司流程图同岗位、同状态</text>
+    </view>
+    <scroll-view class="list" @scrolltolower="loadMore">
+      <view v-for="(row, i) in rows" :key="i" class="card">
+        <view class="row-top">
+          <text class="no">{{ str(row, 'docNo') }}</text>
+          <text class="st">{{ str(row, 'status') }}</text>
+        </view>
+        <text class="ttl">{{ str(row, 'title') }}</text>
+        <text class="meta">{{ str(row, 'reason') }} · {{ str(row, 'bizDate') }}</text>
+        <view class="actions">
+          <text class="link" @click="advance(row)">推进</text>
+        </view>
+      </view>
+      <view v-if="rows.length == 0" class="empty"><text>暂无单据</text></view>
+    </scroll-view>
+  </view>
+</template>
+
+<script setup lang="uts">
+import { loadAllOps, confirmOps } from '../../api/ops'
+
+const docType = ref('STOCKOUT')
+const pageTitle = ref('缺货补货')
+const rows = ref<UTSJSONObject[]>([])
+const page = ref(1)
+const total = ref(0)
+
+function str(obj: UTSJSONObject, key: string): string {
+  const v = obj[key]
+  return v == null ? '' : (v as string)
+}
+
+function titleOf(t: string): string {
+  if (t == 'INBOUND_EX') return '到货异常'
+  if (t == 'RETURN_NOTICE') return '销退通知'
+  if (t == 'OFFSET') return '收款冲账'
+  if (t == 'ALLOCATE') return '分货'
+  if (t == 'LOGISTICS') return '物流联系单'
+  if (t == 'CREDIT') return '信誉额'
+  if (t == 'QUOTA') return '统筹值'
+  return '缺货补货'
+}
+
+function load(reset: boolean): void {
+  if (reset) {
+    page.value = 1
+    rows.value = []
+  }
+  const params = {} as UTSJSONObject
+  params['page'] = page.value
+  params['limit'] = 20
+  params['docType'] = docType.value
+  loadAllOps(params).then((res: any) => {
+    const data = res as UTSJSONObject
+    total.value = (data['count'] as number) ?? 0
+    const list = (data['data'] as UTSJSONObject[] | null) ?? []
+    if (reset) {
+      rows.value = list
+    } else {
+      rows.value = rows.value.concat(list)
+    }
+  })
+}
+
+function loadMore(): void {
+  if (rows.value.length >= total.value) return
+  page.value = page.value + 1
+  load(false)
+}
+
+function advance(row: UTSJSONObject): void {
+  const id = (row['id'] as number) ?? 0
+  confirmOps(id).then(() => {
+    uni.showToast({ title: '已推进', icon: 'success' })
+    load(true)
+  })
+}
+
+onLoad((q: UTSJSONObject) => {
+  const t = (q['type'] as string) ?? 'STOCKOUT'
+  docType.value = t
+  pageTitle.value = titleOf(t)
+  load(true)
+})
+</script>
+
+<style>
+.page { flex: 1; background-color: #FAF7F5; }
+.hero { padding: 20px 16px 8px; }
+.title { font-size: 22px; font-weight: 700; color: #9F1239; }
+.sub { font-size: 12px; color: #78716C; margin-top: 4px; }
+.list { flex: 1; }
+.card { margin: 10px 16px; padding: 14px; background-color: #fff; border-radius: 14px; }
+.row-top { flex-direction: row; justify-content: space-between; }
+.no { font-size: 12px; color: #A8A29E; }
+.st { font-size: 12px; color: #BE123C; font-weight: 600; }
+.ttl { font-size: 15px; font-weight: 600; color: #1C1917; margin-top: 6px; }
+.meta { font-size: 12px; color: #78716C; margin-top: 4px; }
+.actions { margin-top: 10px; }
+.link { color: #E11D48; font-size: 13px; font-weight: 600; }
+.empty { padding: 40px; align-items: center; }
+</style>

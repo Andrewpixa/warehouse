@@ -1,0 +1,53 @@
+import { get, postJson } from './request'
+
+/**
+ * 药品追溯码（trace_codes 表）
+ */
+
+/**
+ * 按发票号查询：返回出库订单 + 该票全部追溯码
+ * 后端结构：{ code:200, data: 订单|null, traces: [...] }
+ */
+export function loadInvoice(invoiceNo: string) {
+  const params = {} as UTSJSONObject
+  params['invoiceNo'] = invoiceNo
+  return get('/trace/loadInvoice', params)
+}
+
+/** 按 SPDID 追溯码查询流转记录：DataGridView(code=0, data=[...]) */
+export function loadTraceBySpdid(spdid: string) {
+  const params = {} as UTSJSONObject
+  params['spdid'] = spdid
+  return get('/trace/loadBySpdid', params)
+}
+
+/**
+ * 批量采集追溯码（扫码提交）
+ * 后端：POST /trace/addCodes（JSON body）
+ * skipDuplicate=true 时重复码跳过不报错，返回 msg 含"跳过重复 N 条"
+ */
+export function addTraceCodes(spdid: string, codes: string[], packLevel: string, bizType: string, skipDuplicate: boolean) {
+  const data = {} as UTSJSONObject
+  data['spdid'] = spdid
+  data['codes'] = codes
+  data['packLevel'] = packLevel
+  data['bizType'] = bizType
+  data['skipDuplicate'] = skipDuplicate
+  return postJson('/trace/addCodes', data)
+}
+
+/** 预览包装解析（不落库）：DataGridView(code=0, data=[{packLevel, code, parentCode}]) */
+export function previewParse(code: string) {
+  const params = {} as UTSJSONObject
+  params['code'] = code
+  return get('/trace/previewParse', params)
+}
+
+/** 解析大/中包装码并写入本明细：POST /trace/parseCodes（JSON body） */
+export function parseTraceCodes(spdid: string, code: string, bizType: string) {
+  const data = {} as UTSJSONObject
+  data['spdid'] = spdid
+  data['code'] = code
+  data['bizType'] = bizType
+  return postJson('/trace/parseCodes', data)
+}

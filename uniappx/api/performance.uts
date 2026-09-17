@@ -1,9 +1,0 @@
-import { get } from './request'
-
-export function salesRanking(params: any) {
-  return get('/performance/salesRanking', params as UTSJSONObject)
-}
-
-export function goodsRanking(params: any) {
-  return get('/performance/goodsRanking', params as UTSJSONObject)
-}

@@ -40,6 +40,15 @@ public class AppFileUtils {
         if (null != property) {
             UPLOAD_PATH = property;
         }
+        File dir = new File(UPLOAD_PATH);
+        if (!dir.isDirectory() || !dir.canWrite()) {
+            File local = new File(System.getProperty("user.dir"), "upload");
+            local.mkdirs();
+            if (local.isDirectory() && local.canWrite()) {
+                UPLOAD_PATH = local.getAbsolutePath() + File.separator;
+                log.info("upload path fallback to {}", UPLOAD_PATH);
+            }
+        }
     }
 
     /**
@@ -102,9 +111,22 @@ public class AppFileUtils {
         // 根据文件扩展名设置正确的Content-Type
         String contentType = getContentType(path);
         header.setContentType(MediaType.parseMediaType(contentType));
-        // 创建ResponseEntity对象
         ResponseEntity<Object> entity = new ResponseEntity<Object>(bytes, header, HttpStatus.OK);
         return entity;
+    }
+
+    public static ResponseEntity<Object> createDownloadEntity(String path, String downloadName) {
+        ResponseEntity<Object> raw = createResponseEntity(path);
+        if (raw.getBody() == null || raw.getStatusCode() != HttpStatus.OK) {
+            return raw;
+        }
+        HttpHeaders header = new HttpHeaders();
+        header.putAll(raw.getHeaders());
+        String name = downloadName == null || downloadName.isBlank() ? path : downloadName;
+        header.setContentDisposition(org.springframework.http.ContentDisposition.attachment()
+                .filename(name, java.nio.charset.StandardCharsets.UTF_8)
+                .build());
+        return new ResponseEntity<>(raw.getBody(), header, HttpStatus.OK);
     }
 
     /**
@@ -122,6 +144,7 @@ public class AppFileUtils {
         if (lower.endsWith(".webp")) return "image/webp";
         if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
         if (lower.endsWith(".pdf")) return "application/pdf";
+        if (lower.endsWith(".html") || lower.endsWith(".htm")) return "text/html;charset=UTF-8";
         return "application/octet-stream";
     }
 

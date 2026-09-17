@@ -44,10 +44,7 @@ public class TraceCodeServiceImpl extends ServiceImpl<TraceCodeMapper, TraceCode
         if (StringUtils.isBlank(invoiceNo)) {
             return new ArrayList<>();
         }
-        QueryWrapper<SalesOrder> orderQw = new QueryWrapper<>();
-        orderQw.eq("invoice_no", invoiceNo.trim());
-        orderQw.last("LIMIT 1");
-        SalesOrder order = salesOrderService.getOne(orderQw, false);
+        SalesOrder order = salesOrderService.findByInvoiceQuery(invoiceNo);
         if (order == null) {
             return new ArrayList<>();
         }
@@ -88,6 +85,12 @@ public class TraceCodeServiceImpl extends ServiceImpl<TraceCodeMapper, TraceCode
     @Override
     @Transactional
     public int addCodes(String spdid, List<String> codes, String packLevel, String bizType) {
+        return addCodes(spdid, codes, packLevel, bizType, false);
+    }
+
+    @Override
+    @Transactional
+    public int addCodes(String spdid, List<String> codes, String packLevel, String bizType, boolean skipDuplicate) {
         if (StringUtils.isBlank(spdid)) {
             throw new IllegalArgumentException("SPDID 不能为空");
         }
@@ -104,6 +107,9 @@ public class TraceCodeServiceImpl extends ServiceImpl<TraceCodeMapper, TraceCode
             QueryWrapper<TraceCode> existQw = new QueryWrapper<>();
             existQw.eq("code", code);
             if (this.count(existQw) > 0) {
+                if (skipDuplicate) {
+                    continue;
+                }
                 throw new IllegalArgumentException("追溯码已存在：" + code);
             }
             TraceCode row = new TraceCode();
@@ -116,7 +122,7 @@ public class TraceCodeServiceImpl extends ServiceImpl<TraceCodeMapper, TraceCode
             this.save(row);
             saved++;
         }
-        if (saved == 0) {
+        if (saved == 0 && !skipDuplicate) {
             throw new IllegalArgumentException("没有可保存的追溯码");
         }
         return saved;

@@ -1,30 +1,26 @@
 <template>
   <view class="login-page">
-    <!-- Logo -->
     <view class="logo-area">
-      <view class="logo-icon">
-        <text class="icon-text">📦</text>
+      <view class="mark">
+        <text class="mark-text">业</text>
       </view>
-      <text class="app-name">仓图</text>
-      <text class="app-desc">智能仓库管理系统</text>
+      <text class="app-name">业务员工作台</text>
+      <text class="app-desc">现场提报 · 扫码采码 · 同一套单据</text>
     </view>
 
-    <!-- 表单 -->
     <view class="form-card">
-      <text class="form-title">账号登录</text>
+      <text class="form-title">登录后办理现场业务</text>
 
-      <!-- 用户名 -->
       <text class="label">用户名</text>
       <view class="input-wrap">
         <input
           class="input"
-          placeholder="请输入用户名"
+          placeholder="工号或登录名"
           :value="loginname"
           @input="onLoginnameInput"
         />
       </view>
 
-      <!-- 密码 -->
       <text class="label">密码</text>
       <view class="input-wrap">
         <input
@@ -37,7 +33,6 @@
         <text class="eye" @click="showPwd = !showPwd">{{ showPwd ? '隐藏' : '显示' }}</text>
       </view>
 
-      <!-- 验证码 -->
       <text class="label">验证码</text>
       <view class="captcha-row">
         <view class="input-wrap captcha-input">
@@ -55,17 +50,17 @@
             :src="captchaImage"
             mode="scaleToFill"
           />
-          <text v-else class="captcha-loading">...</text>
+          <text v-else class="captcha-loading">刷新</text>
         </view>
       </view>
 
-      <!-- 登录按钮 -->
       <view class="login-btn" :class="{ disabled: loading }" @click="handleLogin">
-        <text class="btn-text">{{ loading ? '登录中...' : '登 录' }}</text>
+        <text class="btn-text">{{ loading ? '登录中...' : '进入工作台' }}</text>
       </view>
     </view>
 
-    <text class="footer">WareMap v1.0</text>
+    <text class="link" @click="goIntro">先看介绍</text>
+    <text class="footer">网页指挥 · 本端现场 · 仓管收货</text>
   </view>
 </template>
 
@@ -74,8 +69,8 @@ import { ref, onMounted } from 'vue'
 import { login, getCaptchaBase64 } from '../../api/login'
 import { fetchCurrentUser } from '../../stores/auth'
 
-const loginname = ref('admin')
-const pwd = ref('123456')
+const loginname = ref('')
+const pwd = ref('')
 const code = ref('')
 const captchaId = ref('')
 const captchaAnswer = ref('')
@@ -120,6 +115,10 @@ function refreshCaptcha() {
   })
 }
 
+function goIntro() {
+  uni.switchTab({ url: '/pages/intro/index' })
+}
+
 onMounted(() => {
   refreshCaptcha()
 })
@@ -157,81 +156,81 @@ function handleLogin() {
 }
 </script>
 
-<style lang="scss">
+<style>
 .login-page {
   flex: 1;
-  background: #F5F7FA;
-  display: flex;
+  background-color: #F3F6F8;
   flex-direction: column;
   align-items: center;
-  padding-top: 200rpx;
+  padding-top: 140rpx;
 }
 
 .logo-area {
-  display: flex;
   flex-direction: column;
   align-items: center;
-  margin-bottom: 60rpx;
+  margin-bottom: 48rpx;
 }
 
-.logo-icon {
-  width: 120rpx;
-  height: 120rpx;
+.mark {
+  width: 112rpx;
+  height: 112rpx;
   border-radius: 28rpx;
-  background: linear-gradient(135deg, #2C7BE5, #1A56DB);
-  display: flex;
+  background-color: #0F766E;
   align-items: center;
   justify-content: center;
 }
 
-.icon-text {
-  font-size: 56rpx;
+.mark-text {
+  font-size: 48rpx;
+  font-weight: 700;
+  color: #FFFFFF;
 }
 
 .app-name {
-  font-size: 44rpx;
+  font-size: 40rpx;
   font-weight: 700;
   color: #0F172A;
   margin-top: 24rpx;
 }
 
 .app-desc {
-  font-size: 26rpx;
-  color: #94A3B8;
+  font-size: 24rpx;
+  color: #64748B;
   margin-top: 8rpx;
 }
 
 .form-card {
   width: 650rpx;
-  background: #FFFFFF;
-  border-radius: 24rpx;
-  padding: 48rpx 40rpx;
-  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.04);
+  background-color: #FFFFFF;
+  border-radius: 20rpx;
+  padding: 40rpx 36rpx;
 }
 
 .form-title {
-  font-size: 36rpx;
+  font-size: 30rpx;
   font-weight: 600;
   color: #0F172A;
-  margin-bottom: 36rpx;
+  margin-bottom: 32rpx;
 }
 
 .label {
-  font-size: 26rpx;
+  font-size: 24rpx;
   color: #64748B;
-  margin-bottom: 12rpx;
+  margin-bottom: 10rpx;
 }
 
 .input-wrap {
   flex-direction: row;
   align-items: center;
-  background: #F8FAFC;
-  border: 2rpx solid #E2E8F0;
+  background-color: #F8FAFC;
+  border-width: 1rpx;
+  border-style: solid;
+  border-color: #E2E8F0;
   border-radius: 12rpx;
   height: 88rpx;
   padding-left: 24rpx;
   padding-right: 24rpx;
-  margin-bottom: 28rpx;
+  margin-bottom: 24rpx;
 }
 
 .input {
@@ -242,18 +241,19 @@ function handleLogin() {
 }
 
 .eye {
-  font-size: 32rpx;
+  font-size: 24rpx;
+  color: #0F766E;
   padding: 10rpx;
 }
 
 .captcha-row {
   flex-direction: row;
   align-items: center;
-  gap: 20rpx;
 }
 
 .captcha-input {
   flex: 1;
+  margin-right: 16rpx;
 }
 
 .captcha-img-wrap {
@@ -261,11 +261,13 @@ function handleLogin() {
   height: 88rpx;
   border-radius: 12rpx;
   overflow: hidden;
-  background: #F8FAFC;
-  border: 2rpx solid #E2E8F0;
-  display: flex;
+  background-color: #F8FAFC;
+  border-width: 1rpx;
+  border-style: solid;
+  border-color: #E2E8F0;
   align-items: center;
   justify-content: center;
+  margin-bottom: 24rpx;
 }
 
 .captcha-img {
@@ -274,18 +276,17 @@ function handleLogin() {
 }
 
 .captcha-loading {
-  font-size: 26rpx;
+  font-size: 24rpx;
   color: #94A3B8;
 }
 
 .login-btn {
   height: 92rpx;
-  border-radius: 12rpx;
-  background: linear-gradient(135deg, #2C7BE5, #1A56DB);
-  display: flex;
+  border-radius: 14rpx;
+  background-color: #0F766E;
   align-items: center;
   justify-content: center;
-  margin-top: 12rpx;
+  margin-top: 8rpx;
 }
 
 .login-btn.disabled {
@@ -298,9 +299,15 @@ function handleLogin() {
   color: #FFFFFF;
 }
 
+.link {
+  margin-top: 36rpx;
+  font-size: 26rpx;
+  color: #0F766E;
+}
+
 .footer {
-  margin-top: 60rpx;
-  font-size: 24rpx;
-  color: #CBD5E1;
+  margin-top: 16rpx;
+  font-size: 22rpx;
+  color: #94A3B8;
 }
 </style>

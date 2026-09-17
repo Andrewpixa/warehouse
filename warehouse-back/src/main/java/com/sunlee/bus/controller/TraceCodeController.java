@@ -8,6 +8,7 @@ import com.sunlee.sys.annotation.OperationLog;
 import com.sunlee.sys.common.Constast;
 import com.sunlee.sys.common.DataGridView;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -74,9 +75,18 @@ public class TraceCodeController {
     public Map<String, Object> addCodes(@RequestBody TraceCodeVo vo) {
         Map<String, Object> map = new HashMap<>();
         try {
-            int count = traceCodeService.addCodes(vo.getSpdid(), vo.getCodes(), vo.getPackLevel(), vo.getBizType());
+            boolean skipDup = Boolean.TRUE.equals(vo.getSkipDuplicate());
+            int count = traceCodeService.addCodes(vo.getSpdid(), vo.getCodes(), vo.getPackLevel(), vo.getBizType(), skipDup);
+            String msg = "已采集 " + count + " 条追溯码";
+            if (skipDup && vo.getCodes() != null) {
+                long valid = vo.getCodes().stream().filter(StringUtils::isNotBlank).count();
+                if (valid > count) {
+                    msg += "，跳过重复 " + (valid - count) + " 条";
+                }
+            }
             map.put("code", Constast.OK);
-            map.put("msg", "已采集 " + count + " 条追溯码");
+            map.put("msg", msg);
+            map.put("data", count);
         } catch (Exception e) {
             log.error("采集追溯码失败: {}", e.getMessage(), e);
             map.put("code", Constast.ERROR);

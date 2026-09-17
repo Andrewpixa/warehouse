@@ -2,22 +2,25 @@
   <div class="page-container">
     <div class="page-header animate-fade-in-up">
       <h1 class="page-header-title">人员管理</h1>
-      <p class="page-header-desc">管理系统用户账号和权限</p>
+      <p class="page-header-desc">点销售部列出一部、二部人员；总经理在总经办，不进销售细分。</p>
     </div>
-    <el-card>
-      <SearchForm v-model="searchParams" @search="handleSearch" @reset="handleReset">
-        <el-form-item label="用户名">
-          <el-input v-model="searchParams.name" placeholder="用户名" clearable />
-        </el-form-item>
-        <el-form-item label="地址">
-          <el-input v-model="searchParams.address" placeholder="地址" clearable />
-        </el-form-item>
-        <el-form-item label="部门">
-          <el-tree-select v-model="searchParams.deptid" :data="deptTree" :props="{ label: 'title', value: 'id', children: 'children' }" placeholder="全部" clearable filterable check-strictly />
-        </el-form-item>
-      </SearchForm>
+    <el-row :gutter="16" class="org-layout">
+      <el-col :span="6" class="org-left">
+        <TreePanel ref="treeRef" title="组织架构" :load-api="loadDeptManagerLeftTreeJson" @node-click="handleNodeClick" />
+      </el-col>
+      <el-col :span="18">
+        <el-card>
+          <div v-if="currentDeptTitle" class="org-hint">{{ currentDeptTitle }}（含下级）</div>
+          <SearchForm v-model="searchParams" @search="handleSearch" @reset="handleReset">
+            <el-form-item label="用户名">
+              <el-input v-model="searchParams.name" placeholder="姓名 / 登录名" clearable />
+            </el-form-item>
+            <el-form-item label="地址">
+              <el-input v-model="searchParams.address" placeholder="地址" clearable />
+            </el-form-item>
+          </SearchForm>
 
-      <CrudTable ref="tableRef" :load-api="loadAllUser" :search-params="searchParams">
+          <CrudTable ref="tableRef" :load-api="loadAllUser" :search-params="searchParams">
         <el-table-column type="selection" width="50" />
         <el-table-column prop="id" label="ID" width="60" />
         <el-table-column label="头像" width="60">
@@ -28,7 +31,7 @@
         <el-table-column prop="name" label="姓名" />
         <el-table-column prop="loginname" label="登录名" />
         <el-table-column prop="deptname" label="部门" />
-        <el-table-column prop="leadername" label="直属领导" />
+        <el-table-column prop="remark" label="岗位" min-width="120" show-overflow-tooltip />
         <el-table-column prop="address" label="地址" />
         <el-table-column label="性别" width="60">
           <template #default="{ row }">{{ row.sex === 1 ? '男' : '女' }}</template>
@@ -55,7 +58,9 @@
           </el-button>
         </template>
       </CrudTable>
-    </el-card>
+        </el-card>
+      </el-col>
+    </el-row>
 
     <!-- 添加/编辑弹窗 -->
     <CrudDialog ref="dialogRef" :submit-api="handleSubmitApi" :rules="userRules" width="600px" @success="tableRef?.reload()">
@@ -72,20 +77,9 @@
             </el-form-item>
           </el-col>
         </el-row>
-        <el-row :gutter="20">
-          <el-col :span="12">
-            <el-form-item label="部门" prop="deptid">
-              <el-tree-select v-model="formData.deptid" :data="deptTree" :props="{ label: 'title', value: 'id', children: 'children' }" placeholder="选择部门" clearable filterable check-strictly />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="直属领导" prop="mgr">
-              <el-select v-model="formData.mgr" placeholder="选择领导" clearable filterable>
-                <el-option v-for="u in deptUsers" :key="u.id" :label="u.name" :value="u.id" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-        </el-row>
+        <el-form-item label="部门" prop="deptid">
+          <el-tree-select v-model="formData.deptid" :data="deptTree" :props="{ label: 'title', value: 'id', children: 'children' }" placeholder="必须选择启用中的部门" clearable filterable check-strictly />
+        </el-form-item>
         <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item label="性别">
@@ -104,8 +98,8 @@
         <el-form-item label="地址">
           <el-input v-model="formData.address" />
         </el-form-item>
-        <el-form-item label="备注">
-          <el-input v-model="formData.remark" type="textarea" />
+        <el-form-item label="岗位">
+          <el-input v-model="formData.remark" placeholder="如 销售一部经理 / 销售代表" />
         </el-form-item>
         <el-form-item label="是否可用">
           <el-radio-group v-model="formData.available">
@@ -136,37 +130,56 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, watch } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import SearchForm from '@/components/SearchForm.vue'
 import CrudTable from '@/components/CrudTable.vue'
 import CrudDialog from '@/components/CrudDialog.vue'
 import ImageUpload from '@/components/ImageUpload.vue'
-import { loadAllUser, addUser, updateUser, deleteUser, resetPwd, changeChineseToPinyin, loadUsersByDeptId, initRoleByUserId, saveUserRole } from '@/api/user'
+import TreePanel from '@/components/TreePanel.vue'
+import { loadAllUser, addUser, updateUser, deleteUser, resetPwd, changeChineseToPinyin, initRoleByUserId, saveUserRole } from '@/api/user'
 import { loadDeptManagerLeftTreeJson } from '@/api/dept'
 import { getImageUrl } from '@/api/file'
 
 const tableRef = ref()
+const treeRef = ref()
+const route = useRoute()
 const dialogRef = ref()
 const roleTableRef = ref()
 const isEdit = ref(false)
 const deptTree = ref<any[]>([])
-const deptUsers = ref<any[]>([])
 const allRoles = ref<any[]>([])
 const roleDialogVisible = ref(false)
 const currentUserId = ref(0)
 const selectedRoles = ref<any[]>([])
+const currentDeptTitle = ref('全公司')
 
 const searchParams = reactive({ name: '', address: '', deptid: null as number | null })
 
 const userRules = {
   name: [{ required: true, message: '请输入姓名', trigger: 'blur' }],
-  loginname: [{ required: true, message: '请输入登录名', trigger: 'blur' }]
+  loginname: [{ required: true, message: '请输入登录名', trigger: 'blur' }],
+  deptid: [{ required: true, message: '用户必须归属启用中的部门', trigger: 'change' }]
 }
 
 const handleSearch = () => tableRef.value?.reload()
-const handleReset = () => { searchParams.name = ''; searchParams.address = ''; searchParams.deptid = null }
-const handleAdd = () => { isEdit.value = false; dialogRef.value?.open({ sex: 1, available: 1, ordernum: 1, imgpath: '' }, false) }
+const handleReset = () => {
+  searchParams.name = ''
+  searchParams.address = ''
+  searchParams.deptid = null
+  currentDeptTitle.value = '全公司'
+  tableRef.value?.reload()
+}
+const handleNodeClick = (data: any) => {
+  searchParams.deptid = data.id
+  currentDeptTitle.value = data.title || data.name || '当前部门'
+  tableRef.value?.reload()
+}
+const handleAdd = () => {
+  isEdit.value = false
+  dialogRef.value?.open({ sex: 1, available: 1, ordernum: 1, imgpath: '', deptid: searchParams.deptid }, false)
+}
 const handleEdit = (row: any) => { isEdit.value = true; dialogRef.value?.open(row, true) }
 const handleSubmitApi = (data: any) => isEdit.value ? updateUser(data) : addUser(data)
 
@@ -226,10 +239,18 @@ onMounted(async () => {
     const res: any = await loadDeptManagerLeftTreeJson()
     deptTree.value = res.data || []
   } catch {}
+  if (route.query.deptid) {
+    searchParams.deptid = Number(route.query.deptid)
+    currentDeptTitle.value = '指定部门'
+    tableRef.value?.reload()
+  }
 })
 </script>
 
 <style scoped>
+.org-layout { min-height: calc(100vh - 170px); }
+.org-left { height: 100%; }
+.org-hint { font-size: 13px; color: var(--text-secondary); margin-bottom: 8px; }
 .page-container :deep(.el-card) {
   border-radius: var(--border-radius-lg);
   border: 1px solid var(--border-light);
