@@ -72,9 +72,47 @@ public class TraceCodeServiceImpl extends ServiceImpl<TraceCodeMapper, TraceCode
             throw new IllegalArgumentException("请输入追溯码、SPDID、采购入库单号、供应商发票、批号、出库单号或销售发票号");
         }
         String q = keyword.trim();
+        for (String v : keywordVariants(q)) {
+            TraceLookupResult hit = lookupOnce(v);
+            if (hit != null) {
+                hit.setKeyword(q);
+                return hit;
+            }
+        }
+        throw new IllegalArgumentException("未找到：" + q + "。可查追溯码、商品条码、SPDID、采购入库单号、供应商发票、批号、出库单号或销售发票号");
+    }
+
+    private List<String> keywordVariants(String q) {
+        LinkedHashSet<String> set = new LinkedHashSet<>();
+        set.add(q);
+        String compact = q.replaceAll("[\\s()（）-]", "");
+        if (!compact.equals(q)) {
+            set.add(compact);
+        }
+        if (compact.startsWith("01") && compact.length() > 14) {
+            set.add(compact.substring(2));
+        }
+        String digits = compact.replaceAll("[^0-9]", "");
+        if (StringUtils.isNotBlank(digits)) {
+            set.add(digits);
+            if (digits.startsWith("0") && digits.length() > 8) {
+                set.add(digits.replaceFirst("^0+", ""));
+            }
+            if (!digits.startsWith("0") && digits.length() == 13) {
+                set.add("0" + digits);
+            }
+        }
+        return new ArrayList<>(set);
+    }
+
+    private TraceLookupResult lookupOnce(String q) {
         TraceLookupResult byCode = lookupByTraceCode(q);
         if (byCode != null) {
             return byCode;
+        }
+        TraceLookupResult byBarcode = lookupByDrugBarcode(q);
+        if (byBarcode != null) {
+            return byBarcode;
         }
         TraceLookupResult bySpdid = lookupBySpdid(q);
         if (bySpdid != null) {
@@ -83,20 +121,52 @@ public class TraceCodeServiceImpl extends ServiceImpl<TraceCodeMapper, TraceCode
         PurchaseOrder purchaseHit = purchaseOrderService.findByQuery(q);
         if (purchaseHit != null) {
             boolean orderExact = q.equals(purchaseHit.getOrderNo());
-            return ofPurchase(q, orderExact ? "PURCHASE_ORDER" : "PURCHASE_INVOICE",
-                    orderExact ? "采购入库单号" : "供应商发票号", purchaseHit.getId());
+            return mergeInOut(q, orderExact ? "PURCHASE_ORDER" : "PURCHASE_INVOICE",
+                    orderExact ? "采购入库单号" : "供应商发票号", purchaseHit.getId(), null);
         }
         SalesOrder salesHit = salesOrderService.findByInvoiceQuery(q);
         if (salesHit != null) {
             boolean orderExact = q.equals(salesHit.getOrderNo());
-            return ofSales(q, orderExact ? "SALES_ORDER" : "SALES_INVOICE",
-                    orderExact ? "出库单号" : "销售发票号", salesHit.getId());
+            return mergeInOut(q, orderExact ? "SALES_ORDER" : "SALES_INVOICE",
+                    orderExact ? "出库单号" : "销售发票号", null, salesHit.getId());
         }
-        TraceLookupResult byBatch = lookupByBatch(q);
-        if (byBatch != null) {
-            return byBatch;
+        return lookupByBatch(q);
+    }
+
+    private TraceLookupResult lookupByDrugBarcode(String barcode) {
+        QueryWrapper<Drug> dqw = new QueryWrapper<>();
+        dqw.eq("barcode", barcode);
+        dqw.last("LIMIT 1");
+        Drug drug = drugService.getOne(dqw, false);
+        if (drug == null || drug.getId() == null) {
+            return null;
         }
-        throw new IllegalArgumentException("未找到：" + q + "。可查追溯码、SPDID、采购入库单号、供应商发票、批号、出库单号或销售发票号");
+        QueryWrapper<PurchaseOrderItem> pqw = new QueryWrapper<>();
+        pqw.eq("drug_id", drug.getId());
+        pqw.orderByDesc("id");
+        pqw.last("LIMIT 1");
+        PurchaseOrderItem pItem = purchaseOrderItemService.getOne(pqw, false);
+        QueryWrapper<SalesOrderItem> sqw = new QueryWrapper<>();
+        sqw.eq("drug_id", drug.getId());
+        sqw.orderByDesc("id");
+        sqw.last("LIMIT 1");
+        SalesOrderItem sItem = salesOrderItemService.getOne(sqw, false);
+        if (pItem == null && sItem == null) {
+            return null;
+        }
+        String batch = pItem != null ? pItem.getBatchNo() : sItem.getBatchNo();
+        if (StringUtils.isNotBlank(batch)) {
+            TraceLookupResult byBatch = lookupByBatch(batch);
+            if (byBatch != null) {
+                byBatch.setMatchType("BARCODE");
+                byBatch.setMatchTypeLabel("商品条码");
+                byBatch.setKeyword(barcode);
+                return byBatch;
+            }
+        }
+        return mergeInOut(barcode, "BARCODE", "商品条码",
+                pItem != null ? pItem.getOrderId() : null,
+                sItem != null ? sItem.getOrderId() : null);
     }
 
     private TraceLookupResult lookupByTraceCode(String code) {
@@ -136,17 +206,35 @@ public class TraceCodeServiceImpl extends ServiceImpl<TraceCodeMapper, TraceCode
         pqw.eq("spdid", spdid);
         pqw.last("LIMIT 1");
         PurchaseOrderItem pItem = purchaseOrderItemService.getOne(pqw, false);
-        if (pItem != null && pItem.getOrderId() != null) {
-            return ofPurchase(spdid, "SPDID", "SPDID / 流水号", pItem.getOrderId());
-        }
         QueryWrapper<SalesOrderItem> sqw = new QueryWrapper<>();
         sqw.eq("spdid", spdid);
         sqw.last("LIMIT 1");
         SalesOrderItem sItem = salesOrderItemService.getOne(sqw, false);
-        if (sItem != null && sItem.getOrderId() != null) {
-            return ofSales(spdid, "SPDID", "SPDID / 流水号", sItem.getOrderId());
+        Long purchaseId = pItem != null ? pItem.getOrderId() : null;
+        Long salesId = sItem != null ? sItem.getOrderId() : null;
+        String batch = pItem != null ? pItem.getBatchNo() : (sItem != null ? sItem.getBatchNo() : null);
+        if (purchaseId == null && StringUtils.isNotBlank(batch)) {
+            QueryWrapper<PurchaseOrderItem> byBatch = new QueryWrapper<>();
+            byBatch.eq("batch_no", batch);
+            byBatch.last("LIMIT 1");
+            PurchaseOrderItem pByBatch = purchaseOrderItemService.getOne(byBatch, false);
+            if (pByBatch != null) {
+                purchaseId = pByBatch.getOrderId();
+            }
         }
-        return null;
+        if (salesId == null && StringUtils.isNotBlank(batch)) {
+            QueryWrapper<SalesOrderItem> byBatch = new QueryWrapper<>();
+            byBatch.eq("batch_no", batch);
+            byBatch.last("LIMIT 1");
+            SalesOrderItem sByBatch = salesOrderItemService.getOne(byBatch, false);
+            if (sByBatch != null) {
+                salesId = sByBatch.getOrderId();
+            }
+        }
+        if (purchaseId == null && salesId == null) {
+            return null;
+        }
+        return mergeInOut(spdid, "SPDID", "SPDID / 流水号", purchaseId, salesId);
     }
 
     private TraceLookupResult lookupByBatch(String batchNo) {
@@ -161,12 +249,10 @@ public class TraceCodeServiceImpl extends ServiceImpl<TraceCodeMapper, TraceCode
         if (pItems.isEmpty() && sItems.isEmpty()) {
             return null;
         }
-        if (pItems.size() == 1 && sItems.isEmpty()) {
-            TraceLookupResult r = ofPurchase(batchNo, "BATCH", "批号", pItems.get(0).getOrderId());
-            return r;
-        }
-        if (sItems.size() == 1 && pItems.isEmpty()) {
-            return ofSales(batchNo, "BATCH", "批号", sItems.get(0).getOrderId());
+        if (pItems.size() <= 1 && sItems.size() <= 1) {
+            return mergeInOut(batchNo, "BATCH", "批号",
+                    pItems.isEmpty() ? null : pItems.get(0).getOrderId(),
+                    sItems.isEmpty() ? null : sItems.get(0).getOrderId());
         }
         TraceLookupResult result = new TraceLookupResult();
         result.setKeyword(batchNo);
@@ -184,33 +270,46 @@ public class TraceCodeServiceImpl extends ServiceImpl<TraceCodeMapper, TraceCode
     }
 
     private TraceLookupResult ofPurchase(String keyword, String matchType, String label, Long orderId) {
-        TraceLookupResult result = new TraceLookupResult();
-        result.setKeyword(keyword);
-        result.setMatchType(matchType);
-        result.setMatchTypeLabel(label);
-        result.setBillType("入库");
-        PurchaseOrder order = purchaseOrderService.getDetail(orderId);
-        result.setPurchase(order);
-        result.setTraces(collectPurchaseTraces(order));
-        decorateAll(result.getTraces());
-        return result;
+        return mergeInOut(keyword, matchType, label, orderId, null);
     }
 
     private TraceLookupResult ofSales(String keyword, String matchType, String label, Long orderId) {
+        return mergeInOut(keyword, matchType, label, null, orderId);
+    }
+
+    private TraceLookupResult mergeInOut(String keyword, String matchType, String label, Long purchaseOrderId, Long salesOrderId) {
         TraceLookupResult result = new TraceLookupResult();
         result.setKeyword(keyword);
         result.setMatchType(matchType);
         result.setMatchTypeLabel(label);
-        result.setBillType("出库");
-        SalesOrder order = salesOrderService.getDetail(orderId);
-        result.setOutbound(order);
-        if (order != null) {
-            ensureLogisticsCodes(order.getId());
-            order = salesOrderService.getDetail(orderId);
-            result.setOutbound(order);
+        List<TraceCode> traces = new ArrayList<>();
+        if (purchaseOrderId != null) {
+            PurchaseOrder order = purchaseOrderService.getDetail(purchaseOrderId);
+            result.setPurchase(order);
+            if (order != null) {
+                traces.addAll(collectPurchaseTraces(order));
+            }
         }
-        result.setTraces(collectSalesTraces(order));
-        decorateAll(result.getTraces());
+        if (salesOrderId != null) {
+            SalesOrder order = salesOrderService.getDetail(salesOrderId);
+            if (order != null && order.getId() != null) {
+                ensureLogisticsCodes(order.getId());
+                order = salesOrderService.getDetail(salesOrderId);
+            }
+            result.setOutbound(order);
+            if (order != null) {
+                traces.addAll(collectSalesTraces(order));
+            }
+        }
+        if (purchaseOrderId != null && salesOrderId != null) {
+            result.setBillType("入库 + 出库");
+        } else if (purchaseOrderId != null) {
+            result.setBillType("入库");
+        } else {
+            result.setBillType("出库");
+        }
+        result.setTraces(traces);
+        decorateAll(traces);
         return result;
     }
 

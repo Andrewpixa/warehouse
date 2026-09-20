@@ -53,6 +53,7 @@ public class DemoBizDataSeed implements CommandLineRunner {
             seedInvoiceDrafts();
             seedMultiLineDocs();
             seedPurchaseContracts();
+            seedScanDemoTrace();
             log.info("demo biz data seeded");
         } catch (Exception e) {
             log.warn("demo biz data skipped: {}", e.getMessage());
@@ -458,6 +459,26 @@ public class DemoBizDataSeed implements CommandLineRunner {
                 INSERT INTO sales_order_items (order_id, drug_id, batch_no, expire_date, qty, sale_price, amount, spdid, quality_status, created_at, updated_at)
                 VALUES (?, ?, ?, ?, 1.000, ?, ?, ?, '合格', NOW(), NOW())
                 """, oid, drugId, batch, expire, price, price, "SPD" + orderNo.replace("-", ""));
+    }
+
+    /** 平板扫码演示：商品条码 69079921100272 对应阿莫西林批号 AMX20260801，同时挂入库与出库。 */
+    private void seedScanDemoTrace() {
+        if (!tableExists("drugs") || !tableExists("trace_codes")) {
+            return;
+        }
+        jdbc.update("UPDATE drugs SET barcode = '69079921100272' WHERE id = 300001");
+        Integer n = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM trace_codes WHERE code IN ('69079921100272','069079921100272')",
+                Integer.class);
+        if (n != null && n > 0) {
+            return;
+        }
+        jdbc.update("""
+                INSERT INTO trace_codes (spdid, code, pack_level, biz_type, status, collected_at, remark, created_at, updated_at)
+                VALUES
+                  ('SPD20260907001', '69079921100272', '最小包装', '入库', '正常', '2026-09-05 10:22:00', '演示扫码-入库采集', NOW(), NOW()),
+                  ('SPD202609071101', '069079921100272', '最小包装', '出库', '正常', '2026-09-07 11:32:00', '演示扫码-出库采集', NOW(), NOW())
+                """);
     }
 
     private void upsertOps(String no, String type, String date, String status, Long customerId, Long supplierId,
