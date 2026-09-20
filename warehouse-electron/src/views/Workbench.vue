@@ -99,13 +99,15 @@
             <h3 class="section-title">追溯码</h3>
             <el-table v-if="traces.length" :data="traces" border stripe>
               <el-table-column prop="code" label="追溯码" min-width="200" />
+              <el-table-column prop="codeKind" label="码类型" width="110" />
               <el-table-column prop="spdid" label="SPDID" min-width="170" />
               <el-table-column prop="drugName" label="药品" min-width="140" />
               <el-table-column prop="batchNo" label="批号" width="120" />
               <el-table-column prop="packLevel" label="包装层级" width="110" />
-              <el-table-column prop="status" label="状态" width="80" />
+              <el-table-column prop="status" label="状态" width="90" />
+              <el-table-column prop="remark" label="说明" min-width="160" />
             </el-table>
-            <el-empty v-else description="该发票尚未采集追溯码" :image-size="72" />
+            <el-empty v-else description="物流侧暂无匹配码。缺码请登记客户描述，不由业务员采集。" :image-size="72" />
           </template>
         </section>
 

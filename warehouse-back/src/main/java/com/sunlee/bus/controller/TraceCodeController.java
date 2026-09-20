@@ -4,6 +4,7 @@ import com.sunlee.bus.entity.SalesOrder;
 import com.sunlee.bus.service.ISalesOrderService;
 import com.sunlee.bus.service.ITraceCodeService;
 import com.sunlee.bus.vo.TraceCodeVo;
+import com.sunlee.bus.vo.TraceLookupResult;
 import com.sunlee.sys.annotation.OperationLog;
 import com.sunlee.sys.common.Constast;
 import com.sunlee.sys.common.DataGridView;
@@ -29,6 +30,37 @@ public class TraceCodeController {
     @Autowired
     private ISalesOrderService salesOrderService;
 
+    @RequestMapping("lookup")
+    public Map<String, Object> lookup(String keyword) {
+        Map<String, Object> map = new HashMap<>();
+        try {
+            TraceLookupResult result = traceCodeService.lookup(keyword);
+            map.put("code", Constast.OK);
+            map.put("msg", "ok");
+            map.put("data", result);
+        } catch (Exception e) {
+            log.error("追溯码统一查询失败: {}", e.getMessage(), e);
+            map.put("code", Constast.ERROR);
+            map.put("msg", e.getMessage());
+        }
+        return map;
+    }
+
+    @RequestMapping("explainPack")
+    public Map<String, Object> explainPack(String code) {
+        Map<String, Object> map = new HashMap<>();
+        try {
+            map.put("code", Constast.OK);
+            map.put("msg", "ok");
+            map.put("data", traceCodeService.explainPack(code));
+        } catch (Exception e) {
+            log.error("解析大码失败: {}", e.getMessage(), e);
+            map.put("code", Constast.ERROR);
+            map.put("msg", e.getMessage());
+        }
+        return map;
+    }
+
     @RequestMapping("loadInvoice")
     public Map<String, Object> loadInvoice(String invoiceNo) {
         Map<String, Object> map = new HashMap<>();
@@ -36,6 +68,9 @@ public class TraceCodeController {
             SalesOrder order = salesOrderService.getByInvoiceNo(invoiceNo);
             map.put("code", Constast.OK);
             map.put("msg", "ok");
+            if (order != null && order.getId() != null) {
+                traceCodeService.ensureLogisticsCodes(order.getId());
+            }
             map.put("data", order);
             map.put("traces", traceCodeService.listByInvoiceNo(invoiceNo));
         } catch (Exception e) {
@@ -68,6 +103,41 @@ public class TraceCodeController {
             view.setMsg(e.getMessage());
             return view;
         }
+    }
+
+    @OperationLog(type = "修改", module = "追溯码", description = "'异常纠码 id: ' + #args[0].traceId")
+    @RequestMapping("replaceAbnormal")
+    public Map<String, Object> replaceAbnormal(@RequestBody TraceCodeVo vo) {
+        Map<String, Object> map = new HashMap<>();
+        try {
+            int count = traceCodeService.replaceAbnormal(vo.getTraceId(), vo.getNewCode(),
+                    Boolean.TRUE.equals(vo.getUseUniversal01()), vo.getRemark());
+            map.put("code", Constast.OK);
+            map.put("msg", Boolean.TRUE.equals(vo.getUseUniversal01()) ? "已用 01 码代替异常码" : "已用扫描码替换异常码");
+            map.put("data", count);
+        } catch (Exception e) {
+            log.error("异常纠码失败: {}", e.getMessage(), e);
+            map.put("code", Constast.ERROR);
+            map.put("msg", e.getMessage());
+        }
+        return map;
+    }
+
+    @OperationLog(type = "添加", module = "追溯码", description = "'缺码登记 SPDID: ' + #args[0].spdid")
+    @RequestMapping("reportMissing")
+    public Map<String, Object> reportMissing(@RequestBody TraceCodeVo vo) {
+        Map<String, Object> map = new HashMap<>();
+        try {
+            int count = traceCodeService.reportMissing(vo.getSpdid(), vo.getCustomerNote());
+            map.put("code", Constast.OK);
+            map.put("msg", "已登记客户缺码说明");
+            map.put("data", count);
+        } catch (Exception e) {
+            log.error("缺码登记失败: {}", e.getMessage(), e);
+            map.put("code", Constast.ERROR);
+            map.put("msg", e.getMessage());
+        }
+        return map;
     }
 
     @OperationLog(type = "添加", module = "追溯码", description = "'采集追溯码 SPDID: ' + #args[0].spdid")

@@ -41,6 +41,12 @@ public class OpsFlowDoc implements Serializable {
 
     private String relatedNo;
 
+    /** 银行到账流水，冲账单必填 */
+    private Long receiptId;
+
+    /** 1=金额不一致挂账，确认后不改发票回款 */
+    private Integer hangFlag;
+
     private BigDecimal amount;
 
     private BigDecimal qty;

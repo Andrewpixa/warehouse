@@ -4,8 +4,8 @@
       <div class="brand">
         <div class="logo">药</div>
         <div>
-          <h1>员工工作台</h1>
-          <p>按权限查询发票、库存与红冲</p>
+          <h1>内勤查询台</h1>
+          <p>财务 / 销售内勤 · 查发票、未回款、库存与红冲</p>
         </div>
       </div>
       <el-form ref="formRef" :model="form" :rules="rules" @keyup.enter="handleLogin">
@@ -31,6 +31,7 @@
           </div>
         </el-form-item>
         <el-button type="primary" size="large" class="login-btn" :loading="loading" @click="handleLogin">登 录</el-button>
+        <el-button text class="back-btn" @click="emit('back')">返回介绍</el-button>
       </el-form>
     </div>
   </div>
@@ -45,6 +46,7 @@ import { savePermissions } from '../utils/perm'
 
 const emit = defineEmits<{
   success: [payload: { token: string; name: string; permissions: string[] }]
+  back: []
 }>()
 
 const formRef = ref<FormInstance>()
@@ -179,6 +181,10 @@ onMounted(refreshCaptcha)
   background: #f3f6f9;
 }
 .login-btn {
+  width: 100%;
+  margin-top: 4px;
+}
+.back-btn {
   width: 100%;
   margin-top: 4px;
 }

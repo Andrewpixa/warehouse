@@ -132,6 +132,12 @@ const router = createRouter({
           meta: { title: '采购入库单' }
         },
         {
+          path: 'business/purchase-invoice',
+          name: 'PurchaseInvoice',
+          component: () => import('@/views/business/purchase-invoice/index.vue'),
+          meta: { title: '供应商发票查询' }
+        },
+        {
           path: 'business/outbound',
           name: 'OutboundManager',
           component: () => import('@/views/business/outbound/index.vue'),
@@ -185,10 +191,18 @@ const router = createRouter({
           component: () => import('@/views/business/trace/index.vue'),
           meta: { title: '追溯码查询' }
         },
+        {
+          path: 'business/trace-pack',
+          name: 'TracePack',
+          component: () => import('@/views/business/trace-pack/index.vue'),
+          meta: { title: '大码解析' }
+        },
         { path: 'business/stockout', name: 'Stockout', component: () => import('@/views/business/ops/index.vue'), meta: { title: '缺货补货', docType: 'STOCKOUT' } },
         { path: 'business/inbound-ex', name: 'InboundEx', component: () => import('@/views/business/ops/index.vue'), meta: { title: '到货异常', docType: 'INBOUND_EX' } },
         { path: 'business/return-notice', name: 'ReturnNotice', component: () => import('@/views/business/ops/index.vue'), meta: { title: '销退通知', docType: 'RETURN_NOTICE' } },
         { path: 'business/offset', name: 'Offset', component: () => import('@/views/business/ops/index.vue'), meta: { title: '收款冲账', docType: 'OFFSET' } },
+        { path: 'business/bank-receipt', name: 'BankReceipt', component: () => import('@/views/business/bank-receipt/index.vue'), meta: { title: '银行到账' } },
+        { path: 'business/customer-debt', name: 'CustomerDebt', component: () => import('@/views/business/customer-debt/index.vue'), meta: { title: '单位欠款' } },
         { path: 'business/allocate', name: 'Allocate', component: () => import('@/views/business/ops/index.vue'), meta: { title: '分货', docType: 'ALLOCATE' } },
         { path: 'business/invoice', name: 'SimInvoice', component: () => import('@/views/business/invoice/index.vue'), meta: { title: '模拟开票' } },
         { path: 'business/logistics', name: 'Logistics', component: () => import('@/views/business/ops/index.vue'), meta: { title: '物流联系单', docType: 'LOGISTICS' } },

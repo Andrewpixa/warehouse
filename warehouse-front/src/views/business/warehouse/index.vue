@@ -29,13 +29,6 @@
         <el-table-column prop="whType" label="类型" width="100" />
         <el-table-column prop="address" label="地址" min-width="140" show-overflow-tooltip />
         <el-table-column prop="managerId" label="负责人ID" width="100" />
-        <el-table-column label="状态" width="80">
-          <template #default="{ row }">
-            <el-tag :type="row.status === 1 ? 'success' : 'danger'" size="small">
-              {{ row.status === 1 ? '启用' : '停用' }}
-            </el-tag>
-          </template>
-        </el-table-column>
         <el-table-column label="操作" width="160" fixed="right">
           <template #default="{ row }">
             <el-button type="primary" link @click="handleEdit(row)">编辑</el-button>
@@ -71,12 +64,6 @@
         </el-form-item>
         <el-form-item label="负责人ID">
           <el-input-number v-model="formData.managerId" :min="1" controls-position="right" style="width: 100%" />
-        </el-form-item>
-        <el-form-item label="状态">
-          <el-radio-group v-model="formData.status">
-            <el-radio :value="1">启用</el-radio>
-            <el-radio :value="0">停用</el-radio>
-          </el-radio-group>
         </el-form-item>
         <el-form-item label="备注">
           <el-input v-model="formData.remark" type="textarea" />
@@ -116,7 +103,7 @@ const handleReset = () => {
 }
 const handleAdd = () => {
   isEdit.value = false
-  dialogRef.value?.open({ status: 1, whType: '合格' }, false)
+  dialogRef.value?.open({ whType: '合格' }, false)
 }
 const handleEdit = (row: any) => {
   isEdit.value = true

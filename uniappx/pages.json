@@ -5,7 +5,9 @@
 			"style": {
 				"navigationBarTitleText": "业务员工作台",
 				"navigationBarBackgroundColor": "#0F766E",
-				"navigationBarTextStyle": "white"
+				"navigationBarTextStyle": "white",
+				"enablePullDownRefresh": true,
+				"backgroundTextStyle": "dark"
 			}
 		},
 		{
@@ -68,7 +70,7 @@
 		{
 			"path": "pages/business/trace-collect",
 			"style": {
-				"navigationBarTitleText": "扫码采码"
+				"navigationBarTitleText": "异常纠码"
 			}
 		},
 		{

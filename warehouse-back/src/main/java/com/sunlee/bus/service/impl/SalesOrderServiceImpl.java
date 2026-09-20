@@ -451,53 +451,45 @@ public class SalesOrderServiceImpl extends ServiceImpl<SalesOrderMapper, SalesOr
     }
 
     @Override
-    @Transactional
+    public java.util.List<com.sunlee.bus.vo.CustomerDebtVo> listCustomerDebt() {
+        QueryWrapper<SalesOrder> qw = new QueryWrapper<>();
+        qw.eq("status", PharmaNos.STATUS_CONFIRMED);
+        qw.and(w -> w.eq("order_type", PharmaNos.ORDER_NORMAL).or().isNull("order_type").or().eq("order_type", ""));
+        qw.isNotNull("invoice_no");
+        qw.ne("invoice_no", "");
+        java.util.Map<Long, com.sunlee.bus.vo.CustomerDebtVo> map = new java.util.LinkedHashMap<>();
+        for (SalesOrder order : this.list(qw)) {
+            Long cid = order.getCustomerId();
+            if (cid == null) {
+                continue;
+            }
+            fillHeaderNames(order);
+            com.sunlee.bus.vo.CustomerDebtVo row = map.computeIfAbsent(cid, id -> {
+                com.sunlee.bus.vo.CustomerDebtVo v = new com.sunlee.bus.vo.CustomerDebtVo();
+                v.setCustomerId(id);
+                v.setCustomerName(order.getCustomerName());
+                v.setInvoiceCount(0);
+                v.setTotalAmount(BigDecimal.ZERO);
+                v.setPaidAmount(BigDecimal.ZERO);
+                v.setUnpaidAmount(BigDecimal.ZERO);
+                return v;
+            });
+            BigDecimal total = order.getTotalAmount() == null ? BigDecimal.ZERO : order.getTotalAmount();
+            BigDecimal paid = order.getPaidAmount() == null ? BigDecimal.ZERO : order.getPaidAmount();
+            if (paid.compareTo(total) > 0) {
+                paid = total;
+            }
+            row.setInvoiceCount(row.getInvoiceCount() + 1);
+            row.setTotalAmount(row.getTotalAmount().add(total));
+            row.setPaidAmount(row.getPaidAmount().add(paid));
+            row.setUnpaidAmount(row.getUnpaidAmount().add(total.subtract(paid)));
+        }
+        return new java.util.ArrayList<>(map.values());
+    }
+
+    @Override
     public void markPaid(Long id, String paidStatus, BigDecimal paidAmount) {
-        SalesOrder order = this.getById(id);
-        if (order == null) {
-            throw new IllegalArgumentException("出库单不存在");
-        }
-        if (PharmaNos.ORDER_REVERSAL.equals(defaultType(order.getOrderType()))) {
-            throw new IllegalArgumentException("红冲单不标记回款");
-        }
-        if (!PharmaNos.STATUS_CONFIRMED.equals(order.getStatus())) {
-            throw new IllegalArgumentException("只有已确认出库单可以标记回款");
-        }
-        if (!PharmaNos.PAID_NONE.equals(paidStatus)
-                && !PharmaNos.PAID_PARTIAL.equals(paidStatus)
-                && !PharmaNos.PAID_DONE.equals(paidStatus)) {
-            throw new IllegalArgumentException("回款状态必须是：未回款 / 部分回款 / 已回款");
-        }
-        BigDecimal total = order.getTotalAmount() == null ? BigDecimal.ZERO : order.getTotalAmount();
-        BigDecimal amount = paidAmount == null ? BigDecimal.ZERO : paidAmount;
-        if (amount.compareTo(BigDecimal.ZERO) < 0) {
-            throw new IllegalArgumentException("已回金额不能为负");
-        }
-        if (PharmaNos.PAID_NONE.equals(paidStatus)) {
-            amount = BigDecimal.ZERO;
-        } else if (PharmaNos.PAID_DONE.equals(paidStatus)) {
-            if (amount.compareTo(BigDecimal.ZERO) <= 0) {
-                amount = total;
-            }
-            if (amount.compareTo(total) < 0) {
-                throw new IllegalArgumentException("标记已回款时，已回金额不能小于出库金额");
-            }
-        } else {
-            if (amount.compareTo(BigDecimal.ZERO) <= 0) {
-                throw new IllegalArgumentException("部分回款必须填写已回金额");
-            }
-            if (amount.compareTo(total) >= 0) {
-                throw new IllegalArgumentException("部分回款的已回金额应小于出库金额；已收齐请选已回款");
-            }
-        }
-        Date paidAt = PharmaNos.PAID_NONE.equals(paidStatus) ? null : new Date();
-        UpdateWrapper<SalesOrder> uw = new UpdateWrapper<>();
-        uw.eq("id", id)
-                .set("paid_status", paidStatus)
-                .set("paid_amount", amount)
-                .set("paid_at", paidAt)
-                .set("updated_at", new Date());
-        this.update(uw);
+        throw new IllegalArgumentException("回款只能由银行到账流水经冲账确认后产生，不能口头标记");
     }
 
     @Override

@@ -23,9 +23,9 @@
       <!-- 未查询 -->
       <view v-if="!searched" class="hint-wrap">
         <text class="hint-emoji">📷</text>
-        <text class="hint-title">扫码采集追溯码</text>
-        <text class="hint-sub">输入发票号加载出库单，点击选中明细后扫码</text>
-        <text class="hint-sub">支持扫最小包装码逐条采集，或扫箱码整箱解析</text>
+        <text class="hint-title">异常纠码</text>
+        <text class="hint-sub">先查发票看物流已匹配的码，再点选异常码</text>
+        <text class="hint-sub">错码才扫；异常可用 01 代替；缺码填客户说明</text>
       </view>
 
       <template v-else>
@@ -70,7 +70,7 @@
             <view class="item-meta">
               <text class="meta-chip">批号 {{ str(it, 'batchNo') }}</text>
               <text class="meta-chip">应出 {{ str(it, 'qty') }}</text>
-              <text class="meta-chip" :class="countClass(it)">已采 {{ collectedOf(it) }}</text>
+              <text class="meta-chip" :class="countClass(it)">已匹配 {{ collectedOf(it) }}</text>
             </view>
             <view class="item-spdid">
               <text class="spdid-label">SPDID</text>
@@ -85,63 +85,52 @@
     <!-- 底部采集面板 -->
     <view v-if="order != null" class="panel">
       <view v-if="selectedItem == null" class="panel-hint">
-        <text class="panel-hint-text">👆 请先点击选中上方要采码的明细</text>
+        <text class="panel-hint-text">👆 请先点选明细，再点一条要处理的码</text>
       </view>
       <template v-else>
         <view class="panel-head">
           <text class="panel-title">{{ itemName(selectedItem) }}</text>
-          <text class="panel-sub">已采 {{ collectedOf(selectedItem) }} / 应出 {{ selectedQtyText }}</text>
+          <text class="panel-sub">匹配 {{ collectedOf(selectedItem) }} / 应出 {{ selectedQtyText }}</text>
         </view>
-        <!-- 待提交码列表 -->
-        <scroll-view v-if="pendingCodes.length > 0" class="pending-scroll" scroll-x>
+        <scroll-view class="pending-scroll" scroll-x>
           <view class="pending-row">
-            <view v-for="(c, i) in pendingCodes" :key="i" class="pending-chip" @click="removePending(i)">
-              <text class="pending-text">{{ c }}</text>
-              <text class="pending-del">✕</text>
+            <view
+              v-for="(c, i) in itemTraces"
+              :key="i"
+              class="pending-chip"
+              :class="selectedTraceIndex == i ? 'pending-on' : ''"
+              @click="pickCode(i)"
+            >
+              <text class="pending-text">{{ str(c, 'code') }}</text>
             </view>
           </view>
         </scroll-view>
+        <view v-if="selectedTrace != null" class="panel-hint">
+          <text class="panel-hint-text">{{ str(selectedTrace, 'status') }} · {{ str(selectedTrace, 'codeKind') }}</text>
+        </view>
+        <view class="input-box" style="margin-top: 12rpx">
+          <input class="kw-input" v-model="missingNote" placeholder="缺码时填写客户问题描述" placeholder-class="kw-ph" />
+        </view>
         <view class="panel-btns">
-          <view class="pbtn pbtn-blue" @click="scanSingle">
-            <text class="pbtn-text">📷 扫单码</text>
+          <view class="pbtn pbtn-blue" @click="scanReplace">
+            <text class="pbtn-text">📷 扫码替换</text>
           </view>
-          <view class="pbtn pbtn-green" @click="scanBox">
-            <text class="pbtn-text">📦 扫箱码</text>
+          <view class="pbtn pbtn-green" @click="use01">
+            <text class="pbtn-text">01 代替</text>
           </view>
-          <view class="pbtn pbtn-orange" :class="canSubmit ? '' : 'btn-disabled'" @click="submit">
-            <text class="pbtn-text">{{ saving ? '提交中...' : '提交 ' + pendingCodes.length + ' 条' }}</text>
+          <view class="pbtn pbtn-orange" @click="askMissing">
+            <text class="pbtn-text">缺码说明</text>
           </view>
         </view>
       </template>
     </view>
 
-    <!-- 箱码解析预览弹窗 -->
-    <view v-if="boxVisible" class="mask" @click="closeBox">
-      <view class="dialog" @click.stop="noop">
-        <text class="dialog-title">包装解析预览</text>
-        <text class="dialog-sub">箱码 {{ boxCode }}，共 {{ boxRows.length }} 个码</text>
-        <scroll-view class="dialog-scroll" scroll-y>
-          <view v-for="(r, i) in boxRows" :key="i" class="dialog-row">
-            <text class="dialog-level">{{ str(r, 'packLevel') }}</text>
-            <text class="dialog-code">{{ str(r, 'code') }}</text>
-          </view>
-        </scroll-view>
-        <view class="dialog-btns">
-          <view class="dbtn dbtn-cancel" @click="closeBox">
-            <text class="dbtn-cancel-text">取消</text>
-          </view>
-          <view class="dbtn dbtn-ok" :class="saving ? 'btn-disabled' : ''" @click="confirmBox">
-            <text class="dbtn-ok-text">{{ saving ? '写入中...' : '写入本明细' }}</text>
-          </view>
-        </view>
-      </view>
-    </view>
   </view>
 </template>
 
 <script setup lang="uts">
 import { ref, computed } from 'vue'
-import { loadInvoice, addTraceCodes, previewParse, parseTraceCodes } from '../../api/trace'
+import { loadInvoice, replaceAbnormal, reportMissing } from '../../api/trace'
 
 const keyword = ref('')
 const loading = ref(false)
@@ -151,12 +140,8 @@ const items = ref<UTSJSONObject[]>([])
 const traces = ref<UTSJSONObject[]>([])
 
 const selectedIndex = ref(-1)
-const pendingCodes = ref<string[]>([])
-
-const boxVisible = ref(false)
-const boxCode = ref('')
-const boxRows = ref<UTSJSONObject[]>([])
-const boxLoading = ref(false)
+const selectedTraceIndex = ref(0)
+const missingNote = ref('')
 const saving = ref(false)
 
 const selectedItem = computed((): UTSJSONObject | null => {
@@ -165,8 +150,24 @@ const selectedItem = computed((): UTSJSONObject | null => {
   return items.value[i]
 })
 
-const canSubmit = computed((): boolean => {
-  return selectedItem.value != null && pendingCodes.value.length > 0 && !saving.value
+const itemTraces = computed((): UTSJSONObject[] => {
+  const item = selectedItem.value
+  if (item == null) return [] as UTSJSONObject[]
+  const sp = str(item, 'spdid')
+  const rows = [] as UTSJSONObject[]
+  for (let i = 0; i < traces.value.length; i++) {
+    if (str(traces.value[i], 'spdid') == sp) {
+      rows.push(traces.value[i])
+    }
+  }
+  return rows
+})
+
+const selectedTrace = computed((): UTSJSONObject | null => {
+  const rows = itemTraces.value
+  const i = selectedTraceIndex.value
+  if (i < 0 || i >= rows.length) return null
+  return rows[i]
 })
 
 const customerText = computed((): string => {
@@ -227,8 +228,6 @@ function countClass(it: UTSJSONObject): string {
 
 function onClear(): void { keyword.value = '' }
 
-function noop(): void {}
-
 function onSearch(): void {
   if (loading.value) return
   const kw = keyword.value.trim()
@@ -242,7 +241,7 @@ function onSearch(): void {
   items.value = []
   traces.value = []
   selectedIndex.value = -1
-  pendingCodes.value = []
+  selectedTraceIndex.value = 0
   loadInvoice(kw).then((res: any) => {
     const r = res as UTSJSONObject
     if ((r['code'] as number) == 200) {
@@ -277,21 +276,12 @@ function reload(): void {
 }
 
 function selectItem(i: number): void {
-  if (i == selectedIndex.value) return
-  if (pendingCodes.value.length > 0) {
-    uni.showModal({
-      title: '提示',
-      content: '当前有 ' + pendingCodes.value.length + ' 条待提交追溯码，切换明细将丢弃，确认切换？',
-      success: (res) => {
-        if (res.confirm) {
-          pendingCodes.value = []
-          selectedIndex.value = i
-        }
-      }
-    })
-    return
-  }
   selectedIndex.value = i
+  selectedTraceIndex.value = 0
+}
+
+function pickCode(i: number): void {
+  selectedTraceIndex.value = i
 }
 
 /** 检查选中明细可采码，返回 SPDID（不可用时已 toast，返回空串） */
@@ -309,11 +299,16 @@ function requireSpdid(): string {
   return sp
 }
 
-function scanSingle(): void {
-  if (requireSpdid().length == 0) return
+function scanReplace(): void {
+  if (selectedTrace.value == null) {
+    uni.showToast({ title: '请先点选一条要纠正的码', icon: 'none' })
+    return
+  }
   uni.scanCode({
     success: (res) => {
-      onScanSingle(res.result)
+      const code = res.result.trim()
+      if (code.length == 0) return
+      doReplace(code, false)
     },
     fail: (err) => {
       // #ifdef H5
@@ -323,101 +318,48 @@ function scanSingle(): void {
   })
 }
 
-function onScanSingle(raw: string): void {
-  const code = raw.trim()
-  if (code.length == 0) return
-  if (pendingCodes.value.indexOf(code) >= 0) {
-    uni.showToast({ title: '重复扫码，已在待提交列表', icon: 'none' })
+function use01(): void {
+  if (selectedTrace.value == null) {
+    uni.showToast({ title: '请先点选一条异常码', icon: 'none' })
     return
   }
-  for (let i = 0; i < traces.value.length; i++) {
-    if (str(traces.value[i], 'code') == code) {
-      uni.showToast({ title: '该码已采集过', icon: 'none' })
-      return
-    }
+  doReplace('', true)
+}
+
+function doReplace(newCode: string, use01Code: boolean): void {
+  const t = selectedTrace.value
+  if (t == null) return
+  const id = numOf(t, 'id')
+  if (id <= 0) {
+    uni.showToast({ title: '该码没有记录编号', icon: 'none' })
+    return
   }
-  pendingCodes.value.push(code)
-  uni.vibrateShort({})
-}
-
-function removePending(i: number): void {
-  pendingCodes.value.splice(i, 1)
-}
-
-function submit(): void {
-  if (!canSubmit.value) return
-  const item = selectedItem.value!
   saving.value = true
-  addTraceCodes(str(item, 'spdid'), pendingCodes.value, '最小包装', '出库', true).then((res: any) => {
+  replaceAbnormal(id, newCode, use01Code, '错码/异常').then((res: any) => {
     const r = res as UTSJSONObject
     const msg = str(r, 'msg')
-    uni.showToast({ title: msg.length > 0 ? msg : '采集成功', icon: 'none' })
-    pendingCodes.value = []
+    uni.showToast({ title: msg.length > 0 ? msg : '已处理', icon: 'none' })
     reload()
   }).catch((err: Error) => {
-    // request 层已 toast 错误原因
   }).finally(() => {
     saving.value = false
   })
 }
 
-function scanBox(): void {
-  if (requireSpdid().length == 0) return
-  uni.scanCode({
-    success: (res) => {
-      const code = res.result.trim()
-      if (code.length == 0) return
-      boxCode.value = code
-      previewBox()
-    },
-    fail: (err) => {
-      // #ifdef H5
-      uni.showToast({ title: 'H5 端不支持扫码，请在 App 中使用', icon: 'none' })
-      // #endif
-    }
-  })
-}
-
-function previewBox(): void {
-  if (boxLoading.value) return
-  boxLoading.value = true
-  previewParse(boxCode.value).then((res: any) => {
-    const r = res as UTSJSONObject
-    if ((r['code'] as number) == 0) {
-      boxRows.value = (r['data'] as UTSJSONObject[] | null) ?? []
-      if (boxRows.value.length > 0) {
-        boxVisible.value = true
-      } else {
-        uni.showToast({ title: '没有解析出下级码', icon: 'none' })
-      }
-    }
-  }).catch((err: Error) => {
-    // request 层已 toast（如"最小包装不可再解析"）
-  }).finally(() => {
-    boxLoading.value = false
-  })
-}
-
-function closeBox(): void {
-  boxVisible.value = false
-}
-
-function confirmBox(): void {
-  if (saving.value) return
-  const item = selectedItem.value
-  if (item == null) {
-    boxVisible.value = false
+function askMissing(): void {
+  const sp = requireSpdid()
+  if (sp.length == 0) return
+  const note = missingNote.value.trim()
+  if (note.length == 0) {
+    uni.showToast({ title: '须填写客户问题描述', icon: 'none' })
     return
   }
   saving.value = true
-  parseTraceCodes(str(item, 'spdid'), boxCode.value, '出库').then((res: any) => {
-    const r = res as UTSJSONObject
-    const msg = str(r, 'msg')
-    uni.showToast({ title: msg.length > 0 ? msg : '解析写入成功', icon: 'none' })
-    boxVisible.value = false
+  reportMissing(sp, note).then((r: any) => {
+    uni.showToast({ title: '已登记缺码说明', icon: 'none' })
+    missingNote.value = ''
     reload()
   }).catch((err: Error) => {
-    // request 层已 toast
   }).finally(() => {
     saving.value = false
   })
@@ -489,6 +431,8 @@ function confirmBox(): void {
 .pending-scroll { margin-top: 14rpx; }
 .pending-row { flex-direction: row; }
 .pending-chip { flex-direction: row; align-items: center; background-color: #EAF1FE; border-radius: 10rpx; padding: 10rpx 16rpx; margin-right: 12rpx; }
+.pending-on { background-color: #1D4ED8; }
+.pending-on .pending-text { color: #FFFFFF; }
 .pending-text { font-size: 23rpx; color: #1D4ED8; }
 .pending-del { font-size: 22rpx; color: #9AA4B2; margin-left: 10rpx; }
 

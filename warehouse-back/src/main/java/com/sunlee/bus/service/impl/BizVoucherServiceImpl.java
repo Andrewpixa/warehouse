@@ -33,6 +33,7 @@ public class BizVoucherServiceImpl implements IBizVoucherService {
     public static final String BIZ_SALES = "sales";
     public static final String ATTACH_INVOICE = "invoice";
     public static final String ATTACH_PACKING = "packing";
+    public static final String ATTACH_CONTRACT = "contract";
     public static final String SIGN_PURCHASE_CHECK = "purchase_check";
     public static final String SIGN_PURCHASE_KEEP = "purchase_keep";
     public static final String SIGN_DELIVERY = "delivery";
@@ -57,8 +58,9 @@ public class BizVoucherServiceImpl implements IBizVoucherService {
     @Transactional
     public BizAttachment saveAttachment(String bizType, Long bizId, String attachType, String filePath, String fileName) {
         assertBiz(bizType, bizId);
-        if (!ATTACH_INVOICE.equals(attachType) && !ATTACH_PACKING.equals(attachType)) {
-            throw new IllegalArgumentException("附件类型只能是发票或随货同行单");
+        if (!ATTACH_INVOICE.equals(attachType) && !ATTACH_PACKING.equals(attachType)
+                && !ATTACH_CONTRACT.equals(attachType)) {
+            throw new IllegalArgumentException("附件类型只能是采购合同、发票或随货同行单");
         }
         if (StringUtils.isBlank(filePath)) {
             throw new IllegalArgumentException("请先上传文件");
@@ -202,6 +204,10 @@ public class BizVoucherServiceImpl implements IBizVoucherService {
         if (StringUtils.isBlank(invoice)) {
             issues.add(issue(BIZ_PURCHASE, id, no, invoice, partnerName, VoucherIssue.MISSING_TICKET,
                     "缺少供应商发票号", "/business/purchase"));
+        }
+        if (!hasAttach(BIZ_PURCHASE, id, ATTACH_CONTRACT)) {
+            issues.add(issue(BIZ_PURCHASE, id, no, invoice, partnerName, VoucherIssue.MISSING_TICKET,
+                    "缺少采购合同", "/business/purchase"));
         }
         if (!hasAttach(BIZ_PURCHASE, id, ATTACH_INVOICE)) {
             issues.add(issue(BIZ_PURCHASE, id, no, invoice, partnerName, VoucherIssue.MISSING_TICKET,

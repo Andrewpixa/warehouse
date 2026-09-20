@@ -198,6 +198,7 @@ public class SaTokenConfigure implements WebMvcConfigurer {
         URL_PERM_MAP.put("/inport/returnOrder", "inport:return");
         URL_PERM_MAP.put("/outport/loadAllOutport", "inport:view");
         URL_PERM_MAP.put("/purchase/loadAllPurchase", "inport:view");
+        URL_PERM_MAP.put("/purchase/loadPurchaseInvoiceLedger", "inport:view");
         URL_PERM_MAP.put("/purchase/loadPurchaseDetail", "inport:view");
         URL_PERM_MAP.put("/purchase/savePurchase", "inport:create");
         URL_PERM_MAP.put("/purchase/confirmPurchase", "inport:confirm");
@@ -211,6 +212,8 @@ public class SaTokenConfigure implements WebMvcConfigurer {
         URL_PERM_MAP.put("/ops/save", "ops:create");
         URL_PERM_MAP.put("/ops/confirm", "ops:confirm");
         URL_PERM_MAP.put("/ops/delete", "ops:delete");
+        URL_PERM_MAP.put("/bankReceipt/loadAll", "bankReceipt:view");
+        URL_PERM_MAP.put("/bankReceipt/save", "bankReceipt:create");
         URL_PERM_MAP.put("/batchStock/loadAllBatchStock", "warehouse:view");
         URL_PERM_MAP.put("/surplus/loadAllSurplus", "surplus:view");
         URL_PERM_MAP.put("/surplus/loadSurplusDetail", "surplus:view");
@@ -224,10 +227,14 @@ public class SaTokenConfigure implements WebMvcConfigurer {
         URL_PERM_MAP.put("/monthlyClose/confirm", "monthlyClose:confirm");
         URL_PERM_MAP.put("/pharmaStats/", "pharmaStats:view");
         URL_PERM_MAP.put("/trace/loadInvoice", "trace:view");
+        URL_PERM_MAP.put("/trace/lookup", "trace:view");
         URL_PERM_MAP.put("/trace/loadByInvoice", "trace:view");
         URL_PERM_MAP.put("/trace/loadBySpdid", "trace:view");
         URL_PERM_MAP.put("/trace/addCodes", "trace:collect");
+        URL_PERM_MAP.put("/trace/replaceAbnormal", "sales:view");
+        URL_PERM_MAP.put("/trace/reportMissing", "sales:view");
         URL_PERM_MAP.put("/trace/previewParse", "trace:parse");
+        URL_PERM_MAP.put("/trace/explainPack", "trace:view");
         URL_PERM_MAP.put("/trace/parseCodes", "trace:parse");
         URL_PERM_MAP.put("/quality/pendingSuppliers", "quality:view");
         URL_PERM_MAP.put("/quality/pendingBatches", "quality:view");
@@ -238,6 +245,7 @@ public class SaTokenConfigure implements WebMvcConfigurer {
         URL_PERM_MAP.put("/outbound/loadReceiptDetail", "receipt:view");
         URL_PERM_MAP.put("/outbound/loadByInvoice", "sales:view");
         URL_PERM_MAP.put("/outbound/loadUnpaidOutbound", "sales:view");
+        URL_PERM_MAP.put("/outbound/loadCustomerDebt", "sales:view");
         URL_PERM_MAP.put("/outbound/saveOutbound", "sales:create");
         URL_PERM_MAP.put("/outbound/saveReversal", "sales:return");
         URL_PERM_MAP.put("/outbound/loadReversals", "sales:return");

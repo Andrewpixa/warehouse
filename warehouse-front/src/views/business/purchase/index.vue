@@ -30,7 +30,7 @@
             <el-tag :type="row.status === '已确认' ? 'success' : 'info'" size="small">{{ row.status }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="260" fixed="right">
+        <el-table-column label="操作" width="320" fixed="right">
           <template #default="{ row }">
             <el-button type="primary" link @click="openDetail(row)">详情</el-button>
             <el-button v-if="row.status === '草稿' && canCreate" type="primary" link @click="openEdit(row)">编辑</el-button>
@@ -93,14 +93,14 @@
           type="info"
           :closable="false"
           show-icon
-          title="供应商发票由供方随货提供，不是仓库自己开。选供应商后自动模拟带出发票号；草稿状态可改错票，再点「模拟接收供应商票据」。确认入库后锁定。"
+          title="进货须先有采购合同。供应商发票由供方随货提供，不是仓库自己开。保存草稿会自动补合同；再点「模拟接收供应商票据」会一并生成合同、发票和随货同行单。确认入库后锁定。"
           style="margin-bottom: 12px"
         />
 
       <div class="item-toolbar" v-if="!readonly">
         <el-button type="primary" size="small" @click="addItem">添加明细</el-button>
         <el-button type="success" size="small" :disabled="!form.id" :loading="receiving" @click="handleReceiveInvoice">模拟接收供应商票据</el-button>
-        <span class="hint-inline">须先保存草稿。会生成供方发票和随货同行单（演示用）。</span>
+        <span class="hint-inline">须先保存草稿。会生成采购合同、供方发票和随货同行单（演示用）。</span>
       </div>
       <el-table :data="form.items" border size="small">
         <el-table-column label="品种" min-width="220">
@@ -139,6 +139,7 @@
             </el-select>
           </template>
         </el-table-column>
+        <el-table-column prop="spdid" label="SPDID" min-width="160" show-overflow-tooltip />
         <el-table-column v-if="!readonly" label="" width="60">
           <template #default="{ $index }">
             <el-button type="danger" link @click="form.items.splice($index, 1)">删</el-button>
@@ -151,6 +152,7 @@
           biz-type="purchase"
           :biz-id="form.id"
           :readonly="readonly && form.status === '已确认'"
+          :attach-types="purchaseAttachTypes"
           :sign-roles="purchaseSignRoles"
         />
       </el-form>
@@ -165,6 +167,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import SearchForm from '@/components/SearchForm.vue'
 import CrudTable from '@/components/CrudTable.vue'
@@ -175,6 +178,7 @@ import { loadAllDrugForSelect } from '@/api/drug'
 import { usePermission } from '@/composables/usePermission'
 import VoucherPanel from '@/components/VoucherPanel.vue'
 
+const route = useRoute()
 const { hasPermission } = usePermission()
 const canCreate = computed(() => hasPermission('inport:create'))
 const canConfirm = computed(() => hasPermission('inport:confirm'))
@@ -191,18 +195,24 @@ const confirming = ref(false)
 const receiving = ref(false)
 const voucherRef = ref()
 const dialogTitle = ref('开采购入库单')
+const purchaseAttachTypes = [
+  { type: 'contract', label: '采购合同' },
+  { type: 'invoice', label: '发票 / 电子发票' },
+  { type: 'packing', label: '随货同行单' }
+]
 const purchaseSignRoles = [
   { role: 'purchase_check', label: '进货验收签字' },
   { role: 'purchase_keep', label: '到货保管签字' }
 ]
 
 const searchParams = reactive({
-  orderNo: '',
+  orderNo: typeof route.query.orderNo === 'string' ? route.query.orderNo : '',
   status: ''
 })
 
 const emptyForm = () => ({
   id: undefined as number | undefined,
+  orderNo: '',
   supplierId: undefined as number | undefined,
   warehouseId: undefined as number | undefined,
   bizDate: '',
@@ -239,6 +249,7 @@ const openAdd = () => {
 const fillForm = (data: any) => {
   resetForm({
     id: data.id,
+    orderNo: data.orderNo || '',
     supplierId: data.supplierId,
     warehouseId: data.warehouseId,
     bizDate: data.bizDate,
@@ -246,7 +257,10 @@ const fillForm = (data: any) => {
     invoiceNo: data.invoiceNo || '',
     status: data.status || '',
     remark: data.remark,
-    items: (data.items || []).map((it: any) => ({ ...it }))
+    items: (data.items || []).map((it: any) => ({
+      ...it,
+      stockInQty: Number(it.stockInQty) > 0 ? it.stockInQty : (it.receiveQty ?? it.qualifiedQty ?? it.stockInQty)
+    }))
   })
 }
 
@@ -319,7 +333,7 @@ const handleSave = async () => {
 
 const handleConfirmDialog = async () => {
   if (!form.id) return
-  await ElMessageBox.confirm('确认后将增加批号库存，且不能再改。须已挂发票、随货同行单并完成验收/到货签字。', '确认入库', { type: 'warning' })
+  await ElMessageBox.confirm('确认后将增加批号库存，且不能再改。须已挂采购合同、发票、随货同行单并完成验收/到货签字。', '确认入库', { type: 'warning' })
   confirming.value = true
   try {
     await confirmPurchase(form.id)

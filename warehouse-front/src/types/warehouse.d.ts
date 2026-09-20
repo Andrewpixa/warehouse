@@ -5,6 +5,5 @@ export interface Warehouse {
   whType?: string
   address?: string
   managerId?: number
-  status?: number
   remark?: string
 }

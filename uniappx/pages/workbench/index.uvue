@@ -40,9 +40,9 @@
     </view>
     <view class="main-row">
       <view class="main-item" @click="navigateTo('/pages/business/trace-collect')">
-        <view class="main-badge b-teal"><text class="main-letter">扫</text></view>
-        <text class="main-name">扫码采码</text>
-        <text class="main-desc">采追溯码</text>
+        <view class="main-badge b-teal"><text class="main-letter">纠</text></view>
+        <text class="main-name">异常纠码</text>
+        <text class="main-desc">错码才扫</text>
       </view>
       <view class="main-item" @click="navigateTo('/pages/business/ops?type=STOCKOUT')">
         <view class="main-badge b-blue"><text class="main-letter">缺</text></view>

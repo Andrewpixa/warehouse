@@ -31,6 +31,7 @@ public class DemoOrgSeed implements CommandLineRunner {
         try {
             jdbc.update("UPDATE sys_permission SET available = 0 WHERE id = 14 OR pid = 14 OR title = '部门管理' OR href LIKE '%DeptManager%' OR href = '/system/dept'");
             seedDepts();
+            seedRoles();
             copyFaces();
             jdbc.update("UPDATE sys_user SET deptid = 22 WHERE loginname = 'purchase'");
             jdbc.update("UPDATE sys_user SET deptid = 23 WHERE loginname = 'finance'");
@@ -41,6 +42,7 @@ public class DemoOrgSeed implements CommandLineRunner {
             seedPeople();
             bindManagers();
             seedDeptDeskMenus();
+            grantJobPermissions();
             log.info("demo org/users seeded");
         } catch (Exception e) {
             log.warn("demo org seed skipped: {}", e.getMessage());
@@ -76,15 +78,144 @@ public class DemoOrgSeed implements CommandLineRunner {
         insertMenu(256, 250, "信息作业", "/business/dept-desk?type=信息", "Monitor", 6);
         insertMenu(259, 250, "模拟开票", "/business/invoice", "Ticket", 7);
         insertMenu(261, 250, "物流作业", "/business/dept-desk?type=物流", "Van", 8);
+        Integer purchasePid = findInt("SELECT pid FROM sys_permission WHERE href = ? LIMIT 1", "/business/purchase");
+        insertMenu(262, purchasePid == null ? 3 : purchasePid, "供应商发票查询", "/business/purchase-invoice", "Ticket", 3);
+        Integer offsetPid = findInt("SELECT pid FROM sys_permission WHERE href = ? LIMIT 1", "/business/offset");
+        insertMenu(263, offsetPid == null ? 250 : offsetPid, "银行到账", "/business/bank-receipt", "CreditCard", 5);
+        insertMenu(264, offsetPid == null ? 250 : offsetPid, "单位欠款", "/business/customer-debt", "Coin", 6);
+        Integer tracePid = findInt("SELECT pid FROM sys_permission WHERE href = ? LIMIT 1", "/business/trace");
+        insertMenu(267, tracePid == null ? 250 : tracePid, "大码解析", "/business/trace-pack", "FullScreen", 4);
         insertPerm(257, 254, "质量查看", "quality:view", 1);
         insertPerm(258, 254, "质量判定", "quality:confirm", 2);
-        grantMenus(1, 250, 251, 252, 253, 254, 255, 256, 257, 258, 259, 261);
-        grantMenus(12, 250, 251);
-        grantMenus(13, 250, 252);
+        insertPerm(265, 263, "到账查看", "bankReceipt:view", 1);
+        insertPerm(266, 263, "到账登记", "bankReceipt:create", 2);
+        grantMenus(1, 250, 251, 252, 253, 254, 255, 256, 257, 258, 259, 261, 262, 263, 264, 265, 266, 267);
+        grantMenus(12, 250, 251, 262);
+        grantMenus(13, 250, 252, 263, 264);
         grantMenus(11, 250, 253);
         grantMenus(15, 250, 254, 257, 258);
-        grantMenus(14, 250, 255);
-        grantMenus(16, 250, 256, 259, 261);
+        grantMenus(14, 250, 255, 263, 264);
+        grantMenus(16, 250, 256, 259);
+        grantMenus(17, 250, 261);
+    }
+
+    private void seedRoles() {
+        insertRole(15, "质量员", "供应商首营、到货异常、批号放行/停售");
+        insertRole(16, "信息员", "模拟开票、账号菜单、信誉额预处理");
+        insertRole(17, "物流员", "物流联系单、打印包、分货发运");
+    }
+
+    private void insertRole(int id, String name, String remark) {
+        Integer n = jdbc.queryForObject("SELECT COUNT(*) FROM sys_role WHERE id = ? OR name = ?", Integer.class, id, name);
+        if (n != null && n > 0) {
+            jdbc.update("UPDATE sys_role SET available = 1, remark = ? WHERE id = ? OR name = ?", remark, id, name);
+            return;
+        }
+        jdbc.update("INSERT INTO sys_role (id, name, remark, available, createtime) VALUES (?,?,?,1,NOW())", id, name, remark);
+    }
+
+    private void grantJobPermissions() {
+        grantMenuTree(12, "/business/purchase", "/business/purchase-invoice", "/business/supplier", "/business/stockout",
+                "/business/quota", "/business/dept-desk?type=采购");
+        grantCodes(12, "inport:view", "inport:create", "inport:update", "inport:delete", "supplier:view",
+                "supplier:create", "supplier:update", "ops:view", "ops:create", "drug:view");
+
+        grantMenuTree(13, "/business/outbound", "/business/customer", "/business/receipt", "/business/stockout",
+                "/business/return-notice", "/business/trace", "/business/trace-pack", "/business/offset", "/business/customer-debt",
+                "/business/bank-receipt", "/business/dept-desk?type=销售");
+        grantCodes(13, "sales:view", "sales:create", "sales:update", "sales:delete", "sales:return",
+                "customer:view", "customer:create", "customer:update", "receipt:view", "receipt:confirm",
+                "ops:view", "ops:create", "drug:view", "bankReceipt:view");
+
+        grantMenuTree(11, "/business/batch-stock", "/business/purchase", "/business/daily-close",
+                "/business/inbound-ex", "/business/trace", "/business/trace-pack", "/business/warehouse", "/business/dept-desk?type=仓储");
+        grantCodes(11, "inport:view", "inport:confirm", "batchStock:view", "batchStock:update",
+                "dailyClose:view", "ops:view", "ops:confirm", "trace:view", "trace:create", "warehouse:view", "drug:view");
+
+        grantMenuTree(15, "/business/supplier", "/business/inbound-ex", "/business/batch-stock",
+                "/business/dept-desk?type=质量");
+        grantCodes(15, "quality:view", "quality:confirm", "supplier:view", "supplier:update",
+                "batchStock:view", "ops:view", "ops:confirm", "drug:view");
+
+        grantMenuTree(14, "/business/outbound", "/business/offset", "/business/bank-receipt", "/business/customer-debt",
+                "/business/purchase-stats",
+                "/business/outbound-stats", "/business/monthly-close", "/business/credit",
+                "/business/dept-desk?type=财务");
+        grantCodes(14, "sales:view", "ops:view", "ops:create", "ops:confirm", "bankReceipt:view", "bankReceipt:create");
+
+        grantMenuTree(16, "/business/invoice", "/business/outbound", "/business/credit",
+                "/system/user", "/system/role", "/system/menu", "/system/loginfo",
+                "/business/dept-desk?type=信息");
+        grantCodes(16, "sales:view", "sales:create", "user:view", "user:create", "user:update",
+                "role:view", "menu:view", "info:view", "ops:view", "ops:create", "ops:confirm");
+
+        grantMenuTree(17, "/business/logistics", "/business/print-pack", "/business/allocate",
+                "/business/outbound", "/business/dept-desk?type=物流");
+        grantCodes(17, "sales:view", "ops:view", "ops:create", "ops:confirm");
+    }
+
+    private void grantMenuTree(int roleId, String... hrefs) {
+        if (!roleExists(roleId)) {
+            return;
+        }
+        for (String href : hrefs) {
+            Integer id = findInt("SELECT id FROM sys_permission WHERE href = ? LIMIT 1", href);
+            if (id != null) {
+                grantWithFamily(roleId, id);
+            }
+        }
+    }
+
+    private void grantCodes(int roleId, String... codes) {
+        if (!roleExists(roleId)) {
+            return;
+        }
+        for (String code : codes) {
+            Integer id = findInt("SELECT id FROM sys_permission WHERE percode = ? LIMIT 1", code);
+            if (id != null) {
+                grantWithFamily(roleId, id);
+            }
+        }
+    }
+
+    private void grantWithFamily(int roleId, int id) {
+        grantOne(roleId, id);
+        Integer pid = id;
+        for (int i = 0; i < 8; i++) {
+            Integer parent = findInt("SELECT pid FROM sys_permission WHERE id = ?", pid);
+            if (parent == null || parent <= 0) {
+                break;
+            }
+            grantOne(roleId, parent);
+            pid = parent;
+        }
+        grantDescendants(roleId, id);
+    }
+
+    private void grantDescendants(int roleId, int pid) {
+        java.util.List<Integer> kids = jdbc.query("SELECT id FROM sys_permission WHERE pid = ? AND available = 1",
+                (rs, i) -> rs.getInt(1), pid);
+        for (Integer cid : kids) {
+            grantOne(roleId, cid);
+            grantDescendants(roleId, cid);
+        }
+    }
+
+    private Integer findInt(String sql, Object arg) {
+        java.util.List<Integer> rows = jdbc.query(sql, (rs, i) -> rs.getInt(1), arg);
+        return rows.isEmpty() ? null : rows.get(0);
+    }
+
+    private void grantOne(int roleId, int pid) {
+        Integer n = jdbc.queryForObject("SELECT COUNT(*) FROM sys_role_permission WHERE rid = ? AND pid = ?", Integer.class, roleId, pid);
+        if (n != null && n == 0) {
+            jdbc.update("INSERT INTO sys_role_permission (rid, pid) VALUES (?, ?)", roleId, pid);
+        }
+    }
+
+    private boolean roleExists(int roleId) {
+        Integer n = jdbc.queryForObject("SELECT COUNT(*) FROM sys_role WHERE id = ?", Integer.class, roleId);
+        return n != null && n > 0;
     }
 
     private void insertMenu(int id, int pid, String title, String href, String icon, int order) {
@@ -120,11 +251,11 @@ public class DemoOrgSeed implements CommandLineRunner {
     }
 
     private void grantMenus(int roleId, int... pids) {
+        if (!roleExists(roleId)) {
+            return;
+        }
         for (int pid : pids) {
-            Integer n = jdbc.queryForObject("SELECT COUNT(*) FROM sys_role_permission WHERE rid = ? AND pid = ?", Integer.class, roleId, pid);
-            if (n != null && n == 0) {
-                jdbc.update("INSERT INTO sys_role_permission (rid, pid) VALUES (?, ?)", roleId, pid);
-            }
+            grantOne(roleId, pid);
         }
     }
 
@@ -142,32 +273,50 @@ public class DemoOrgSeed implements CommandLineRunner {
     private void seedPeople() {
         upsert("陈衡", "chenheng", 21, "总经理", 1, 1, 0, 1, "avatar/male_01.jpg");
         upsert("周助理", "zhouzl", 21, "行政助理", 2, 14, 1, 0, "avatar/female_01.jpg");
-        upsert("刘销经", "liuxj", 5, "销售一部经理", 1, 1, 0, 1, "avatar/male_02.jpg");
+        upsert("刘销经", "liuxj", 5, "销售一部经理", 1, 13, 1, 1, "avatar/male_02.jpg");
         upsert("李销一", "lix1", 5, "销售代表", 2, 13, 1, 1, "avatar/male_03.jpg");
         upsert("王销一", "wangx1", 5, "销售代表", 3, 13, 1, 0, "avatar/female_02.jpg");
-        upsert("赵销二", "zhaox2", 6, "销售二部经理", 1, 1, 0, 1, "avatar/male_04.jpg");
+        upsert("赵销二", "zhaox2", 6, "销售二部经理", 1, 13, 1, 1, "avatar/male_04.jpg");
         upsert("钱销二", "qianx2", 6, "销售代表", 2, 13, 1, 0, "avatar/female_03.jpg");
-        upsert("孙仓管", "suncg", 25, "常温仓组经理", 1, 1, 0, 1, "avatar/male_05.jpg");
+        upsert("孙仓管", "suncg", 25, "常温仓组经理", 1, 11, 1, 1, "avatar/male_05.jpg");
         upsert("吴收货", "wush", 25, "收货员", 2, 11, 1, 1, "avatar/male_06.jpg");
         upsert("郑复核", "zhengfh", 25, "复核员", 3, 11, 1, 0, "avatar/female_04.jpg");
-        upsert("冯冷链", "fengll", 26, "冷链仓组经理", 1, 1, 0, 1, "avatar/male_07.jpg");
+        upsert("冯冷链", "fengll", 26, "冷链仓组经理", 1, 11, 1, 1, "avatar/male_07.jpg");
         upsert("陈养护", "chenyh", 26, "养护员", 2, 11, 1, 0, "avatar/female_05.jpg");
-        upsert("褚质管", "chuzg", 4, "质量部经理", 1, 1, 0, 1, "avatar/male_08.jpg");
-        upsert("卫放行", "weifx", 4, "放行员", 2, 11, 1, 0, "avatar/female_06.jpg");
-        upsert("蒋采购", "jiangcg", 22, "采购部经理", 1, 1, 0, 1, "avatar/male_09.jpg");
+        upsert("褚质管", "chuzg", 4, "质量部经理", 1, 15, 1, 1, "avatar/male_08.jpg");
+        upsert("卫放行", "weifx", 4, "放行员", 2, 15, 1, 0, "avatar/female_06.jpg");
+        upsert("蒋采购", "jiangcg", 22, "采购部经理", 1, 12, 1, 1, "avatar/male_09.jpg");
         upsert("沈采购", "shencg", 22, "采购员", 2, 12, 1, 0, "avatar/female_07.jpg");
-        upsert("韩会计", "hankj", 23, "财务部经理", 1, 1, 0, 1, "avatar/male_11.jpg");
-        upsert("杨运维", "yangyw", 27, "IT组经理", 1, 1, 0, 1, "avatar/male_10.jpg");
-        upsert("何物流", "hewl", 28, "物流组经理", 1, 1, 0, 1, "avatar/male_12.jpg");
+        upsert("韩会计", "hankj", 23, "财务部经理", 1, 14, 1, 1, "avatar/male_11.jpg");
+        upsert("林出纳", "lincw", 23, "出纳", 2, 14, 1, 0, "avatar/female_07.jpg");
+        upsert("杨运维", "yangyw", 27, "IT组经理", 1, 16, 1, 1, "avatar/male_10.jpg");
+        upsert("黄开票", "huangkp", 27, "开票员", 2, 16, 1, 0, "avatar/female_01.jpg");
+        upsert("何物流", "hewl", 28, "物流组经理", 1, 17, 1, 1, "avatar/male_12.jpg");
+        upsert("马调度", "madd", 28, "物流调度", 2, 17, 1, 1, "avatar/male_06.jpg");
+        bindLoginRole("purchase", 12);
+        bindLoginRole("sales", 13);
+        bindLoginRole("warehouse", 11);
+        bindLoginRole("finance", 14);
+    }
+
+    private void bindLoginRole(String login, int roleId) {
+        Integer uid = findInt("SELECT id FROM sys_user WHERE loginname = ?", login);
+        if (uid == null || !roleExists(roleId)) {
+            return;
+        }
+        Integer ur = jdbc.queryForObject("SELECT COUNT(*) FROM sys_user_role WHERE uid = ? AND rid = ?", Integer.class, uid, roleId);
+        if (ur != null && ur == 0) {
+            jdbc.update("INSERT INTO sys_user_role (uid, rid) VALUES (?, ?)", uid, roleId);
+        }
     }
 
     private void upsert(String name, String login, int deptId, String remark, int ordernum, int roleId, int type, int sex, String img) {
         Integer exists = jdbc.queryForObject("SELECT COUNT(*) FROM sys_user WHERE loginname = ?", Integer.class, login);
         if (exists != null && exists > 0) {
             jdbc.update("""
-                    UPDATE sys_user SET name=?, deptid=?, remark=?, ordernum=?, type=?, sex=?, imgpath=?, mgr=NULL, available=1
+                    UPDATE sys_user SET name=?, deptid=?, remark=?, ordernum=?, type=?, sex=?, imgpath=?, mgr=NULL, available=1, pwd=?, salt=?
                     WHERE loginname=?
-                    """, name, deptId, remark, ordernum, type, sex, img, login);
+                    """, name, deptId, remark, ordernum, type, sex, img, PWD, SALT, login);
         } else {
             jdbc.update("""
                     INSERT INTO sys_user (name, loginname, pwd, address, sex, remark, deptid, hiredate, mgr, available, ordernum, type, imgpath, salt)
@@ -178,9 +327,14 @@ public class DemoOrgSeed implements CommandLineRunner {
         if (uid == null) {
             return;
         }
-        Integer ur = jdbc.queryForObject("SELECT COUNT(*) FROM sys_user_role WHERE uid = ? AND rid = ?", Integer.class, uid, roleId);
-        if (ur != null && ur == 0) {
-            jdbc.update("INSERT INTO sys_user_role (uid, rid) VALUES (?, ?)", uid, roleId);
+        if (type != 0) {
+            jdbc.update("DELETE FROM sys_user_role WHERE uid = ? AND rid = 1", uid);
+        }
+        if (roleExists(roleId)) {
+            Integer ur = jdbc.queryForObject("SELECT COUNT(*) FROM sys_user_role WHERE uid = ? AND rid = ?", Integer.class, uid, roleId);
+            if (ur != null && ur == 0) {
+                jdbc.update("INSERT INTO sys_user_role (uid, rid) VALUES (?, ?)", uid, roleId);
+            }
         }
         if (type == 0) {
             Integer superRole = jdbc.queryForObject("SELECT COUNT(*) FROM sys_user_role WHERE uid = ? AND rid = 1", Integer.class, uid);

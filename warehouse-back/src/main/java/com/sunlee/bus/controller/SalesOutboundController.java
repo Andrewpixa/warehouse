@@ -61,6 +61,9 @@ public class SalesOutboundController {
         Map<String, Object> map = new HashMap<>();
         try {
             SalesOrder order = salesOrderService.getByInvoiceNo(invoiceNo);
+            if (order != null && order.getId() != null) {
+                traceCodeService.ensureLogisticsCodes(order.getId());
+            }
             map.put("code", Constast.OK);
             map.put("msg", "ok");
             map.put("data", order);
@@ -202,6 +205,12 @@ public class SalesOutboundController {
     public DataGridView loadUnpaidOutbound(SalesOrderVo vo) {
         IPage<SalesOrder> page = salesOrderService.pageUnpaid(vo);
         return new DataGridView(page.getTotal(), page.getRecords());
+    }
+
+    @RequestMapping("loadCustomerDebt")
+    public DataGridView loadCustomerDebt() {
+        var rows = salesOrderService.listCustomerDebt();
+        return new DataGridView((long) rows.size(), rows);
     }
 
     @OperationLog(type = "修改", module = "出库单", description = "'标记回款 出库单ID: ' + #args[0]")

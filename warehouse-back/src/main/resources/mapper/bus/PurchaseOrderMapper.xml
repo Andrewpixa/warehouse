@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.sunlee.bus.mapper.PurchaseOrderMapper">
+
+    <sql id="invoiceLineJoin">
+        FROM purchase_order_items i
+        INNER JOIN purchase_orders o ON o.id = i.order_id
+        LEFT JOIN suppliers s ON s.id = o.supplier_id
+        LEFT JOIN warehouses w ON w.id = o.warehouse_id
+        LEFT JOIN drugs d ON d.id = i.drug_id
+    </sql>
+
+    <sql id="invoiceLineWhere">
+        <where>
+            <if test="vo.invoiceNo != null and vo.invoiceNo != ''">
+                AND o.invoice_no LIKE CONCAT('%', #{vo.invoiceNo}, '%')
+            </if>
+            <if test="vo.orderNo != null and vo.orderNo != ''">
+                AND o.order_no LIKE CONCAT('%', #{vo.orderNo}, '%')
+            </if>
+            <if test="vo.supplierId != null">
+                AND o.supplier_id = #{vo.supplierId}
+            </if>
+            <if test="vo.startDate != null and vo.startDate != ''">
+                AND o.biz_date &gt;= #{vo.startDate}
+            </if>
+            <if test="vo.endDate != null and vo.endDate != ''">
+                AND o.biz_date &lt;= #{vo.endDate}
+            </if>
+            <if test="vo.inboundStatus == '已入库'">
+                AND o.status IN ('已确认', '已过账')
+            </if>
+            <if test="vo.inboundStatus == '未入库'">
+                AND (o.status IS NULL OR o.status NOT IN ('已确认', '已过账'))
+            </if>
+        </where>
+    </sql>
+
+    <select id="pageInvoiceLines" resultType="com.sunlee.bus.vo.PurchaseInvoiceLineVo">
+        SELECT
+            i.id AS itemId,
+            o.id AS orderId,
+            o.order_no AS orderNo,
+            o.invoice_no AS invoiceNo,
+            o.supplier_id AS supplierId,
+            s.name AS supplierName,
+            w.name AS warehouseName,
+            o.biz_date AS bizDate,
+            o.status AS status,
+            CASE WHEN o.status IN ('已确认', '已过账') THEN '已入库' ELSE '未入库' END AS inboundStatus,
+            CONCAT(IFNULL(d.generic_name, ''), IF(d.spec IS NULL OR d.spec = '', '', CONCAT(' ', d.spec))) AS drugName,
+            d.spec AS drugSpec,
+            i.batch_no AS batchNo,
+            i.receive_qty AS receiveQty,
+            i.stock_in_qty AS stockInQty,
+            i.purchase_price AS purchasePrice,
+            IFNULL(i.amount, IFNULL(i.receive_qty, 0) * IFNULL(i.purchase_price, 0)) AS amount,
+            i.quality_status AS qualityStatus
+        <include refid="invoiceLineJoin"/>
+        <include refid="invoiceLineWhere"/>
+        ORDER BY o.biz_date DESC, o.id DESC, i.id ASC
+    </select>
+
+    <select id="sumInvoiceLines" resultType="java.util.Map">
+        SELECT
+            COUNT(DISTINCT o.invoice_no) AS invoiceCount,
+            COUNT(DISTINCT o.id) AS orderCount,
+            IFNULL(SUM(IFNULL(i.receive_qty, 0)), 0) AS qty,
+            IFNULL(SUM(IFNULL(i.amount, IFNULL(i.receive_qty, 0) * IFNULL(i.purchase_price, 0))), 0) AS amount
+        <include refid="invoiceLineJoin"/>
+        <include refid="invoiceLineWhere"/>
+    </select>
+</mapper>

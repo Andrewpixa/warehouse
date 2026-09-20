@@ -29,3 +29,7 @@ export function previewSupplierInvoice(supplierId: number, bizDate?: string) {
 export function receiveSupplierInvoice(id: number) {
   return request.post('/purchase/receiveSupplierInvoice', null, { params: { id } })
 }
+
+export function loadPurchaseInvoiceLedger(params: any) {
+  return request.get('/purchase/loadPurchaseInvoiceLedger', { params })
+}

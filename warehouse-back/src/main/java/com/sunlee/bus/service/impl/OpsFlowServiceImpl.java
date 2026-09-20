@@ -19,6 +19,8 @@ import com.sunlee.bus.entity.Warehouse;
 import com.sunlee.bus.mapper.MakerFlowAccountMapper;
 import com.sunlee.bus.mapper.OpsFlowDocMapper;
 import com.sunlee.bus.mapper.OpsFlowItemMapper;
+import com.sunlee.bus.entity.BankReceipt;
+import com.sunlee.bus.service.IBankReceiptService;
 import com.sunlee.bus.service.IBatchStockService;
 import com.sunlee.bus.service.ICustomerService;
 import com.sunlee.bus.service.IDrugService;
@@ -31,6 +33,7 @@ import com.sunlee.bus.vo.OpsFlowDocVo;
 import com.sunlee.sys.entity.User;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,8 +43,10 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Service
 public class OpsFlowServiceImpl extends ServiceImpl<OpsFlowDocMapper, OpsFlowDoc> implements IOpsFlowService {
@@ -72,6 +77,12 @@ public class OpsFlowServiceImpl extends ServiceImpl<OpsFlowDocMapper, OpsFlowDoc
 
     @Autowired
     private ISalesOrderItemService salesOrderItemService;
+
+    @Autowired
+    private IBankReceiptService bankReceiptService;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     @Override
     public IPage<OpsFlowDoc> pageDocs(OpsFlowDocVo vo) {
@@ -160,6 +171,9 @@ public class OpsFlowServiceImpl extends ServiceImpl<OpsFlowDocMapper, OpsFlowDoc
     @Transactional
     public void confirm(Long id, String action) {
         OpsFlowDoc doc = getDetail(id);
+        if ("OFFSET".equals(doc.getDocType())) {
+            prepareOffsetConfirm(doc);
+        }
         String next = nextStatus(doc, action);
         applySideEffect(doc, next);
         doc.setStatus(next);
@@ -170,6 +184,9 @@ public class OpsFlowServiceImpl extends ServiceImpl<OpsFlowDocMapper, OpsFlowDoc
         doc.setConfirmedAt(new Date());
         doc.setUpdatedAt(new Date());
         this.updateById(doc);
+        if ("OFFSET".equals(doc.getDocType())) {
+            bankReceiptService.refreshStatus(doc.getReceiptId());
+        }
     }
 
     @Override
@@ -192,7 +209,8 @@ public class OpsFlowServiceImpl extends ServiceImpl<OpsFlowDocMapper, OpsFlowDoc
         map.put("stockoutOpen", countType("STOCKOUT", "已登记", "草稿"));
         map.put("inboundExOpen", countType("INBOUND_EX", "待处理", "待复检"));
         map.put("returnOpen", countType("RETURN_NOTICE", "草稿", "已签名", "已释放"));
-        map.put("offsetOpen", countType("OFFSET", "草稿"));
+        map.put("offsetOpen", countType("OFFSET", "草稿", "已挂账"));
+        map.put("receiptOpen", bankReceiptService.countOpen());
         map.put("allocateOpen", countType("ALLOCATE", "待分货"));
         map.put("logisticsOpen", countType("LOGISTICS", "草稿"));
         QueryWrapper<SalesOrder> unpaid = new QueryWrapper<>();
@@ -332,25 +350,148 @@ public class OpsFlowServiceImpl extends ServiceImpl<OpsFlowDocMapper, OpsFlowDoc
                         item.getQty(), null, item.getExpireDate());
             }
         }
-        if ("OFFSET".equals(doc.getDocType()) && "已冲账".equals(next) && StringUtils.isNotBlank(doc.getRelatedNo())) {
-            SalesOrder order = salesOrderService.getOne(new QueryWrapper<SalesOrder>()
-                    .eq("invoice_no", doc.getRelatedNo())
-                    .or().eq("order_no", doc.getRelatedNo()), false);
-            if (order != null) {
-                BigDecimal pay = doc.getAmount() == null ? BigDecimal.ZERO : doc.getAmount();
-                BigDecimal already = order.getPaidAmount() == null ? BigDecimal.ZERO : order.getPaidAmount();
-                BigDecimal total = order.getTotalAmount() == null ? BigDecimal.ZERO : order.getTotalAmount();
-                BigDecimal now = already.add(pay);
-                order.setPaidAmount(now);
-                order.setPaidAt(new Date());
-                if (now.compareTo(total) >= 0) {
-                    order.setPaidStatus(PharmaNos.PAID_DONE);
-                } else if (now.compareTo(BigDecimal.ZERO) > 0) {
-                    order.setPaidStatus(PharmaNos.PAID_PARTIAL);
-                }
-                salesOrderService.updateById(order);
+        if ("OFFSET".equals(doc.getDocType()) && ("已冲账".equals(next) || "已挂账".equals(next))) {
+            applyOffsetConfirm(doc, next);
+        }
+    }
+
+    private void prepareOffsetConfirm(OpsFlowDoc doc) {
+        if ("已冲账".equals(doc.getStatus())) {
+            throw new IllegalArgumentException("已冲账不可再确认");
+        }
+        if (doc.getReceiptId() == null) {
+            throw new IllegalArgumentException("请先关联银行到账流水，不能口头标回款");
+        }
+        BankReceipt receipt = bankReceiptService.getById(doc.getReceiptId());
+        if (receipt == null) {
+            throw new IllegalArgumentException("银行到账流水不存在");
+        }
+        if (doc.getCustomerId() != null && receipt.getCustomerId() != null
+                && !doc.getCustomerId().equals(receipt.getCustomerId())) {
+            throw new IllegalArgumentException("冲账单客户与到账流水客户不一致");
+        }
+        if (doc.getItems() == null || doc.getItems().isEmpty()) {
+            throw new IllegalArgumentException("请指定冲哪几张发票");
+        }
+        Map<String, BigDecimal> byInvoice = new LinkedHashMap<>();
+        BigDecimal sum = BigDecimal.ZERO;
+        for (OpsFlowItem item : doc.getItems()) {
+            if (StringUtils.isBlank(item.getRelatedNo())) {
+                throw new IllegalArgumentException("明细缺少发票号");
+            }
+            if (item.getAmount() == null || item.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
+                throw new IllegalArgumentException("每张发票的冲账金额必须大于 0");
+            }
+            byInvoice.merge(item.getRelatedNo().trim(), item.getAmount(), BigDecimal::add);
+            sum = sum.add(item.getAmount());
+        }
+        boolean hang = doc.getHangFlag() != null && doc.getHangFlag() == 1;
+        BigDecimal remain = receipt.getAmount().subtract(bankReceiptService.allocatedAmount(receipt.getId(), doc.getId()));
+        if (hang) {
+            return;
+        }
+        if (sum.compareTo(remain) > 0) {
+            throw new IllegalArgumentException("勾兑合计 " + sum + " 超过该流水未认领余额 " + remain + "，请挂账或改金额");
+        }
+        for (Map.Entry<String, BigDecimal> e : byInvoice.entrySet()) {
+            SalesOrder order = salesOrderService.findByInvoiceQuery(e.getKey());
+            if (order == null) {
+                throw new IllegalArgumentException("找不到发票 " + e.getKey());
+            }
+            if (!PharmaNos.STATUS_CONFIRMED.equals(order.getStatus())) {
+                throw new IllegalArgumentException("发票 " + e.getKey() + " 尚未确认出库，不能冲账");
+            }
+            if (PharmaNos.ORDER_REVERSAL.equals(order.getOrderType())) {
+                throw new IllegalArgumentException("红冲单不冲账");
+            }
+            if (receipt.getCustomerId() != null && order.getCustomerId() != null
+                    && !receipt.getCustomerId().equals(order.getCustomerId())) {
+                throw new IllegalArgumentException("发票 " + e.getKey() + " 与到账客户不一致");
+            }
+            BigDecimal already = invoiceConfirmedPaid(order, doc.getId());
+            BigDecimal total = order.getTotalAmount() == null ? BigDecimal.ZERO : order.getTotalAmount();
+            if (already.add(e.getValue()).compareTo(total) > 0) {
+                throw new IllegalArgumentException("发票 " + e.getKey() + " 冲账后将超过票面 " + total);
             }
         }
+        doc.setAmount(sum);
+        if (StringUtils.isBlank(doc.getRelatedNo())) {
+            doc.setRelatedNo(byInvoice.keySet().iterator().next());
+        }
+    }
+
+    private void applyOffsetConfirm(OpsFlowDoc doc, String next) {
+        if ("已冲账".equals(next)) {
+            doc.setHangFlag(0);
+            Set<String> invoices = new LinkedHashSet<>();
+            if (doc.getItems() != null) {
+                for (OpsFlowItem item : doc.getItems()) {
+                    if (StringUtils.isNotBlank(item.getRelatedNo())) {
+                        invoices.add(item.getRelatedNo().trim());
+                    }
+                }
+            }
+            if (invoices.isEmpty() && StringUtils.isNotBlank(doc.getRelatedNo())) {
+                invoices.add(doc.getRelatedNo());
+            }
+            for (String inv : invoices) {
+                SalesOrder order = salesOrderService.findByInvoiceQuery(inv);
+                if (order != null) {
+                    writeInvoicePaid(order, doc);
+                }
+            }
+        }
+    }
+
+    private BigDecimal invoiceConfirmedPaid(SalesOrder order, Long excludeDocId) {
+        String inv = StringUtils.defaultString(order.getInvoiceNo());
+        String no = StringUtils.defaultString(order.getOrderNo());
+        BigDecimal n;
+        if (excludeDocId == null) {
+            n = jdbcTemplate.queryForObject("""
+                    SELECT IFNULL(SUM(i.amount), 0)
+                    FROM ops_flow_items i
+                    INNER JOIN ops_flow_docs d ON d.id = i.doc_id
+                    WHERE d.doc_type = 'OFFSET' AND d.status = '已冲账' AND IFNULL(d.hang_flag, 0) = 0
+                      AND (i.related_no = ? OR i.related_no = ?)
+                    """, BigDecimal.class, inv, no);
+        } else {
+            n = jdbcTemplate.queryForObject("""
+                    SELECT IFNULL(SUM(i.amount), 0)
+                    FROM ops_flow_items i
+                    INNER JOIN ops_flow_docs d ON d.id = i.doc_id
+                    WHERE d.doc_type = 'OFFSET' AND d.status = '已冲账' AND IFNULL(d.hang_flag, 0) = 0
+                      AND (i.related_no = ? OR i.related_no = ?) AND d.id <> ?
+                    """, BigDecimal.class, inv, no, excludeDocId);
+        }
+        return n == null ? BigDecimal.ZERO : n;
+    }
+
+    private void writeInvoicePaid(SalesOrder order, OpsFlowDoc current) {
+        BigDecimal paid = invoiceConfirmedPaid(order, current.getId());
+        String inv = StringUtils.defaultString(order.getInvoiceNo());
+        String no = StringUtils.defaultString(order.getOrderNo());
+        if (current.getItems() != null) {
+            for (OpsFlowItem item : current.getItems()) {
+                String rel = StringUtils.trimToEmpty(item.getRelatedNo());
+                if (rel.equals(inv) || rel.equals(no)) {
+                    paid = paid.add(item.getAmount() == null ? BigDecimal.ZERO : item.getAmount());
+                }
+            }
+        }
+        BigDecimal total = order.getTotalAmount() == null ? BigDecimal.ZERO : order.getTotalAmount();
+        order.setPaidAmount(paid);
+        if (paid.compareTo(BigDecimal.ZERO) <= 0) {
+            order.setPaidStatus(PharmaNos.PAID_NONE);
+            order.setPaidAt(null);
+        } else if (paid.compareTo(total) >= 0) {
+            order.setPaidStatus(PharmaNos.PAID_DONE);
+            order.setPaidAt(new Date());
+        } else {
+            order.setPaidStatus(PharmaNos.PAID_PARTIAL);
+            order.setPaidAt(new Date());
+        }
+        salesOrderService.updateById(order);
     }
 
     private String nextStatus(OpsFlowDoc doc, String action) {
@@ -367,7 +508,7 @@ public class OpsFlowServiceImpl extends ServiceImpl<OpsFlowDocMapper, OpsFlowDoc
                 case "已签名" -> "已释放";
                 default -> "已入库";
             };
-            case "OFFSET" -> "已冲账";
+            case "OFFSET" -> (doc.getHangFlag() != null && doc.getHangFlag() == 1) ? "已挂账" : "已冲账";
             case "ALLOCATE" -> "已分货";
             case "LOGISTICS" -> "已同意";
             case "CREDIT" -> "已生效";

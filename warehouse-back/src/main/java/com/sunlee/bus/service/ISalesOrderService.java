@@ -31,6 +31,8 @@ public interface ISalesOrderService extends IService<SalesOrder> {
 
     IPage<SalesOrder> pageUnpaid(SalesOrderVo vo);
 
+    java.util.List<com.sunlee.bus.vo.CustomerDebtVo> listCustomerDebt();
+
     void markPaid(Long id, String paidStatus, BigDecimal paidAmount);
 
     SalesOrder saveReversal(SalesOrderVo vo);

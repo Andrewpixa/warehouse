@@ -59,3 +59,9 @@ sa-token:
   is-read-header: true
   cookie:
     path: /
+
+# 演示定时进出库（默认关闭；test profile 打开）
+demo:
+  daily-io:
+    enabled: false
+    cron: "0 0 8 * * ?"

@@ -66,6 +66,7 @@
             <el-tag :type="paidTagType(row.paidStatus)" size="small">{{ row.paidStatus || '未回款' }}</el-tag>
           </template>
         </el-table-column>
+        <el-table-column prop="paidAmount" label="已回" width="90" />
         <el-table-column label="收货" width="110">
           <template #default="{ row }">
             <el-tag v-if="row.receiveStatus" :type="receiveTagType(row.receiveStatus)" size="small">{{ row.receiveStatus }}</el-tag>
@@ -84,7 +85,7 @@
             <el-button v-if="row.status === '草稿'" type="primary" link @click="openEdit(row)">编辑</el-button>
             <el-button v-if="row.status === '草稿'" type="success" link @click="openShip(row)">{{ row.orderType === '红冲' ? '确认红冲' : '确认发货' }}</el-button>
             <el-button v-if="row.status === '已确认' && row.orderType !== '红冲'" type="danger" link @click="openReversal(row)">开红冲</el-button>
-            <el-button v-if="row.status === '已确认' && row.orderType !== '红冲'" type="warning" link @click="openPaid(row)">标记回款</el-button>
+            <el-button v-if="row.status === '已确认' && row.orderType !== '红冲'" type="warning" link @click="$router.push('/business/offset')">去冲账</el-button>
             <el-button v-if="row.status === '草稿'" type="danger" link @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
@@ -222,27 +223,6 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="paidVisible" title="标记回款" width="420px" destroy-on-close>
-      <el-form label-width="90px">
-        <el-form-item label="发票号">{{ paidForm.invoiceNo }}</el-form-item>
-        <el-form-item label="出库金额">{{ paidForm.totalAmount }}</el-form-item>
-        <el-form-item label="回款状态" required>
-          <el-select v-model="paidForm.paidStatus" style="width: 100%">
-            <el-option label="未回款" value="未回款" />
-            <el-option label="部分回款" value="部分回款" />
-            <el-option label="已回款" value="已回款" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="已回金额">
-          <el-input-number v-model="paidForm.paidAmount" :min="0" :precision="2" :controls="false" style="width: 100%" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="paidVisible = false">取消</el-button>
-        <el-button type="primary" :loading="paidSaving" @click="handleMarkPaid">保存</el-button>
-      </template>
-    </el-dialog>
-
     <el-dialog v-model="revVisible" title="开红冲单" width="920px" destroy-on-close>
       <p class="rev-hint">红冲是一张独立出库单。确认后按冲减数量加回批号库存，不能超过原发票未冲完的数量。</p>
       <el-form label-width="100px">
@@ -312,8 +292,16 @@
               >
                 <el-button type="primary" plain>上传 PDF / 图片</el-button>
                 <el-button type="success" plain style="margin-left: 8px" :loading="simulating" @click.stop.prevent="handleSimulateEinvoice">模拟开具电子发票</el-button>
-                <a v-if="shipForm.einvoicePath" class="upload-ok" :href="einvoiceHref" target="_blank" rel="noopener">查看模拟发票</a>
               </el-upload>
+              <a
+                v-if="shipForm.einvoicePath"
+                class="upload-ok"
+                :href="einvoiceHref"
+                target="_blank"
+                rel="noopener"
+                style="margin-left: 12px"
+                @click.stop
+              >查看模拟发票</a>
             </el-form-item>
           </el-col>
         </el-row>
@@ -341,7 +329,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import SearchForm from '@/components/SearchForm.vue'
 import CrudTable from '@/components/CrudTable.vue'
-import { loadAllOutbound, loadOutboundDetail, saveOutbound, confirmOutbound, deleteOutbound, markPaid, saveReversal, simulateEinvoice } from '@/api/outbound'
+import { loadAllOutbound, loadOutboundDetail, saveOutbound, confirmOutbound, deleteOutbound, saveReversal, simulateEinvoice } from '@/api/outbound'
 import { loadAllCustomerForSelect } from '@/api/customer'
 import { loadAllWarehouseForSelect } from '@/api/warehouse'
 import { loadAllDrugForSelect } from '@/api/drug'
@@ -356,15 +344,6 @@ const dialogVisible = ref(false)
 const readonly = ref(false)
 const saving = ref(false)
 const dialogTitle = ref('开销售出库单')
-const paidVisible = ref(false)
-const paidSaving = ref(false)
-const paidForm = reactive({
-  id: 0,
-  invoiceNo: '',
-  totalAmount: 0,
-  paidStatus: '未回款',
-  paidAmount: 0
-})
 const revVisible = ref(false)
 const revSaving = ref(false)
 const revForm = reactive({
@@ -626,31 +605,6 @@ const handleDelete = async (row: any) => {
   await ElMessageBox.confirm('确认删除该草稿出库单？', '提示', { type: 'warning' })
   await deleteOutbound(row.id)
   tableRef.value?.reload()
-}
-
-const openPaid = (row: any) => {
-  paidForm.id = row.id
-  paidForm.invoiceNo = row.invoiceNo
-  paidForm.totalAmount = Number(row.totalAmount || 0)
-  paidForm.paidStatus = row.paidStatus || '未回款'
-  paidForm.paidAmount = Number(row.paidAmount || 0)
-  paidVisible.value = true
-}
-
-const handleMarkPaid = async () => {
-  paidSaving.value = true
-  try {
-    await markPaid({
-      id: paidForm.id,
-      paidStatus: paidForm.paidStatus,
-      paidAmount: paidForm.paidAmount
-    })
-    ElMessage.success('回款状态已更新')
-    paidVisible.value = false
-    tableRef.value?.reload()
-  } finally {
-    paidSaving.value = false
-  }
 }
 
 const openReversal = async (row: any) => {

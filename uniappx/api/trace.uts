@@ -26,14 +26,20 @@ export function loadTraceBySpdid(spdid: string) {
  * 后端：POST /trace/addCodes（JSON body）
  * skipDuplicate=true 时重复码跳过不报错，返回 msg 含"跳过重复 N 条"
  */
-export function addTraceCodes(spdid: string, codes: string[], packLevel: string, bizType: string, skipDuplicate: boolean) {
+export function replaceAbnormal(traceId: number, newCode: string, useUniversal01: boolean, remark: string) {
+  const data = {} as UTSJSONObject
+  data['traceId'] = traceId
+  data['newCode'] = newCode
+  data['useUniversal01'] = useUniversal01
+  data['remark'] = remark
+  return postJson('/trace/replaceAbnormal', data)
+}
+
+export function reportMissing(spdid: string, customerNote: string) {
   const data = {} as UTSJSONObject
   data['spdid'] = spdid
-  data['codes'] = codes
-  data['packLevel'] = packLevel
-  data['bizType'] = bizType
-  data['skipDuplicate'] = skipDuplicate
-  return postJson('/trace/addCodes', data)
+  data['customerNote'] = customerNote
+  return postJson('/trace/reportMissing', data)
 }
 
 /** 预览包装解析（不落库）：DataGridView(code=0, data=[{packLevel, code, parentCode}]) */

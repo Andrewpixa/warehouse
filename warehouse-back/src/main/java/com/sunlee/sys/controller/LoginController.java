@@ -57,6 +57,7 @@ public class LoginController {
         HREF_MAP.put("/bus/toCategoryManager", "/business/category");
         HREF_MAP.put("/bus/toGoodsManager", "/business/drug");
         HREF_MAP.put("/bus/toInportManager", "/business/purchase");
+        HREF_MAP.put("/business/purchase-invoice", "/business/purchase-invoice");
         HREF_MAP.put("/bus/toInportPOS", "/business/inport-pos");
         HREF_MAP.put("/bus/toInportOrder", "/business/inport-order");
         HREF_MAP.put("/bus/toInportRecord", "/business/inport-record");
@@ -72,6 +73,10 @@ public class LoginController {
         HREF_MAP.put("/bus/toInboundEx", "/business/inbound-ex");
         HREF_MAP.put("/bus/toReturnNotice", "/business/return-notice");
         HREF_MAP.put("/bus/toOffset", "/business/offset");
+        HREF_MAP.put("/business/bank-receipt", "/business/bank-receipt");
+        HREF_MAP.put("/business/customer-debt", "/business/customer-debt");
+        HREF_MAP.put("/business/trace", "/business/trace");
+        HREF_MAP.put("/business/trace-pack", "/business/trace-pack");
         HREF_MAP.put("/bus/toPrintPack", "/business/print-pack");
         HREF_MAP.put("/bus/toAllocate", "/business/allocate");
         HREF_MAP.put("/bus/toCredit", "/business/credit");

@@ -32,6 +32,18 @@ public class PurchaseOrderController {
         return new DataGridView(page.getTotal(), page.getRecords());
     }
 
+    @RequestMapping("loadPurchaseInvoiceLedger")
+    public Map<String, Object> loadPurchaseInvoiceLedger(PurchaseOrderVo vo) {
+        Map<String, Object> map = new HashMap<>();
+        var page = purchaseOrderService.pageInvoiceLines(vo);
+        map.put("code", 0);
+        map.put("msg", "");
+        map.put("count", page.getTotal());
+        map.put("data", page.getRecords());
+        map.put("summary", purchaseOrderService.sumInvoiceLines(vo));
+        return map;
+    }
+
     @RequestMapping("loadPurchaseDetail")
     public Map<String, Object> loadPurchaseDetail(Long id) {
         Map<String, Object> map = new HashMap<>();
@@ -67,7 +79,7 @@ public class PurchaseOrderController {
         Map<String, Object> map = new HashMap<>();
         try {
             map.put("code", Constast.OK);
-            map.put("msg", "已模拟接收供应商发票和随货同行单，草稿仍可改发票号后重新接收");
+            map.put("msg", "已模拟生成采购合同、供应商发票和随货同行单，草稿仍可改发票号后重新接收");
             map.put("data", purchaseOrderService.receiveSupplierInvoice(id));
         } catch (Exception e) {
             log.error("模拟供应商发票失败: {}", e.getMessage(), e);

@@ -36,7 +36,7 @@ public class TraceCode implements Serializable {
 
     private String bizType;
 
-    /** 正常 / 作废 */
+    /** 正常 / 异常 / 01替代 / 缺码 / 作废 */
     private String status;
 
     private Date collectedAt;
@@ -58,4 +58,8 @@ public class TraceCode implements Serializable {
 
     @TableField(exist = false)
     private String batchNo;
+
+    /** 正常药监码 / GS1 / 01替代 / 缺码 */
+    @TableField(exist = false)
+    private String codeKind;
 }

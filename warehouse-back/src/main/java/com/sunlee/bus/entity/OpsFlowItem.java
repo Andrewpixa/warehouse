@@ -22,6 +22,9 @@ public class OpsFlowItem implements Serializable {
 
     private Long docId;
 
+    /** 冲账勾兑发票号 */
+    private String relatedNo;
+
     private Long drugId;
 
     private String batchNo;

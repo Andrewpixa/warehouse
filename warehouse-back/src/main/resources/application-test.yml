@@ -28,3 +28,8 @@ mybatis-plus:
 # 开发端口
 server:
   port: 8899
+
+demo:
+  daily-io:
+    enabled: true
+    cron: "0 0 8 * * ?"

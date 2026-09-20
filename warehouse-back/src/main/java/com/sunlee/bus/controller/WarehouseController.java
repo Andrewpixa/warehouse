@@ -38,7 +38,6 @@ public class WarehouseController {
         queryWrapper.like(StringUtils.isNotBlank(warehouseVo.getName()), "name", warehouseVo.getName());
         queryWrapper.like(StringUtils.isNotBlank(warehouseVo.getCode()), "code", warehouseVo.getCode());
         queryWrapper.eq(StringUtils.isNotBlank(warehouseVo.getWhType()), "wh_type", warehouseVo.getWhType());
-        queryWrapper.eq(warehouseVo.getStatus() != null, "status", warehouseVo.getStatus());
         queryWrapper.orderByAsc("id");
         warehouseService.page(page, queryWrapper);
         return new DataGridView(page.getTotal(), page.getRecords());
@@ -47,7 +46,6 @@ public class WarehouseController {
     @RequestMapping("loadAllWarehouseForSelect")
     public DataGridView loadAllWarehouseForSelect() {
         QueryWrapper<Warehouse> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("status", Constast.AVAILABLE_TRUE);
         queryWrapper.orderByAsc("id");
         List<Warehouse> list = warehouseService.list(queryWrapper);
         return new DataGridView(list);

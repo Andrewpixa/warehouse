@@ -32,7 +32,7 @@
       <view v-if="!searched" class="hint-wrap">
         <text class="hint-emoji">💊</text>
         <text class="hint-title">药品追溯查询</text>
-        <text class="hint-sub">输入发票号查看该票出库药品及追溯码</text>
+        <text class="hint-sub">输入发票号查看该票状态、明细和物流已匹配的追溯码</text>
         <text class="hint-sub">或输入 SPDID 查看单品流转记录</text>
       </view>
 
@@ -76,6 +76,11 @@
           <text class="hint-title">未查询到相关记录</text>
           <text class="hint-sub">请核对{{ mode == 'invoice' ? '发票号' : '追溯码' }}是否正确</text>
         </view>
+        <view v-else-if="mode == 'invoice' && order != null && traceRows.length == 0" class="hint-wrap">
+          <text class="hint-emoji">🚚</text>
+          <text class="hint-title">物流侧暂无匹配码</text>
+          <text class="hint-sub">缺码由客户描述问题，不由业务员采集</text>
+        </view>
 
         <!-- 追溯码卡片 -->
         <view class="trace-list">
@@ -87,15 +92,20 @@
               </view>
             </view>
             <view class="trace-code">
+              <text class="code-label">追溯码</text>
+              <text class="code-value">{{ str(t, 'code') }}</text>
+            </view>
+            <view class="trace-code">
               <text class="code-label">SPDID</text>
               <text class="code-value">{{ str(t, 'spdid') }}</text>
             </view>
             <view class="trace-meta">
+              <text class="meta-chip">{{ str(t, 'codeKind').length > 0 ? str(t, 'codeKind') : '药监码' }}</text>
+              <text class="meta-chip">{{ str(t, 'status') }}</text>
               <text class="meta-chip">批号 {{ str(t, 'batchNo') }}</text>
-              <text class="meta-chip">效期 {{ str(t, 'expireDate') }}</text>
-              <text v-if="str(t, 'codeLevel').length > 0" class="meta-chip">{{ str(t, 'codeLevel') }}级码</text>
+              <text v-if="str(t, 'packLevel').length > 0" class="meta-chip">{{ str(t, 'packLevel') }}</text>
             </view>
-            <view v-if="str(t, 'packageSpec').length > 0" class="meta-line"><text class="meta-label">包装规格</text><text class="meta-value">{{ str(t, 'packageSpec') }}</text></view>
+            <view v-if="str(t, 'remark').length > 0" class="meta-line"><text class="meta-label">说明</text><text class="meta-value">{{ str(t, 'remark') }}</text></view>
           </view>
         </view>
       </template>

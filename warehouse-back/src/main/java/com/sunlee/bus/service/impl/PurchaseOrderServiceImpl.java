@@ -19,6 +19,7 @@ import com.sunlee.bus.service.IPurchaseOrderItemService;
 import com.sunlee.bus.service.IPurchaseOrderService;
 import com.sunlee.bus.service.ISupplierService;
 import com.sunlee.bus.service.IWarehouseService;
+import com.sunlee.bus.vo.PurchaseInvoiceLineVo;
 import com.sunlee.bus.vo.PurchaseOrderVo;
 import com.sunlee.sys.entity.User;
 import cn.dev33.satoken.stp.StpUtil;
@@ -30,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, PurchaseOrder>
@@ -68,6 +70,17 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
     }
 
     @Override
+    public IPage<PurchaseInvoiceLineVo> pageInvoiceLines(PurchaseOrderVo vo) {
+        Page<PurchaseInvoiceLineVo> page = new Page<>(vo.getPage(), vo.getLimit());
+        return baseMapper.pageInvoiceLines(page, vo);
+    }
+
+    @Override
+    public Map<String, Object> sumInvoiceLines(PurchaseOrderVo vo) {
+        return baseMapper.sumInvoiceLines(vo);
+    }
+
+    @Override
     public PurchaseOrder getDetail(Long id) {
         PurchaseOrder order = this.getById(id);
         if (order == null) {
@@ -77,6 +90,38 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
         order.setItems(loadItems(id));
         voucherService.fillPurchase(order);
         return order;
+    }
+
+    @Override
+    public PurchaseOrder findByQuery(String keyword) {
+        if (StringUtils.isBlank(keyword)) {
+            return null;
+        }
+        String q = keyword.trim();
+        QueryWrapper<PurchaseOrder> exactOrder = new QueryWrapper<>();
+        exactOrder.eq("order_no", q);
+        exactOrder.last("LIMIT 1");
+        PurchaseOrder byOrder = this.getOne(exactOrder, false);
+        if (byOrder != null) {
+            return byOrder;
+        }
+        QueryWrapper<PurchaseOrder> exactInv = new QueryWrapper<>();
+        exactInv.eq("invoice_no", q);
+        exactInv.last("LIMIT 1");
+        PurchaseOrder byInv = this.getOne(exactInv, false);
+        if (byInv != null) {
+            return byInv;
+        }
+        if (q.length() < 8) {
+            return null;
+        }
+        QueryWrapper<PurchaseOrder> qw = new QueryWrapper<>();
+        qw.and(w -> w.likeRight("invoice_no", q).or().likeLeft("invoice_no", q));
+        qw.isNotNull("invoice_no");
+        qw.ne("invoice_no", "");
+        qw.orderByDesc("id");
+        qw.last("LIMIT 1");
+        return this.getOne(qw, false);
     }
 
     @Override
@@ -147,6 +192,8 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
             }
             itemService.save(item);
         }
+        PurchaseOrder saved = getDetail(order.getId());
+        writeSimulatedDocs(saved, false);
         return getDetail(order.getId());
     }
 
@@ -234,39 +281,98 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
         if (order.getSupplierId() == null) {
             throw new IllegalArgumentException("请先选择供应商");
         }
-        fillHeaderNames(order);
         if (StringUtils.isBlank(order.getInvoiceNo())) {
             order.setInvoiceNo(previewSupplierInvoiceNo(order.getSupplierId(), order.getBizDate()));
             this.updateById(order);
         }
+        writeSimulatedDocs(getDetail(id), true);
+        return getDetail(id);
+    }
+
+    @Override
+    @Transactional
+    public void ensureSimulatedDocs(Long id, boolean replace) {
+        writeSimulatedDocs(getDetail(id), replace);
+    }
+
+    private void writeSimulatedDocs(PurchaseOrder order, boolean replace) {
+        if (order == null || order.getId() == null) {
+            return;
+        }
+        fillHeaderNames(order);
+        if (order.getItems() == null || order.getItems().isEmpty()) {
+            order.setItems(loadItems(order.getId()));
+        }
         String supplier = order.getSupplierName() == null ? "供应商" : order.getSupplierName();
+        String warehouse = order.getWarehouseName() == null ? "仓库" : order.getWarehouseName();
+        String invoiceNo = StringUtils.defaultIfBlank(order.getInvoiceNo(), order.getOrderNo());
+        String rows = itemRowsHtml(order);
+        maybeWriteAttach(order, "contract", replace,
+                "采购合同-" + order.getOrderNo() + ".html",
+                "<h1>药品采购合同（模拟）</h1>"
+                        + "<p>合同编号：HT-" + escape(order.getOrderNo()) + "</p>"
+                        + "<p>供方：" + escape(supplier) + "</p>"
+                        + "<p>需方：药衡医药</p>"
+                        + "<p>签订日期：" + order.getBizDate() + "</p>"
+                        + "<p>对应进货单：" + escape(order.getOrderNo())
+                        + "；供应商发票：" + escape(invoiceNo) + "</p>"
+                        + "<p>收货仓库：" + escape(warehouse) + "</p>"
+                        + "<table><tr><th>品种</th><th>批号</th><th>数量</th><th>单价</th></tr>"
+                        + rows + "</table>"
+                        + "<p>合同金额：" + order.getTotalAmount() + "</p>"
+                        + "<p>来货品种、批号、数量须与本合同一致，否则仓库拒收或采购重录合同。</p>");
+        maybeWriteAttach(order, "invoice", replace,
+                "供应商发票-" + invoiceNo + ".html",
+                "<h1>增值税普通发票（模拟·供方开具）</h1>"
+                        + "<p>销货方：" + escape(supplier) + "</p>"
+                        + "<p>发票号码：" + escape(invoiceNo) + "</p>"
+                        + "<p>开票日期：" + order.getBizDate() + "</p>"
+                        + "<p>购货方：药衡医药</p>"
+                        + "<table><tr><th>品种</th><th>批号</th><th>数量</th><th>单价</th></tr>"
+                        + rows + "</table>"
+                        + "<p>价税合计：" + order.getTotalAmount() + "</p>");
+        maybeWriteAttach(order, "packing", replace,
+                "随货同行-" + order.getOrderNo() + ".html",
+                "<h1>随货同行单（模拟·供方随货）</h1>"
+                        + "<p>供货单位：" + escape(supplier) + "</p>"
+                        + "<p>对应发票：" + escape(invoiceNo) + "</p>"
+                        + "<p>对应合同：HT-" + escape(order.getOrderNo()) + "</p>"
+                        + "<p>收货仓库：" + escape(warehouse) + "</p>"
+                        + "<table><tr><th>品种</th><th>批号</th><th>数量</th><th>单价</th></tr>"
+                        + rows + "</table>");
+    }
+
+    private void maybeWriteAttach(PurchaseOrder order, String attachType, boolean replace,
+                                  String fileName, String html) {
+        boolean exists = order.getAttachments() != null && order.getAttachments().stream()
+                .anyMatch(a -> attachType.equals(a.getAttachType()));
+        if (exists && !replace) {
+            return;
+        }
+        voucherService.replaceGeneratedFile(PharmaNos.BIZ_PURCHASE, order.getId(), attachType, fileName, html);
+    }
+
+    private String itemRowsHtml(PurchaseOrder order) {
         StringBuilder rows = new StringBuilder();
+        if (order.getItems() == null) {
+            return "";
+        }
         for (PurchaseOrderItem item : order.getItems()) {
-            rows.append("<tr><td>").append(com.sunlee.bus.common.SimInvoiceDocs.escape(item.getDrugName()))
-                    .append("</td><td>").append(com.sunlee.bus.common.SimInvoiceDocs.escape(item.getBatchNo()))
-                    .append("</td><td>").append(item.getStockInQty())
+            BigDecimal qty = firstPositive(item.getReceiveQty(), item.getQualifiedQty(), item.getStockInQty());
+            if (qty == null) {
+                qty = BigDecimal.ZERO;
+            }
+            rows.append("<tr><td>").append(escape(item.getDrugName()))
+                    .append("</td><td>").append(escape(item.getBatchNo()))
+                    .append("</td><td>").append(qty.stripTrailingZeros().toPlainString())
                     .append("</td><td>").append(item.getPurchasePrice())
                     .append("</td></tr>");
         }
-        String invoiceHtml = "<h1>增值税普通发票（模拟·供方开具）</h1>"
-                + "<p>销货方：" + com.sunlee.bus.common.SimInvoiceDocs.escape(supplier) + "</p>"
-                + "<p>发票号码：" + com.sunlee.bus.common.SimInvoiceDocs.escape(order.getInvoiceNo()) + "</p>"
-                + "<p>开票日期：" + order.getBizDate() + "</p>"
-                + "<p>购货方：药衡医药</p>"
-                + "<table><tr><th>品种</th><th>批号</th><th>数量</th><th>单价</th></tr>"
-                + rows + "</table>"
-                + "<p>价税合计：" + order.getTotalAmount() + "</p>";
-        voucherService.replaceGeneratedFile(PharmaNos.BIZ_PURCHASE, order.getId(), "invoice",
-                "供应商发票-" + order.getInvoiceNo() + ".html", invoiceHtml);
-        String packHtml = "<h1>随货同行单（模拟·供方随货）</h1>"
-                + "<p>供货单位：" + com.sunlee.bus.common.SimInvoiceDocs.escape(supplier) + "</p>"
-                + "<p>对应发票：" + com.sunlee.bus.common.SimInvoiceDocs.escape(order.getInvoiceNo()) + "</p>"
-                + "<p>收货仓库：" + com.sunlee.bus.common.SimInvoiceDocs.escape(order.getWarehouseName()) + "</p>"
-                + "<table><tr><th>品种</th><th>批号</th><th>数量</th><th>单价</th></tr>"
-                + rows + "</table>";
-        voucherService.replaceGeneratedFile(PharmaNos.BIZ_PURCHASE, order.getId(), "packing",
-                "随货同行-" + order.getOrderNo() + ".html", packHtml);
-        return getDetail(id);
+        return rows.toString();
+    }
+
+    private static String escape(String s) {
+        return com.sunlee.bus.common.SimInvoiceDocs.escape(s);
     }
 
     private void assertDraft(PurchaseOrder order) {
@@ -305,17 +411,17 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
         if (item.getQualityStatus() == null || item.getQualityStatus().isBlank()) {
             item.setQualityStatus(PharmaNos.QUALITY_OK);
         }
-        BigDecimal qty = firstPositive(item.getStockInQty(), item.getQualifiedQty(), item.getReceiveQty());
+        BigDecimal qty = firstPositive(item.getReceiveQty(), item.getQualifiedQty(), item.getStockInQty());
         if (qty == null) {
             throw new IllegalArgumentException("明细收货/合格/入库数量必须大于 0");
         }
-        if (item.getReceiveQty() == null) {
+        if (item.getReceiveQty() == null || item.getReceiveQty().compareTo(BigDecimal.ZERO) <= 0) {
             item.setReceiveQty(qty);
         }
-        if (item.getQualifiedQty() == null) {
+        if (item.getQualifiedQty() == null || item.getQualifiedQty().compareTo(BigDecimal.ZERO) <= 0) {
             item.setQualifiedQty(qty);
         }
-        if (item.getStockInQty() == null) {
+        if (item.getStockInQty() == null || item.getStockInQty().compareTo(BigDecimal.ZERO) <= 0) {
             item.setStockInQty(qty);
         }
         BigDecimal price = item.getPurchasePrice() == null ? BigDecimal.ZERO : item.getPurchasePrice();

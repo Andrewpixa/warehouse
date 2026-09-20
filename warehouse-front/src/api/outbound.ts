@@ -47,6 +47,10 @@ export function loadUnpaidOutbound(params: any) {
   return request.get('/outbound/loadUnpaidOutbound', { params })
 }
 
+export function loadCustomerDebt() {
+  return request.get('/outbound/loadCustomerDebt')
+}
+
 export function markPaid(data: { id: number; paidStatus: string; paidAmount?: number }) {
   return request.post('/outbound/markPaid', data)
 }

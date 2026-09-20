@@ -4,7 +4,7 @@
       v-if="!bizId"
       type="info"
       :closable="false"
-      title="请先保存草稿，再上传发票/随货同行单并完成签字。"
+      title="请先保存草稿，再上传采购合同、发票/随货同行单并完成签字。"
       style="margin-bottom: 12px"
     />
     <template v-else>

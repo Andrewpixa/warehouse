@@ -1,5 +1,10 @@
 package com.sunlee.bus.schedule;
 
+import com.sunlee.bus.common.PharmaNos;
+import com.sunlee.bus.common.SimInvoiceDocs;
+import com.sunlee.bus.service.IBatchStockService;
+import com.sunlee.bus.service.IBizVoucherService;
+import com.sunlee.bus.service.IPurchaseOrderService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
@@ -8,6 +13,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
@@ -22,6 +28,12 @@ public class DemoBizDataSeed implements CommandLineRunner {
 
     @Autowired
     private JdbcTemplate jdbc;
+    @Autowired
+    private IBatchStockService batchStockService;
+    @Autowired
+    private IBizVoucherService voucherService;
+    @Autowired
+    private IPurchaseOrderService purchaseOrderService;
 
     @Override
     public void run(String... args) {
@@ -36,8 +48,11 @@ public class DemoBizDataSeed implements CommandLineRunner {
             }
             seedCreditForEveryCustomer();
             seedOtherOps();
+            seedBankReceipts();
             seedMakerAccounts();
             seedInvoiceDrafts();
+            seedMultiLineDocs();
+            seedPurchaseContracts();
             log.info("demo biz data seeded");
         } catch (Exception e) {
             log.warn("demo biz data skipped: {}", e.getMessage());
@@ -133,7 +148,7 @@ public class DemoBizDataSeed implements CommandLineRunner {
                 new BigDecimal("428.00"), new BigDecimal("10"), "暨大附一召回立普妥", "厂家召回", "待运营释放");
 
         upsertOps("CZ-DEMO01", "OFFSET", "2026-09-16", "草稿", 100001L, null, null, null, "20260907000100000001",
-                new BigDecimal("512.00"), BigDecimal.ZERO, "南方医院公对公冲发票", "公对公", "金额与到账一致");
+                new BigDecimal("204.80"), BigDecimal.ZERO, "南方医院公对公冲40%", "公对公", "待财务确认");
         upsertOps("CZ-DEMO02", "OFFSET", "2026-09-16", "草稿", 100003L, null, null, null, "20260907000100000003",
                 new BigDecimal("84.00"), BigDecimal.ZERO, "阳光社区冲账差50", "到账不一致", "需挂账");
         upsertOps("CZ-DEMO03", "OFFSET", "2026-09-17", "已冲账", 100013L, null, null, null, "20260914000100000012",
@@ -169,6 +184,57 @@ public class DemoBizDataSeed implements CommandLineRunner {
                 BigDecimal.ZERO, new BigDecimal("200"), "白云待验区申请加库容", "待验爆仓", null);
         upsertOps("TC-DEMO04", "QUOTA", "2026-09-17", "已生效", null, null, null, 1L, null,
                 BigDecimal.ZERO, new BigDecimal("500"), "广深惠二期统筹", "库容", null);
+    }
+
+    private void seedBankReceipts() {
+        if (!tableExists("bank_receipts")) {
+            return;
+        }
+        upsertReceipt("BR-DEMO01", 100001L, "2026-09-16", new BigDecimal("204.80"), "公对公", "E20260916001", "南方医院", "未认领", "演示公对公付40%");
+        upsertReceipt("BR-DEMO02", 100003L, "2026-09-16", new BigDecimal("134.00"), "公对公", "E20260916002", "阳光社区卫生中心", "未认领", "到账134与拟冲84不一致待挂账");
+        upsertReceipt("BR-DEMO03", 100013L, "2026-09-17", new BigDecimal("100.00"), "支票", "CH2026091701", "红会医院", "已认领", "部分回款已冲");
+        upsertReceipt("BR-DEMO04", 100010L, "2026-09-17", new BigDecimal("856.00"), "公对公", "E20260917004", "中山一院", "未认领", "全额待冲");
+        bindOffset("CZ-DEMO01", "BR-DEMO01", 0, "20260907000100000001", new BigDecimal("204.80"));
+        bindOffset("CZ-DEMO02", "BR-DEMO02", 1, "20260907000100000003", new BigDecimal("84.00"));
+        bindOffset("CZ-DEMO03", "BR-DEMO03", 0, "20260914000100000012", new BigDecimal("100.00"));
+        bindOffset("CZ-DEMO04", "BR-DEMO04", 0, "20260915000100000010", new BigDecimal("856.00"));
+    }
+
+    private void upsertReceipt(String no, Long customerId, String date, BigDecimal amount, String channel,
+                               String voucher, String payer, String status, String remark) {
+        Integer n = jdbc.queryForObject("SELECT COUNT(*) FROM bank_receipts WHERE receipt_no = ?", Integer.class, no);
+        if (n != null && n > 0) {
+            jdbc.update("""
+                    UPDATE bank_receipts SET customer_id=?, received_date=?, amount=?, channel=?, voucher_no=?,
+                      payer_name=?, status=?, remark=?, updated_at=NOW() WHERE receipt_no=?
+                    """, customerId, date, amount, channel, voucher, payer, status, remark, no);
+            return;
+        }
+        jdbc.update("""
+                INSERT INTO bank_receipts (receipt_no, customer_id, received_date, amount, channel, voucher_no, payer_name, status, remark, created_by, created_at, updated_at)
+                VALUES (?,?,?,?,?,?,?,?,?,1,NOW(),NOW())
+                """, no, customerId, date, amount, channel, voucher, payer, status, remark);
+    }
+
+    private void bindOffset(String docNo, String receiptNo, int hang, String invoiceNo, BigDecimal amount) {
+        try {
+            Long rid = jdbc.queryForObject("SELECT id FROM bank_receipts WHERE receipt_no = ?", Long.class, receiptNo);
+            Long did = jdbc.queryForObject("SELECT id FROM ops_flow_docs WHERE doc_no = ?", Long.class, docNo);
+            if (rid == null || did == null) {
+                return;
+            }
+            jdbc.update("UPDATE ops_flow_docs SET receipt_id=?, hang_flag=?, related_no=?, amount=? WHERE id=?",
+                    rid, hang, invoiceNo, amount, did);
+            Integer items = jdbc.queryForObject("SELECT COUNT(*) FROM ops_flow_items WHERE doc_id = ?", Integer.class, did);
+            if (items == null || items == 0) {
+                jdbc.update("""
+                        INSERT INTO ops_flow_items (doc_id, related_no, qty, price, amount, remark, created_at)
+                        VALUES (?, ?, 0, 0, ?, '冲发票', NOW())
+                        """, did, invoiceNo, amount);
+            }
+        } catch (Exception e) {
+            log.warn("bind offset {} skipped: {}", docNo, e.getMessage());
+        }
     }
 
     private void seedMakerAccounts() {
@@ -224,6 +290,151 @@ public class DemoBizDataSeed implements CommandLineRunner {
                 stocks.get(Math.min(5, stocks.size() - 1)), new BigDecimal("12.80"), "待预处理");
         insertDraft("CK-NET-003", "PLATFORM", "WD20260917003", 100018L, "网单·中医一院已分货可过闸",
                 stocks.get(Math.min(6, stocks.size() - 1)), new BigDecimal("68.00"), "待预处理");
+        insertDraftMulti("CK-BMS-MULTI", "OFFLINE", null, 100001L,
+                "开票草稿·一张计划多品种", new BigDecimal("12.80"), "待预处理", stocks);
+    }
+
+    private void insertDraftMulti(String orderNo, String channel, String platformNo, Long customerId,
+                                  String remark, BigDecimal price, String prep, List<Map<String, Object>> stocks) {
+        Integer exists = jdbc.queryForObject("SELECT COUNT(*) FROM sales_orders WHERE order_no = ?", Integer.class, orderNo);
+        if (exists != null && exists > 0) {
+            return;
+        }
+        Long whId = ((Number) stocks.get(0).get("warehouse_id")).longValue();
+        BigDecimal total = price.multiply(new BigDecimal(Math.min(3, stocks.size())));
+        jdbc.update("""
+                INSERT INTO sales_orders (order_no, invoice_no, order_type, customer_id, warehouse_id, salesman_id, biz_date, pay_type,
+                  status, total_amount, paid_status, paid_amount, created_by, remark, created_at, updated_at,
+                  order_channel, platform_no, preprocess_status)
+                VALUES (?, NULL, '正常', ?, ?, 4, '2026-09-17', '月结', '草稿', ?, '未回款', 0, 1, ?, NOW(), NOW(), ?, ?, ?)
+                """, orderNo, customerId, whId, total, remark, channel, platformNo, prep);
+        Long oid = jdbc.queryForObject("SELECT id FROM sales_orders WHERE order_no = ?", Long.class, orderNo);
+        int n = Math.min(3, stocks.size());
+        for (int i = 0; i < n; i++) {
+            Map<String, Object> stock = stocks.get(i);
+            Long drugId = ((Number) stock.get("drug_id")).longValue();
+            String batch = String.valueOf(stock.get("batch_no"));
+            Object expire = stock.get("expire_date");
+            jdbc.update("""
+                    INSERT INTO sales_order_items (order_id, drug_id, batch_no, expire_date, qty, sale_price, amount, spdid, quality_status, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, 1.000, ?, ?, ?, '合格', NOW(), NOW())
+                    """, oid, drugId, batch, expire, price, price, "SPD" + orderNo.replace("-", "") + i);
+        }
+    }
+
+    private void seedMultiLineDocs() {
+        if (!tableExists("purchase_orders") || !tableExists("sales_orders")) {
+            return;
+        }
+        Integer drugOk = jdbc.queryForObject("SELECT COUNT(*) FROM drugs WHERE id IN (300001,300008,300009,300012,300013)", Integer.class);
+        if (drugOk == null || drugOk < 5) {
+            return;
+        }
+        LocalDate biz = LocalDate.of(2026, 9, 16);
+        LocalDate prod = LocalDate.of(2026, 8, 1);
+        LocalDate exp = LocalDate.of(2028, 8, 1);
+        if (orderMissing("purchase_orders", "CG-MULTI-OK")) {
+            String invoice = "FP200010202609160099";
+            jdbc.update("""
+                    INSERT INTO purchase_orders (order_no, invoice_no, supplier_id, warehouse_id, salesman_id, checker_id, keeper_id,
+                      biz_date, check_result, status, total_amount, created_by, confirmed_by, confirmed_at, remark, created_at, updated_at)
+                    VALUES ('CG-MULTI-OK', ?, 200010, 1, 2, 5, 3, ?, '合格', '已确认', 1738.00, 1, 1, NOW(),
+                      '样例：一张供应商发票四明细', NOW(), NOW())
+                    """, invoice, biz);
+            Long oid = jdbc.queryForObject("SELECT id FROM purchase_orders WHERE order_no = 'CG-MULTI-OK'", Long.class);
+            insertPoLine(oid, 300012L, "MLTIN01A", prod, exp, "80", "8.90");
+            insertPoLine(oid, 300013L, "MLTIN01B", prod, exp, "50", "3.60");
+            insertPoLine(oid, 300009L, "MLTIN01C", prod, exp, "60", "6.20");
+            insertPoLine(oid, 300001L, "MLTIN01D", prod, exp, "40", "8.00");
+            batchStockService.increase(300012L, 1L, "MLTIN01A", PharmaNos.QUALITY_OK, new BigDecimal("80"), prod, exp);
+            batchStockService.increase(300013L, 1L, "MLTIN01B", PharmaNos.QUALITY_OK, new BigDecimal("50"), prod, exp);
+            batchStockService.increase(300009L, 1L, "MLTIN01C", PharmaNos.QUALITY_OK, new BigDecimal("60"), prod, exp);
+            batchStockService.increase(300001L, 1L, "MLTIN01D", PharmaNos.QUALITY_OK, new BigDecimal("40"), prod, exp);
+            purchaseOrderService.ensureSimulatedDocs(oid, true);
+        }
+        if (orderMissing("purchase_orders", "CG-MULTI-HOLD")) {
+            jdbc.update("""
+                    INSERT INTO purchase_orders (order_no, invoice_no, supplier_id, warehouse_id, salesman_id, checker_id, keeper_id,
+                      biz_date, check_result, status, total_amount, created_by, remark, created_at, updated_at)
+                    VALUES ('CG-MULTI-HOLD', 'FP200011202609160001', 200011, 2, 2, NULL, 3, '2026-09-16', NULL, '草稿', 432.00, 1,
+                      '样例：多明细其中一行待验不得确认入库', NOW(), NOW())
+                    """);
+            Long oid = jdbc.queryForObject("SELECT id FROM purchase_orders WHERE order_no = 'CG-MULTI-HOLD'", Long.class);
+            insertPoLine(oid, 300013L, "HOLD01A", prod, exp, "40", "3.60");
+            jdbc.update("""
+                    INSERT INTO purchase_order_items (order_id, drug_id, batch_no, production_date, expire_date,
+                      receive_qty, qualified_qty, stock_in_qty, purchase_price, amount, quality_status, spdid, remark, created_at, updated_at)
+                    VALUES (?, 300012, 'HOLD01B', ?, ?, 80.000, 0.000, 0.000, 8.90, 712.00, '待验', ?, '外箱压损待复检', NOW(), NOW())
+                    """, oid, prod, exp, PharmaNos.spdid());
+            insertPoLine(oid, 300008L, "HOLD01C", prod, exp, "10", "28.00");
+            purchaseOrderService.ensureSimulatedDocs(oid, true);
+        }
+        if (orderMissing("sales_orders", "CK-MULTI-OK")) {
+            String invoice = "26957000000800009161";
+            jdbc.update("""
+                    INSERT INTO sales_orders (order_no, invoice_no, order_type, customer_id, warehouse_id, salesman_id, reviewer_id,
+                      biz_date, pay_type, status, total_amount, paid_status, paid_amount, created_by, confirmed_by, confirmed_at,
+                      ship_time, einvoice_no, receive_status, remark, created_at, updated_at, order_channel, preprocess_status)
+                    VALUES ('CK-MULTI-OK', ?, '正常', 100001, 1, 4, 5, ?, '月结', '已确认', 1314.00, '未回款', 0, 1, 1, NOW(), NOW(), ?,
+                      '待收货', '样例：一张销售发票四明细', NOW(), NOW(), 'OFFLINE', '已通过')
+                    """, invoice, biz, invoice);
+            Long oid = jdbc.queryForObject("SELECT id FROM sales_orders WHERE order_no = 'CK-MULTI-OK'", Long.class);
+            insertSoLine(oid, 300012L, "MLTIN01A", exp, "20", "13.50");
+            insertSoLine(oid, 300013L, "MLTIN01B", exp, "15", "5.80");
+            insertSoLine(oid, 300009L, "MLTIN01C", exp, "20", "16.20");
+            insertSoLine(oid, 300001L, "MLTIN01D", exp, "10", "12.80");
+            batchStockService.decrease(300012L, 1L, "MLTIN01A", PharmaNos.QUALITY_OK, new BigDecimal("20"));
+            batchStockService.decrease(300013L, 1L, "MLTIN01B", PharmaNos.QUALITY_OK, new BigDecimal("15"));
+            batchStockService.decrease(300009L, 1L, "MLTIN01C", PharmaNos.QUALITY_OK, new BigDecimal("20"));
+            batchStockService.decrease(300001L, 1L, "MLTIN01D", PharmaNos.QUALITY_OK, new BigDecimal("10"));
+            String html = "<h1>电子发票（模拟）</h1><p>全电发票号码：" + invoice
+                    + "</p><p>南方医院一张发票四行出库明细。</p>";
+            String path = SimInvoiceDocs.writeHtml("einvoice.html", "电子发票", html);
+            jdbc.update("UPDATE sales_orders SET einvoice_path = ? WHERE id = ?", path, oid);
+            voucherService.replaceGeneratedFile(PharmaNos.BIZ_SALES, oid, "invoice",
+                    "电子发票-" + invoice + ".html", html);
+        }
+    }
+
+    private void seedPurchaseContracts() {
+        if (!tableExists("purchase_orders")) {
+            return;
+        }
+        List<Long> ids = jdbc.query("SELECT id FROM purchase_orders ORDER BY id",
+                (rs, i) -> rs.getLong(1));
+        for (Long id : ids) {
+            try {
+                purchaseOrderService.ensureSimulatedDocs(id, false);
+            } catch (Exception e) {
+                log.warn("purchase contract seed skipped {}: {}", id, e.getMessage());
+            }
+        }
+    }
+
+    private void insertPoLine(Long orderId, Long drugId, String batch, LocalDate prod, LocalDate exp,
+                              String qty, String price) {
+        BigDecimal q = new BigDecimal(qty);
+        BigDecimal p = new BigDecimal(price);
+        jdbc.update("""
+                INSERT INTO purchase_order_items (order_id, drug_id, batch_no, production_date, expire_date,
+                  receive_qty, qualified_qty, stock_in_qty, purchase_price, amount, quality_status, spdid, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '合格', ?, NOW(), NOW())
+                """, orderId, drugId, batch, prod, exp, q, q, q, p, q.multiply(p), PharmaNos.spdid());
+    }
+
+    private void insertSoLine(Long orderId, Long drugId, String batch, LocalDate exp, String qty, String price) {
+        BigDecimal q = new BigDecimal(qty);
+        BigDecimal p = new BigDecimal(price);
+        jdbc.update("""
+                INSERT INTO sales_order_items (order_id, drug_id, batch_no, expire_date, qty, sale_price, amount,
+                  spdid, quality_status, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, '合格', NOW(), NOW())
+                """, orderId, drugId, batch, exp, q, p, q.multiply(p), PharmaNos.spdid());
+    }
+
+    private boolean orderMissing(String table, String orderNo) {
+        Integer n = jdbc.queryForObject("SELECT COUNT(*) FROM " + table + " WHERE order_no = ?", Integer.class, orderNo);
+        return n == null || n == 0;
     }
 
     private void insertDraft(String orderNo, String channel, String platformNo, Long customerId, String remark,

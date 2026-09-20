@@ -5,7 +5,7 @@
         <text class="mark-text">业</text>
       </view>
       <text class="app-name">业务员工作台</text>
-      <text class="app-desc">现场提报 · 扫码采码 · 同一套单据</text>
+      <text class="app-desc">现场提报 · 异常纠码 · 同一套单据</text>
     </view>
 
     <view class="form-card">

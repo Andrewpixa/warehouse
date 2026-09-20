@@ -65,7 +65,7 @@
         <el-table-column prop="paidStatus" label="状态" width="100" />
         <el-table-column label="操作" width="160">
           <template #default="{ row }">
-            <el-button type="primary" link @click="$router.push('/business/outbound')">去标记回款</el-button>
+            <el-button type="primary" link @click="$router.push('/business/offset')">去冲账</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -110,6 +110,7 @@ const current = computed(() => {
       ],
       links: [
         { label: '采购入库单', to: '/business/purchase' },
+        { label: '供应商发票查询', to: '/business/purchase-invoice' },
         { label: '供应商', to: '/business/supplier' },
         { label: '缺货补货', to: '/business/stockout' },
         { label: '统筹值', to: '/business/quota' }
@@ -126,7 +127,10 @@ const current = computed(() => {
         { label: '销售出库单', to: '/business/outbound' },
         { label: '客户', to: '/business/customer' },
         { label: '医院收货', to: '/business/receipt' },
-        { label: '追溯查询', to: '/business/trace' }
+        { label: '追溯查询', to: '/business/trace' },
+        { label: '大码解析', to: '/business/trace-pack' },
+        { label: '收款冲账', to: '/business/offset' },
+        { label: '单位欠款', to: '/business/customer-debt' }
       ]
     },
     仓储: {
@@ -140,7 +144,9 @@ const current = computed(() => {
         { label: '批号库存', to: '/business/batch-stock' },
         { label: '采购确认入库', to: '/business/purchase' },
         { label: '日清检查', to: '/business/daily-close' },
-        { label: '到货异常', to: '/business/inbound-ex' }
+        { label: '到货异常', to: '/business/inbound-ex' },
+        { label: '追溯查询', to: '/business/trace' },
+        { label: '大码解析', to: '/business/trace-pack' }
       ]
     },
     质量: {
@@ -157,11 +163,13 @@ const current = computed(() => {
     },
     财务: {
       todos: [
-        { value: ops.unpaidOrders || 0, label: '未回款', hint: '出库单', to: '/business/outbound' },
-        { value: ops.offsetOpen || 0, label: '待冲账', hint: '红冲', to: '/business/offset' }
+        { value: ops.unpaidOrders || 0, label: '未回款', hint: '出库单', to: '/business/customer-debt' },
+        { value: ops.receiptOpen || 0, label: '未认领到账', hint: '银行流水', to: '/business/bank-receipt' },
+        { value: ops.offsetOpen || 0, label: '待冲账', hint: '勾兑发票', to: '/business/offset' }
       ],
       links: [
-        { label: '标记回款', to: '/business/outbound' },
+        { label: '银行到账', to: '/business/bank-receipt' },
+        { label: '单位欠款', to: '/business/customer-debt' },
         { label: '收款冲账', to: '/business/offset' },
         { label: '进货统计', to: '/business/purchase-stats' },
         { label: '出货统计', to: '/business/outbound-stats' },
