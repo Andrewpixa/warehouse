@@ -13,6 +13,12 @@ const router = createRouter({
       meta: { title: '产品介绍', public: true }
     },
     {
+      path: '/design',
+      name: 'CourseDesign',
+      component: () => import('@/views/design/index.vue'),
+      meta: { title: '课程设计图册', public: true }
+    },
+    {
       path: '/login',
       name: 'Login',
       component: () => import('@/views/login/index.vue'),

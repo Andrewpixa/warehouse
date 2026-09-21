@@ -27,6 +27,7 @@
         <a href="#capabilities" @click.prevent="scrollTo('capabilities')">能力</a>
         <a href="#trace" @click.prevent="scrollTo('trace')">追溯</a>
         <a href="#trust" @click.prevent="scrollTo('trust')">信任</a>
+        <router-link to="/design">课程设计</router-link>
       </nav>
       <button class="nav-cta" type="button" @click="enter">{{ ctaLabel }}</button>
     </header>
@@ -235,6 +236,7 @@
 
     <footer class="foot">
       <span>药企进销存 · Pharma IMS</span>
+      <router-link to="/design">课程设计图册 · 架构 / UML / 用例</router-link>
       <span>药品流通 · 批号库存 · 追溯码 © {{ year }}</span>
     </footer>
   </div>
@@ -1192,6 +1194,10 @@ onUnmounted(() => {
   color: var(--faint);
   font-size: 12px;
   letter-spacing: 0.08em;
+}
+
+.foot a {
+  color: var(--gold) !important;
 }
 
 .reveal {
