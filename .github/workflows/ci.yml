@@ -89,9 +89,16 @@ jobs:
           ssh-keyscan -p "$port" -H "$SSH_HOST" >> ~/.ssh/known_hosts
           stage="$RUNNER_TEMP/pharma-incoming"
           jar_name="${JAR_NAME:-warehouse.jar}"
-          built_jar="$(find warehouse-back/target -path '*warehouse-back-pro/warehouse-back.jar' -print -quit)"
-          if [[ -z "$built_jar" || ! -d "$(dirname "$built_jar")/lib" ]]; then
-            echo "没有找到生产分发包里的 warehouse-back.jar 和 lib"
+          built_jar=""
+          while IFS= read -r candidate; do
+            if [[ -d "$(dirname "$candidate")/lib" ]]; then
+              built_jar="$candidate"
+              break
+            fi
+          done < <(find warehouse-back/target -name 'warehouse.jar' -type f)
+          if [[ -z "$built_jar" ]]; then
+            echo "没有找到带 lib 目录的 warehouse.jar"
+            find warehouse-back/target -name '*.jar' -o -type d -name lib | head -50
             exit 1
           fi
           mkdir -p "$stage/dist" "$stage/deploy"
