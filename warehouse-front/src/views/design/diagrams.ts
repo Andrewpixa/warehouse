@@ -463,6 +463,16 @@ export const classStock = `classDiagram
   SurplusOrder "1" *-- "1..*" SurplusOrderItem
   SalesOrderItem "1" --> "0..*" TraceCode : spdid`
 
+export const activityOutbound = `flowchart TD
+  A[销售保存出库草稿] --> B[仓管确认出库]
+  B --> C{该批号库存够吗}
+  C -->|不够| D[条件更新影响 0 行 整单失败]
+  C -->|够| E[扣减批号库存并确认]
+  E --> F[医院签收]
+  F --> G{这张单已经签过吗}
+  G -->|是| H[拒绝重复提交]
+  G -->|否| I[回写签收状态]`
+
 export const seqPurchase = `sequenceDiagram
   actor User as 仓管
   participant UI as 前端进货单

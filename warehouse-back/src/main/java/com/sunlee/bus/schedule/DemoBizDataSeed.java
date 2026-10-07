@@ -52,6 +52,7 @@ public class DemoBizDataSeed implements CommandLineRunner {
             seedMakerAccounts();
             seedInvoiceDrafts();
             seedMultiLineDocs();
+            backfillConfirmedPurchaseInvoices();
             seedPurchaseContracts();
             seedScanDemoTrace();
             log.info("demo biz data seeded");
@@ -395,6 +396,68 @@ public class DemoBizDataSeed implements CommandLineRunner {
             voucherService.replaceGeneratedFile(PharmaNos.BIZ_SALES, oid, "invoice",
                     "电子发票-" + invoice + ".html", html);
         }
+    }
+
+    /** 演示 SQL 曾把采购单直接写成已确认且不写 invoice_no，启动时按供方发票规则补号并刷新模拟票据。 */
+    private void backfillConfirmedPurchaseInvoices() {
+        if (!tableExists("purchase_orders")) {
+            return;
+        }
+        List<Map<String, Object>> rows = jdbc.queryForList("""
+                SELECT id, supplier_id, biz_date
+                FROM purchase_orders
+                WHERE status IN ('已确认', '已过账')
+                  AND (invoice_no IS NULL OR TRIM(invoice_no) = '')
+                ORDER BY id
+                """);
+        for (Map<String, Object> row : rows) {
+            Long id = ((Number) row.get("id")).longValue();
+            Long supplierId = row.get("supplier_id") == null ? null : ((Number) row.get("supplier_id")).longValue();
+            LocalDate biz = toLocalDate(row.get("biz_date"));
+            int seq = id > Integer.MAX_VALUE ? 1 : id.intValue();
+            String no = SimInvoiceDocs.supplierInvoiceNo(supplierId, biz, seq);
+            int guard = 0;
+            while (invoiceTaken(no) && guard++ < 1000) {
+                seq++;
+                no = SimInvoiceDocs.supplierInvoiceNo(supplierId, biz, seq);
+            }
+            int updated = jdbc.update("""
+                    UPDATE purchase_orders
+                    SET invoice_no = ?
+                    WHERE id = ? AND (invoice_no IS NULL OR TRIM(invoice_no) = '')
+                    """, no, id);
+            if (updated > 0) {
+                try {
+                    purchaseOrderService.ensureSimulatedDocs(id, true);
+                } catch (Exception e) {
+                    log.warn("supplier invoice doc refresh skipped {}: {}", id, e.getMessage());
+                }
+                log.info("backfilled supplier invoice order {} -> {}", id, no);
+            }
+        }
+    }
+
+    private boolean invoiceTaken(String invoiceNo) {
+        Integer n = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM purchase_orders WHERE invoice_no = ?", Integer.class, invoiceNo);
+        return n != null && n > 0;
+    }
+
+    private LocalDate toLocalDate(Object value) {
+        if (value instanceof LocalDate date) {
+            return date;
+        }
+        if (value instanceof java.sql.Date date) {
+            return date.toLocalDate();
+        }
+        if (value instanceof java.util.Date date) {
+            return date.toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDate();
+        }
+        if (value == null || value.toString().isBlank()) {
+            return LocalDate.now();
+        }
+        String text = value.toString();
+        return LocalDate.parse(text.length() >= 10 ? text.substring(0, 10) : text);
     }
 
     private void seedPurchaseContracts() {

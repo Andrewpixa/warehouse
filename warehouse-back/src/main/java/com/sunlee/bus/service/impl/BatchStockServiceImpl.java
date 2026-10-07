@@ -15,6 +15,7 @@ import com.sunlee.bus.vo.BatchStockVo;
 import com.sunlee.sys.common.RedisBiz;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -84,30 +85,25 @@ public class BatchStockServiceImpl extends ServiceImpl<BatchStockMapper, BatchSt
             throw new IllegalArgumentException("入库数量必须大于 0");
         }
         String quality = StringUtils.defaultIfBlank(qualityStatus, "合格");
-        BatchStock stock = findOne(drugId, warehouseId, batchNo, quality);
-        Date now = new Date();
-        if (stock == null) {
-            stock = new BatchStock();
-            stock.setDrugId(drugId);
-            stock.setWarehouseId(warehouseId);
-            stock.setBatchNo(batchNo);
-            stock.setQualityStatus(quality);
-            stock.setQty(qty);
-            stock.setProductionDate(productionDate);
-            stock.setExpireDate(expireDate);
-            stock.setLastMoveAt(now);
-            this.save(stock);
+        if (baseMapper.increaseQty(drugId, warehouseId, batchNo, quality, qty, productionDate, expireDate) > 0) {
             return;
         }
-        stock.setQty(stock.getQty().add(qty));
-        if (productionDate != null) {
-            stock.setProductionDate(productionDate);
+        BatchStock stock = new BatchStock();
+        stock.setDrugId(drugId);
+        stock.setWarehouseId(warehouseId);
+        stock.setBatchNo(batchNo);
+        stock.setQualityStatus(quality);
+        stock.setQty(qty);
+        stock.setProductionDate(productionDate);
+        stock.setExpireDate(expireDate);
+        stock.setLastMoveAt(new Date());
+        try {
+            this.save(stock);
+        } catch (DuplicateKeyException ex) {
+            if (baseMapper.increaseQty(drugId, warehouseId, batchNo, quality, qty, productionDate, expireDate) == 0) {
+                throw ex;
+            }
         }
-        if (expireDate != null) {
-            stock.setExpireDate(expireDate);
-        }
-        stock.setLastMoveAt(now);
-        this.updateById(stock);
     }
 
     @Override

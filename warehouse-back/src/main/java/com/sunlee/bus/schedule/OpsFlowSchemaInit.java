@@ -114,9 +114,39 @@ public class OpsFlowSchemaInit implements CommandLineRunner {
                       KEY idx_bank_receipt_cust (customer_id, status)
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='银行到账流水'
                     """);
+            ensureBatchStockUnique();
         } catch (Exception e) {
             log.warn("ops_flow schema init skipped: {}", e.getMessage());
         }
+    }
+
+    /** 一批一仓一质量状态只能一行，入库累加才能在并发插入时撞上唯一键。 */
+    private void ensureBatchStockUnique() {
+        Integer table = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'batch_stocks'",
+                Integer.class);
+        if (table == null || table == 0) {
+            return;
+        }
+        Integer index = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'batch_stocks' AND INDEX_NAME = 'uk_batch_stocks'",
+                Integer.class);
+        if (index != null && index > 0) {
+            return;
+        }
+        Integer dups = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*) FROM (
+                  SELECT 1 FROM batch_stocks
+                  GROUP BY drug_id, warehouse_id, batch_no, quality_status
+                  HAVING COUNT(*) > 1
+                ) d
+                """, Integer.class);
+        if (dups != null && dups > 0) {
+            log.warn("batch_stocks 有 {} 组重复键，未加 uk_batch_stocks", dups);
+            return;
+        }
+        jdbcTemplate.execute(
+                "ALTER TABLE batch_stocks ADD UNIQUE KEY uk_batch_stocks (drug_id, warehouse_id, batch_no, quality_status)");
     }
 
     private void addCol(String table, String col, String def) {

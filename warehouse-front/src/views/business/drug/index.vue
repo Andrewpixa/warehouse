@@ -80,10 +80,10 @@
           <el-input :model-value="formData.id ? String(formData.id) : '保存后按类型自动生成'" disabled />
         </el-form-item>
         <el-form-item label="通用名" prop="genericName">
-          <el-input v-model="formData.genericName" />
+          <el-input v-model="formData.genericName" placeholder="成分或品类名，对外改名时保持不变" />
         </el-form-item>
         <el-form-item label="商品名">
-          <el-input v-model="formData.tradeName" />
+          <el-input v-model="formData.tradeName" placeholder="这只产品自己的品牌；没有品牌就填写通用名" />
         </el-form-item>
         <el-form-item label="规格">
           <el-input v-model="formData.spec" placeholder="如 0.25g*24粒" />

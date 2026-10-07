@@ -41,13 +41,18 @@ function writeConfig(partial) {
   return next
 }
 
+function webBase() {
+  const raw = readConfig().webBase || 'https://yaoheng.cloud'
+  return String(raw).replace(/\/$/, '')
+}
+
 function createWindow() {
   const win = new BrowserWindow({
     width: 1280,
     height: 840,
     minWidth: 960,
     minHeight: 640,
-    title: '药企员工工作台',
+    title: '药企进销存',
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
@@ -55,12 +60,29 @@ function createWindow() {
     }
   })
 
-  const distIndex = path.join(__dirname, '../dist/index.html')
+  const started = Date.now()
+  let failed = false
+  win.webContents.on('did-finish-load', () => {
+    console.log(`[electron] loaded in ${Date.now() - started}ms ${win.webContents.getURL()}`)
+  })
+  win.webContents.on('did-fail-load', (_event, code, desc, url, isMainFrame) => {
+    if (!isMainFrame || failed || code === -3) return
+    failed = true
+    const html = `<!DOCTYPE html><html lang="zh-CN"><meta charset="utf-8"><title>打不开站点</title>
+<body style="font-family:sans-serif;padding:40px;line-height:1.6">
+<h1>打不开进销存站点</h1>
+<p>${desc}（${code}）</p>
+<p>地址：${url}</p>
+<p>请检查网络，或修改 config.json 里的 webBase。</p>
+</body></html>`
+    win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html))
+  })
+
   if (process.argv.includes('--dev')) {
     win.loadURL('http://127.0.0.1:5174')
-  } else {
-    win.loadFile(distIndex)
+    return
   }
+  win.loadURL(webBase())
 }
 
 ipcMain.handle('config:get', () => readConfig())

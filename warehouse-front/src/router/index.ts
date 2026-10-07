@@ -19,6 +19,12 @@ const router = createRouter({
       meta: { title: '课程设计图册', public: true }
     },
     {
+      path: '/download',
+      name: 'Download',
+      component: () => import('@/views/download/index.vue'),
+      meta: { title: '客户端下载', public: true }
+    },
+    {
       path: '/login',
       name: 'Login',
       component: () => import('@/views/login/index.vue'),

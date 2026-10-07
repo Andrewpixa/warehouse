@@ -76,11 +76,25 @@ JOIN (
 WHERE r.id IN (1, 11, 14);
 
 -- 测试单据：拉开日期，便于统计图；09-01 已日清；09-08 可点日清
-INSERT INTO purchase_orders (id, order_no, supplier_id, warehouse_id, salesman_id, checker_id, keeper_id, biz_date, check_result, status, total_amount, created_by, confirmed_by, confirmed_at, remark, created_at, updated_at)
+INSERT INTO purchase_orders (id, order_no, invoice_no, supplier_id, warehouse_id, salesman_id, checker_id, keeper_id, biz_date, check_result, status, total_amount, created_by, confirmed_by, confirmed_at, remark, created_at, updated_at)
 VALUES
-  (5, 'CG20260903001', 200001, 1, 2, 5, 3, '2026-09-03', '合格', '已确认', 860.00, 1, 1, '2026-09-03 10:00:00', '补货阿莫西林', NOW(), NOW()),
-  (6, 'CG20260908001', 200003, 1, 2, 5, 3, '2026-09-08', '合格', '已确认', 410.00, 1, 1, '2026-09-08 09:30:00', '今日入库演示', NOW(), NOW())
-ON DUPLICATE KEY UPDATE status = VALUES(status), total_amount = VALUES(total_amount), biz_date = VALUES(biz_date);
+  (5, 'CG20260903001', 'FP200001202609030005', 200001, 1, 2, 5, 3, '2026-09-03', '合格', '已确认', 860.00, 1, 1, '2026-09-03 10:00:00', '补货阿莫西林', NOW(), NOW()),
+  (6, 'CG20260908001', 'FP200003202609080006', 200003, 1, 2, 5, 3, '2026-09-08', '合格', '已确认', 410.00, 1, 1, '2026-09-08 09:30:00', '今日入库演示', NOW(), NOW())
+ON DUPLICATE KEY UPDATE
+  status = VALUES(status),
+  total_amount = VALUES(total_amount),
+  biz_date = VALUES(biz_date),
+  invoice_no = IF(invoice_no IS NULL OR TRIM(invoice_no) = '', VALUES(invoice_no), invoice_no);
+
+UPDATE purchase_orders
+SET invoice_no = CONCAT(
+      'FP',
+      LPAD(MOD(IFNULL(supplier_id, 0), 1000000), 6, '0'),
+      DATE_FORMAT(IFNULL(biz_date, CURDATE()), '%Y%m%d'),
+      LPAD(id, 4, '0'))
+WHERE status IN ('已确认', '已过账')
+  AND (invoice_no IS NULL OR TRIM(invoice_no) = '')
+  AND id < 10000;
 
 INSERT INTO purchase_order_items (id, order_id, drug_id, batch_no, production_date, expire_date, receive_qty, qualified_qty, stock_in_qty, purchase_price, amount, quality_status, spdid, remark, created_at, updated_at)
 VALUES

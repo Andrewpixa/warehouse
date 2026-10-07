@@ -1,6 +1,7 @@
 package com.sunlee.bus.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -222,6 +223,19 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
             if (qty == null) {
                 throw new IllegalArgumentException("明细入库数量必须大于 0");
             }
+        }
+        User user = currentUser();
+        Date now = new Date();
+        UpdateWrapper<PurchaseOrder> claim = new UpdateWrapper<>();
+        claim.eq("id", id).eq("status", PharmaNos.STATUS_DRAFT)
+                .set("status", PharmaNos.STATUS_CONFIRMED)
+                .set("confirmed_at", now)
+                .set("confirmed_by", user == null || user.getId() == null ? null : user.getId().longValue());
+        if (!this.update(claim)) {
+            throw new IllegalArgumentException("该进货单已确认或正在处理，请刷新");
+        }
+        for (PurchaseOrderItem item : items) {
+            BigDecimal qty = firstPositive(item.getStockInQty(), item.getQualifiedQty(), item.getReceiveQty());
             batchStockService.increase(
                     item.getDrugId(),
                     order.getWarehouseId(),
@@ -232,11 +246,6 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
                     item.getExpireDate()
             );
         }
-        User user = currentUser();
-        order.setStatus(PharmaNos.STATUS_CONFIRMED);
-        order.setConfirmedBy(user == null || user.getId() == null ? null : user.getId().longValue());
-        order.setConfirmedAt(new Date());
-        this.updateById(order);
     }
 
     @Override

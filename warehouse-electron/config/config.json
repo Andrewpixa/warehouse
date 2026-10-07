@@ -1,3 +1,4 @@
 {
-  "apiBase": "https://yaoheng.cloud/warehouse"
+  "apiBase": "https://yaoheng.cloud/warehouse",
+  "webBase": "https://yaoheng.cloud"
 }

@@ -28,6 +28,7 @@
         <a href="#trace" @click.prevent="scrollTo('trace')">追溯</a>
         <a href="#trust" @click.prevent="scrollTo('trust')">信任</a>
         <router-link to="/design">课程设计</router-link>
+        <router-link to="/download">下载</router-link>
       </nav>
       <button class="nav-cta" type="button" @click="enter">{{ ctaLabel }}</button>
     </header>
@@ -57,6 +58,7 @@
           </p>
           <div class="hero-actions reveal d4">
             <button class="btn-primary" type="button" @click="enter">{{ ctaLabel }}</button>
+            <router-link class="btn-ghost" to="/download">下载客户端</router-link>
             <button class="btn-ghost" type="button" @click="scrollTo('capabilities')">
               了解产品能力
               <span class="chev">↓</span>
@@ -158,7 +160,7 @@
             <p>扫码即见来源与流向，关联入库、出库与医院收货。</p>
             <div class="mini-code">
               <div class="mini-bars"><i v-for="n in 16" :key="n" /></div>
-              <span>码上放心对接</span>
+              <span>系统内查码</span>
             </div>
           </article>
           <article class="card reveal d2">
@@ -297,12 +299,12 @@ const flowSteps = [
   { t: '在库管理', d: '效期、升益、盘点' },
   { t: '销售出库', d: '开单出库，码随货走' },
   { t: '医院收货', d: '下游确认流向' },
-  { t: '码上放心', d: '追溯链路闭环' }
+  { t: '系统内追溯', d: '码可查、可防重复' }
 ]
 
 const trusts = [
   { n: '01', t: '批号库存可核对', d: '库存落到批号：数量、效期、仓位都能逐批核对，不再只看到品种合计。' },
-  { n: '02', t: 'GS1 / 01 码可查来源去向', d: '扫码即可看到入库来源与出库流向，对接码上放心的业务节奏。' },
+  { n: '02', t: 'GS1 / 01 码可查来源去向', d: '扫码可看本库里的入库来源和出库流向。没有调用码上放心，包装树是库内预置数据。' },
   { n: '03', t: '入出库、收货、日清月结留痕', d: '采购入库、销售出库、医院收货、日清月结都留下操作记录，对账与检查有据可依。' },
   { n: '04', t: '近效期预警、红冲可追溯', d: '近效期批号提前告警；红冲单关联原发票，冲减数量与库存回补可完整回溯。' }
 ]
@@ -711,6 +713,7 @@ onUnmounted(() => {
   border-radius: 999px;
   background: transparent;
   color: var(--ink);
+  text-decoration: none;
   border: 1px solid var(--line);
   letter-spacing: 0.08em;
   font-size: 13px;

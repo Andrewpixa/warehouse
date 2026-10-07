@@ -49,17 +49,34 @@ class AdaptiveCardGrid extends StatelessWidget {
         itemBuilder: itemBuilder,
       );
     }
-    return GridView.builder(
+    final rows = (itemCount / cols).ceil();
+    return ListView.builder(
       controller: controller,
       padding: pad,
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: cols,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        mainAxisExtent: rowHeight,
-      ),
-      itemCount: itemCount,
-      itemBuilder: itemBuilder,
+      itemCount: rows,
+      itemBuilder: (context, row) {
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (var c = 0; c < cols; c++) ...[
+                  if (c > 0) const SizedBox(width: 12),
+                  Expanded(
+                    child: _cell(context, row * cols + c),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
     );
+  }
+
+  Widget _cell(BuildContext context, int index) {
+    if (index >= itemCount) return const SizedBox.shrink();
+    return itemBuilder(context, index);
   }
 }

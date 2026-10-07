@@ -106,13 +106,27 @@ VALUES
   (400002, '400002', '器械', '医用外科口罩', NULL, '17.5cm×9.5cm', '口罩', '只', '稳健医疗用品股份有限公司', '粤械注准20162640002', NULL, 0, NULL, 0.35, 0.80, 1, NULL, NOW(), NOW())
 ON DUPLICATE KEY UPDATE generic_name = VALUES(generic_name), trade_name = VALUES(trade_name), category = VALUES(category);
 
--- 7) 采购入库单
-INSERT INTO purchase_orders (id, order_no, supplier_id, warehouse_id, salesman_id, checker_id, keeper_id, biz_date, check_result, status, total_amount, created_by, confirmed_by, confirmed_at, remark, created_at, updated_at)
+-- 7) 采购入库单（已确认必须带供应商发票号；草稿可空，等接收票据时再写）
+INSERT INTO purchase_orders (id, order_no, invoice_no, supplier_id, warehouse_id, salesman_id, checker_id, keeper_id, biz_date, check_result, status, total_amount, created_by, confirmed_by, confirmed_at, remark, created_at, updated_at)
 VALUES
-  (2, 'CG20260907001', 200001, 1, 2, 5, 3, '2026-09-05', '合格', '已确认', 4120.00, 1, 1, '2026-09-05 10:20:00', '常温品种采购入库', NOW(), NOW()),
-  (3, 'CG20260907002', 200002, 3, 2, 5, 3, '2026-09-06', '合格', '已确认', 2300.00, 1, 1, '2026-09-06 09:15:00', '冷链胰岛素专车入冷链库', NOW(), NOW()),
-  (4, 'CG20260907003', 200001, 1, 2, NULL, NULL, '2026-09-07', NULL, '草稿', 0.00, 1, NULL, NULL, '待验收草稿', NOW(), NOW())
-ON DUPLICATE KEY UPDATE status = VALUES(status), total_amount = VALUES(total_amount);
+  (2, 'CG20260907001', 'FP200001202609050002', 200001, 1, 2, 5, 3, '2026-09-05', '合格', '已确认', 4120.00, 1, 1, '2026-09-05 10:20:00', '常温品种采购入库', NOW(), NOW()),
+  (3, 'CG20260907002', 'FP200002202609060003', 200002, 3, 2, 5, 3, '2026-09-06', '合格', '已确认', 2300.00, 1, 1, '2026-09-06 09:15:00', '冷链胰岛素专车入冷链库', NOW(), NOW()),
+  (4, 'CG20260907003', NULL, 200001, 1, 2, NULL, NULL, '2026-09-07', NULL, '草稿', 0.00, 1, NULL, NULL, '待验收草稿', NOW(), NOW())
+ON DUPLICATE KEY UPDATE
+  status = VALUES(status),
+  total_amount = VALUES(total_amount),
+  invoice_no = IF(invoice_no IS NULL OR TRIM(invoice_no) = '', VALUES(invoice_no), invoice_no);
+
+-- 早期脚本插入已确认单时还没有发票号，按与 SimInvoiceDocs 相同的规则补上
+UPDATE purchase_orders
+SET invoice_no = CONCAT(
+      'FP',
+      LPAD(MOD(IFNULL(supplier_id, 0), 1000000), 6, '0'),
+      DATE_FORMAT(IFNULL(biz_date, CURDATE()), '%Y%m%d'),
+      LPAD(id, 4, '0'))
+WHERE status IN ('已确认', '已过账')
+  AND (invoice_no IS NULL OR TRIM(invoice_no) = '')
+  AND id < 10000;
 
 INSERT INTO purchase_order_items (id, order_id, drug_id, batch_no, production_date, expire_date, receive_qty, qualified_qty, stock_in_qty, purchase_price, amount, quality_status, spdid, remark, created_at, updated_at)
 VALUES

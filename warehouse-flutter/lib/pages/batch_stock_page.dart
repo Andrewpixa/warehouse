@@ -199,10 +199,12 @@ class _BatchStockPageState extends State<BatchStockPage> {
   Widget _stockCard(BatchStock s) {
     final status = _expireStatus(s.expireDate);
     return Card(
+      clipBehavior: Clip.none,
       margin: AppLayout.columns(context) > 1 ? EdgeInsets.zero : const EdgeInsets.only(bottom: 10),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(

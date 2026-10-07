@@ -49,13 +49,15 @@ export type CatalogItem = {
   id: string
   name: string
   entry: string
+  /** false：基础检索或门店能力，不计入课堂 20 查询 / 15 报表 */
+  acceptance?: boolean
 }
 
 export const queries: CatalogItem[] = [
-  { id: 'Q01', name: '用户列表查询', entry: '人资 / 用户' },
-  { id: 'Q02', name: '角色权限查询', entry: '人资 / 角色' },
-  { id: 'Q03', name: '登录日志查询', entry: '系统 / 登录日志' },
-  { id: 'Q04', name: '操作日志查询', entry: '系统 / 操作日志' },
+  { id: 'Q01', name: '用户列表查询', entry: '人资 / 用户', acceptance: false },
+  { id: 'Q02', name: '角色权限查询', entry: '人资 / 角色', acceptance: false },
+  { id: 'Q03', name: '登录日志查询', entry: '系统 / 登录日志', acceptance: false },
+  { id: 'Q04', name: '操作日志查询', entry: '系统 / 操作日志', acceptance: false },
   { id: 'Q05', name: '药品档案查询', entry: '档案 / 药品' },
   { id: 'Q06', name: '客户档案查询', entry: '档案 / 客户' },
   { id: 'Q07', name: '供应商档案查询', entry: '档案 / 供应商' },
@@ -88,8 +90,8 @@ export const reports: CatalogItem[] = [
   { id: 'R03', name: '利润分析', entry: '利润分析' },
   { id: 'R04', name: '进货统计', entry: '进货统计' },
   { id: 'R05', name: '出货统计', entry: '出货统计' },
-  { id: 'R06', name: '绩效排名', entry: '业绩排名' },
-  { id: 'R07', name: '店员提成', entry: '店员提成' },
+  { id: 'R06', name: '绩效排名', entry: '业绩排名', acceptance: false },
+  { id: 'R07', name: '店员提成', entry: '店员提成', acceptance: false },
   { id: 'R08', name: '日清检查表', entry: '日清检查' },
   { id: 'R09', name: '月结对账表', entry: '月结对账' },
   { id: 'R10', name: '厂家流向报表', entry: '厂家流向' },

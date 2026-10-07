@@ -1,6 +1,9 @@
 <template>
   <div class="login-container">
-    <router-link class="intro-entry" to="/welcome">了解产品</router-link>
+    <div class="corner-links">
+      <router-link class="intro-entry" to="/download">下载客户端</router-link>
+      <router-link class="intro-entry" to="/welcome">了解产品</router-link>
+    </div>
     <div class="login-background">
       <div class="grid-overlay"></div>
       <div class="noise-overlay"></div>
@@ -177,11 +180,16 @@ onMounted(() => {
   overflow: hidden;
 }
 
-.intro-entry {
+.corner-links {
   position: absolute;
   top: 24px;
   right: 28px;
   z-index: 20;
+  display: flex;
+  gap: 10px;
+}
+
+.intro-entry {
   font-size: 13px;
   letter-spacing: 0.16em;
   color: var(--text-secondary);

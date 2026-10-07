@@ -39,6 +39,8 @@ build/
 ### Frontend ###
 node_modules/
 dist/
+warehouse-front/public/downloads/*.zip
+warehouse-front/public/downloads/*.apk
 
 ### Worktrees ###
 .worktrees/

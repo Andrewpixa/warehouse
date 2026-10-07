@@ -242,10 +242,12 @@ class _DrugPageState extends State<DrugPage> {
     final cold = d.isColdChain == 1;
     final enabled = d.status == 1;
     return Card(
+      clipBehavior: Clip.none,
       margin: AppLayout.columns(context) > 1 ? EdgeInsets.zero : const EdgeInsets.only(bottom: 10),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(

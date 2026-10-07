@@ -2,27 +2,28 @@
   "name": "warehouse-electron",
   "version": "1.0.0",
   "private": true,
-  "description": "药企进销存 · 员工查询工作台",
+  "description": "药企进销存 PC 端。窗口打开与 B/S 相同的线上站点。",
   "main": "electron/main.cjs",
   "author": "warehouse",
   "scripts": {
     "dev": "concurrently -k \"vite\" \"wait-on http://127.0.0.1:5174 && electron . --dev\"",
     "build": "vite build",
-    "start": "npm run build && electron .",
-    "dist": "npm run build && electron-builder --publish never",
-    "dist:mac": "npm run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac --publish never",
-    "dist:win": "npm run build && electron-builder --win zip --x64 --publish never",
-    "dist:win-setup": "npm run build && electron-builder --win nsis --x64 --publish never"
+    "start": "electron .",
+    "dist": "electron-builder --mac zip --win zip --x64 --publish never",
+    "dist:mac": "CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac zip --x64 --publish never",
+    "dist:win": "electron-builder --win zip --x64 --publish never",
+    "dist:win-setup": "electron-builder --win nsis --x64 --publish never",
+    "dist:linux": "electron-builder --linux AppImage --x64 --publish never"
   },
   "build": {
     "appId": "com.sunlee.warehouse.employee",
-    "productName": "PharmaWorkbench",
+    "productName": "药企进销存",
     "directories": {
       "output": "release"
     },
     "files": [
-      "dist/**/*",
-      "electron/**/*"
+      "electron/**/*",
+      "package.json"
     ],
     "asar": true,
     "npmRebuild": false,
@@ -61,7 +62,7 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "药企员工工作台"
+      "shortcutName": "药企进销存"
     }
   },
   "dependencies": {},

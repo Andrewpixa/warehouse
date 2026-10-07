@@ -21,13 +21,13 @@
           :class="{ on: active === item.id }"
           @click="go(item.id)"
         >{{ item.label }}</button>
-        <p class="toc-note">{{ useCases.length }} 个用例 · {{ queries.length }} 个查询 · {{ reports.length }} 张报表</p>
+        <p class="toc-note">{{ useCases.length }} 个用例 · 计入 {{ acceptedQueries }} 个查询 · 计入 {{ acceptedReports }} 张报表</p>
       </aside>
 
       <main class="paper">
         <section id="overview" class="hero">
           <p class="eyebrow">COURSE DESIGN</p>
-          <h1>药企进销存 · 老师要看的图</h1>
+          <h1>药企进销存</h1>
           <p class="lead">
             行业选药品流通。下面按课堂要求放齐：架构、用例、ER、类图、时序、状态、查询统计、报表和技术选型。
             短文见 <code>docs/course/技术选型.md</code>、<code>docs/course/架构设计.md</code>；图与 <code>docs/pharma-er-uml.md</code> 同一套模型。
@@ -94,6 +94,7 @@
 
         <section id="seq">
           <h2>5. 时序图</h2>
+          <MermaidBlock :code="diagrams.activityOutbound" caption="图 5-0 出库活动图：库存不足与重复收货走异常分支" />
           <MermaidBlock :code="diagrams.seqLogin" caption="图 5-1 登录：验证码一次性使用" />
           <MermaidBlock :code="diagrams.seqPurchase" caption="图 5-2 进货草稿 → 确认入库 → 批号库存增加" />
           <MermaidBlock :code="diagrams.seqOutbound" caption="图 5-3 出库确认扣库存，再按发票扫码挂追溯码" />
@@ -110,8 +111,8 @@
         </section>
 
         <section id="query">
-          <h2>7. 查询统计 · {{ queries.length }} 个</h2>
-          <p>课堂要求不少于 20 个查询统计。下列均可在 Web 对应页筛选或汇总。</p>
+          <h2>7. 查询统计 · 计入 {{ acceptedQueries }} 个</h2>
+          <p>全表 {{ queries.length }} 条。用户、角色、登录日志、操作日志是基础检索，不计入课堂 20 条底线。计入的 {{ acceptedQueries }} 条都能在对应页面筛出来。</p>
           <div class="table-wrap">
             <table>
               <thead>
@@ -119,6 +120,7 @@
                   <th>编号</th>
                   <th>名称</th>
                   <th>系统入口</th>
+                  <th>口径</th>
                 </tr>
               </thead>
               <tbody>
@@ -126,6 +128,7 @@
                   <td>{{ item.id }}</td>
                   <td>{{ item.name }}</td>
                   <td>{{ item.entry }}</td>
+                  <td>{{ item.acceptance === false ? '不计入' : '计入' }}</td>
                 </tr>
               </tbody>
             </table>
@@ -133,8 +136,8 @@
         </section>
 
         <section id="report">
-          <h2>8. 报表 · {{ reports.length }} 张</h2>
-          <p>课堂要求不少于 15 张报表。金额/商品/利润、进货出货、日清月结、欠款、流向、库存、收货红冲与看板如下。</p>
+          <h2>8. 报表 · 计入 {{ acceptedReports }} 张</h2>
+          <p>全表 {{ reports.length }} 张。绩效排名和店员提成属于门店能力，不计入药企这条线的 15 张。查询出列表，报表出汇总，同名入口不重复当成一件事。</p>
           <div class="table-wrap">
             <table>
               <thead>
@@ -142,6 +145,7 @@
                   <th>编号</th>
                   <th>名称</th>
                   <th>系统入口</th>
+                  <th>口径</th>
                 </tr>
               </thead>
               <tbody>
@@ -149,6 +153,7 @@
                   <td>{{ item.id }}</td>
                   <td>{{ item.name }}</td>
                   <td>{{ item.entry }}</td>
+                  <td>{{ item.acceptance === false ? '不计入' : '计入' }}</td>
                 </tr>
               </tbody>
             </table>
@@ -170,6 +175,7 @@
                 <tr><td>权限</td><td>SA-Token</td><td>会话 Cookie，菜单和按钮权限能对上岗位。</td></tr>
                 <tr><td>Web</td><td>Vue 3 + TypeScript + Element Plus</td><td>B/S 作业台、表格和打印够用。</td></tr>
                 <tr><td>移动</td><td>uni-app X / Flutter</td><td>盘点、查询、扫码分端做，不和 Web 抢同一套页面。</td></tr>
+                <tr><td>桌面 / 信创 PC</td><td>Electron</td><td>按任课要求，Electron 桌面端记为信创版。窗口打开同一套 Web，不另写账。</td></tr>
                 <tr><td>图与文档</td><td>Mermaid</td><td>ER / UML 写在仓库里，网页直接渲染，改一处两边一致。</td></tr>
               </tbody>
             </table>
@@ -220,6 +226,9 @@ const nav = [
   { id: 'tech', label: '选型' },
   { id: 'ci', label: '持续集成' }
 ]
+
+const acceptedQueries = queries.filter((item) => item.acceptance !== false).length
+const acceptedReports = reports.filter((item) => item.acceptance !== false).length
 
 const active = ref('overview')
 
