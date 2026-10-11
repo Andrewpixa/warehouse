@@ -31,6 +31,9 @@ public final class PharmaNos {
     public static final String ORDER_NORMAL = "正常";
     public static final String ORDER_REVERSAL = "红冲";
 
+    /** 只有这张演示发票可以扫码替换、01 代替或登记缺码。 */
+    public static final String TRACE_FIX_INVOICE = "20260918000100000099";
+
     public static final String DRUG_CATEGORY = "药品";
 
     public static final String BIZ_PURCHASE = "purchase";

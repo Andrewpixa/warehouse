@@ -1,5 +1,6 @@
 package com.sunlee.bus.controller;
 
+import com.sunlee.bus.common.PharmaNos;
 import com.sunlee.bus.entity.SalesOrder;
 import com.sunlee.bus.service.ISalesOrderService;
 import com.sunlee.bus.service.ITraceCodeService;
@@ -68,10 +69,12 @@ public class TraceCodeController {
             SalesOrder order = salesOrderService.getByInvoiceNo(invoiceNo);
             map.put("code", Constast.OK);
             map.put("msg", "ok");
+            map.put("fixInvoiceNo", PharmaNos.TRACE_FIX_INVOICE);
             if (order != null && order.getId() != null) {
                 traceCodeService.ensureLogisticsCodes(order.getId());
             }
             map.put("data", order);
+            map.put("fixable", order != null && PharmaNos.TRACE_FIX_INVOICE.equals(order.getInvoiceNo()));
             map.put("traces", traceCodeService.listByInvoiceNo(invoiceNo));
         } catch (Exception e) {
             log.error("按发票号查询追溯码失败: {}", e.getMessage(), e);

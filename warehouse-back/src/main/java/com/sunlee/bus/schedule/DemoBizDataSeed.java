@@ -524,24 +524,146 @@ public class DemoBizDataSeed implements CommandLineRunner {
                 """, oid, drugId, batch, expire, price, price, "SPD" + orderNo.replace("-", ""));
     }
 
-    /** 平板扫码演示：商品条码 69079921100272 对应阿莫西林批号 AMX20260801，同时挂入库与出库。 */
+    /**
+     * 阿莫西林 AMX20260801：入库 200 盒按 10 个大包装（每箱 20 盒）；
+     * 出库 40 盒红冲 10 盒后，蓝字票留 1 个中包装（20 盒）+ 10 个最小包装，红冲单 10 个最小包装。
+     * 商品条码只留在药品档案，不写入追溯码。
+     */
     private void seedScanDemoTrace() {
         if (!tableExists("drugs") || !tableExists("trace_codes")) {
             return;
         }
         jdbc.update("UPDATE drugs SET barcode = '69079921100272' WHERE id = 300001");
-        Integer n = jdbc.queryForObject(
-                "SELECT COUNT(*) FROM trace_codes WHERE code IN ('69079921100272','069079921100272')",
+        restoreNormalOutboundCodes();
+        jdbc.update("""
+                DELETE FROM trace_codes WHERE code IN (
+                  '69079921100272',
+                  '069079921100272'
+                )
+                """);
+        Integer existingGs1 = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM trace_codes WHERE spdid = 'SPD202609071101' AND code LIKE '01%'",
                 Integer.class);
+        if (existingGs1 != null && existingGs1 > 0) {
+            seedFixInvoice();
+            return;
+        }
+        for (int box = 1; box <= 10; box++) {
+            String big = String.format("81000000000000012%03d", box);
+            insertTrace("SPD20260907001", big, "大包装", "入库", "2026-09-05 10:22:00", "入库整箱，每箱20盒");
+            if (tableExists("trace_pack_relations")) {
+                for (int k = 0; k < 20; k++) {
+                    int seq = (box - 1) * 20 + k + 1;
+                    String small = String.format("83000000000000013%03d", seq);
+                    linkPack(big, small, "大包装", "最小包装", "入库箱内小盒");
+                }
+            }
+        }
+        String mid = "82000000000000010801";
+        insertTrace("SPD202609071101", mid, "中包装", "出库", "2026-09-07 11:32:00", "未拆中包，20盒");
+        if (tableExists("trace_pack_relations")) {
+            for (int n = 801; n <= 820; n++) {
+                linkPack(mid, String.format("8300000000000001%04d", n), "中包装", "最小包装", "未拆中包内小盒");
+            }
+        }
+        for (int n = 821; n <= 830; n++) {
+            insertTrace("SPD202609071101", String.format("8300000000000001%04d", n), "最小包装", "出库",
+                    "2026-09-07 11:32:00", "拆箱后留在原票");
+        }
+        for (int n = 831; n <= 840; n++) {
+            insertTrace("SPD202609071401", String.format("8300000000000001%04d", n), "最小包装", "红冲",
+                    "2026-09-07 17:00:00", "红冲原发票20260907000100000001");
+        }
+        seedFixInvoice();
+    }
+
+    /** 格式正确的药监码、GS1 码恢复为正常。不删码。 */
+    private void restoreNormalOutboundCodes() {
+        jdbc.update("""
+                UPDATE trace_codes
+                SET status = '正常', updated_at = NOW()
+                WHERE spdid IN ('SPD20260907001', 'SPD202609071101', 'SPD202609071401')
+                  AND code LIKE '8%'
+                  AND status = '异常'
+                """);
+        jdbc.update("""
+                UPDATE trace_codes
+                SET status = '正常', updated_at = NOW()
+                WHERE status = '异常' AND code REGEXP '^01[0-9]{14}'
+                """);
+    }
+
+    /** 异常纠码演示票：4 条 GS1，只有这张发票可以改码。 */
+    private void seedFixInvoice() {
+        String orderNo = "CK-FIX-DEMO";
+        String invoice = PharmaNos.TRACE_FIX_INVOICE;
+        String spdid = "SPDFIX2026091801";
+        if (orderMissing("sales_orders", orderNo)) {
+            jdbc.update("""
+                    INSERT INTO sales_orders (order_no, invoice_no, order_type, customer_id, warehouse_id, salesman_id, reviewer_id,
+                      biz_date, pay_type, status, total_amount, paid_status, paid_amount, created_by, confirmed_by, confirmed_at,
+                      ship_time, einvoice_no, receive_status, remark, created_at, updated_at, order_channel, preprocess_status)
+                    VALUES (?, ?, '正常', 100001, 1, 4, 5, '2026-09-18', '月结', '已确认', 51.20, '未回款', 0, 1, 1,
+                      '2026-09-18 10:00:00', '2026-09-18 10:00:00', ?, '待收货', '异常纠码演示', NOW(), NOW(), 'OFFLINE', '已通过')
+                    """, orderNo, invoice, invoice);
+            Long oid = jdbc.queryForObject("SELECT id FROM sales_orders WHERE order_no = ?", Long.class, orderNo);
+            jdbc.update("""
+                    INSERT INTO sales_order_items (order_id, drug_id, batch_no, expire_date, qty, sale_price, amount, spdid, quality_status, remark, created_at, updated_at)
+                    VALUES (?, 300001, 'AMX20260801', '2028-07-31', 4.000, 12.80, 51.20, ?, '合格', '异常纠码演示', NOW(), NOW())
+                    """, oid, spdid);
+        }
+        Integer lineN = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM sales_order_items WHERE spdid = ?", Integer.class, spdid);
+        if (lineN == null || lineN == 0) {
+            Long oid = jdbc.queryForObject("SELECT id FROM sales_orders WHERE order_no = ?", Long.class, orderNo);
+            jdbc.update("""
+                    INSERT INTO sales_order_items (order_id, drug_id, batch_no, expire_date, qty, sale_price, amount, spdid, quality_status, remark, created_at, updated_at)
+                    VALUES (?, 300001, 'AMX20260801', '2028-07-31', 4.000, 12.80, 51.20, ?, '合格', '异常纠码演示', NOW(), NOW())
+                    """, oid, spdid);
+        }
+        String[] codes = {
+                "01069212345678931728073110AMX20260801",
+                "01069212345678931728073110AMX20260802",
+                "01069212345678931728073110AMX20260806",
+                "01069212345678931728073110AMX20260807"
+        };
+        for (String code : codes) {
+            Integer n = jdbc.queryForObject("SELECT COUNT(*) FROM trace_codes WHERE code = ?", Integer.class, code);
+            if (n != null && n > 0) {
+                jdbc.update("""
+                        UPDATE trace_codes SET status = '正常', updated_at = NOW()
+                        WHERE code = ? AND status = '异常'
+                        """, code);
+                continue;
+            }
+            jdbc.update("""
+                    INSERT INTO trace_codes (spdid, code, pack_level, biz_type, status, collected_at, remark, created_at, updated_at)
+                    VALUES (?, ?, '最小包装', '出库', '正常', '2026-09-18 10:05:00', '正确 GS1 码', NOW(), NOW())
+                    """, spdid, code);
+        }
+    }
+
+    private void insertTrace(String spdid, String code, String level, String biz, String collectedAt, String remark) {
+        Integer n = jdbc.queryForObject("SELECT COUNT(*) FROM trace_codes WHERE code = ?", Integer.class, code);
         if (n != null && n > 0) {
             return;
         }
         jdbc.update("""
                 INSERT INTO trace_codes (spdid, code, pack_level, biz_type, status, collected_at, remark, created_at, updated_at)
-                VALUES
-                  ('SPD20260907001', '69079921100272', '最小包装', '入库', '正常', '2026-09-05 10:22:00', '演示扫码-入库采集', NOW(), NOW()),
-                  ('SPD202609071101', '069079921100272', '最小包装', '出库', '正常', '2026-09-07 11:32:00', '演示扫码-出库采集', NOW(), NOW())
-                """);
+                VALUES (?, ?, ?, ?, '正常', ?, ?, NOW(), NOW())
+                """, spdid, code, level, biz, collectedAt, remark);
+    }
+
+    private void linkPack(String parent, String child, String parentLevel, String childLevel, String remark) {
+        Integer n = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM trace_pack_relations WHERE child_code = ?", Integer.class, child);
+        if (n != null && n > 0) {
+            return;
+        }
+        jdbc.update("""
+                INSERT INTO trace_pack_relations (parent_code, child_code, parent_level, child_level, remark, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, NOW(), NOW())
+                """, parent, child, parentLevel, childLevel, remark);
     }
 
     private void upsertOps(String no, String type, String date, String status, Long customerId, Long supplierId,

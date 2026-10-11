@@ -62,4 +62,8 @@ public class TraceCode implements Serializable {
     /** 正常药监码 / GS1 / 01替代 / 缺码 */
     @TableField(exist = false)
     private String codeKind;
+
+    /** 展开后的盒数。最小包装为 1，大/中包装为其下级最小包装个数。 */
+    @TableField(exist = false)
+    private Integer unitQty;
 }

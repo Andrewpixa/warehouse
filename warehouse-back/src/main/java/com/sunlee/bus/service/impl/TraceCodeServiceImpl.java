@@ -1,6 +1,8 @@
 package com.sunlee.bus.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
+import com.sunlee.bus.common.PharmaNos;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.sunlee.bus.entity.Customer;
 import com.sunlee.bus.entity.Drug;
@@ -517,7 +519,21 @@ public class TraceCodeServiceImpl extends ServiceImpl<TraceCodeMapper, TraceCode
         if (old == null) {
             throw new IllegalArgumentException("追溯码记录不存在");
         }
-        String code = useUniversal01 ? nextUniversal01() : StringUtils.trimToNull(newCode);
+        assertFixInvoice(old.getSpdid());
+        if (useUniversal01) {
+            String code = nextUniversal01();
+            if (this.count(new QueryWrapper<TraceCode>().eq("code", code)) > 0) {
+                throw new IllegalArgumentException("该码已存在：" + code);
+            }
+            String origin = StringUtils.defaultString(old.getCode());
+            old.setCode(code);
+            old.setStatus("01替代");
+            old.setCollectedAt(new Date());
+            old.setRemark("原码 " + origin + " 已用 01 码代替");
+            this.updateById(old);
+            return 1;
+        }
+        String code = StringUtils.trimToNull(newCode);
         if (StringUtils.isBlank(code)) {
             throw new IllegalArgumentException("请扫描正确追溯码，或选择用 01 码代替");
         }
@@ -534,9 +550,9 @@ public class TraceCodeServiceImpl extends ServiceImpl<TraceCodeMapper, TraceCode
         neu.setPackLevel(StringUtils.defaultIfBlank(old.getPackLevel(), "最小包装"));
         neu.setParentCode(old.getParentCode());
         neu.setBizType(StringUtils.defaultIfBlank(old.getBizType(), "出库"));
-        neu.setStatus(useUniversal01 ? "01替代" : "正常");
+        neu.setStatus("正常");
         neu.setCollectedAt(new Date());
-        neu.setRemark(useUniversal01 ? "异常码已用 01 码代替" : "异常纠码");
+        neu.setRemark("异常纠码");
         this.save(neu);
         return 1;
     }
@@ -547,6 +563,7 @@ public class TraceCodeServiceImpl extends ServiceImpl<TraceCodeMapper, TraceCode
         if (StringUtils.isBlank(spdid)) {
             throw new IllegalArgumentException("SPDID 不能为空");
         }
+        assertFixInvoice(spdid);
         if (StringUtils.isBlank(customerNote)) {
             throw new IllegalArgumentException("缺码须填写客户问题描述");
         }
@@ -563,13 +580,70 @@ public class TraceCodeServiceImpl extends ServiceImpl<TraceCodeMapper, TraceCode
         return 1;
     }
 
+    private void assertFixInvoice(String spdid) {
+        if (!PharmaNos.TRACE_FIX_INVOICE.equals(invoiceOfSpdid(spdid))) {
+            throw new IllegalArgumentException("只有异常纠码发票 " + PharmaNos.TRACE_FIX_INVOICE + " 可以改码");
+        }
+    }
+
+    private String invoiceOfSpdid(String spdid) {
+        if (StringUtils.isBlank(spdid)) {
+            return "";
+        }
+        SalesOrderItem item = salesOrderItemService.getOne(
+                new QueryWrapper<SalesOrderItem>().eq("spdid", spdid.trim()).last("LIMIT 1"), false);
+        if (item == null || item.getOrderId() == null) {
+            return "";
+        }
+        SalesOrder order = salesOrderService.getById(item.getOrderId());
+        return order == null ? "" : StringUtils.defaultString(order.getInvoiceNo());
+    }
+
     private void decorateAll(List<TraceCode> rows) {
         if (rows == null) {
             return;
         }
         for (TraceCode code : rows) {
+            if ("异常".equals(code.getStatus()) && correctGs1(code.getCode())) {
+                code.setStatus("正常");
+                if (code.getId() != null) {
+                    this.update(new UpdateWrapper<TraceCode>().eq("id", code.getId()).set("status", "正常"));
+                }
+            }
             code.setCodeKind(detectKind(code));
+            code.setUnitQty(unitQty(code));
         }
+    }
+
+    /** 大/中包装按关联关系展开成盒数；没有下级时按 1 条码计。 */
+    private int unitQty(TraceCode code) {
+        if (code == null || StringUtils.isBlank(code.getCode())) {
+            return 1;
+        }
+        String level = code.getPackLevel();
+        if (level != null && (level.contains("大") || level.contains("中"))) {
+            try {
+                int leaves = countLeafUnits(code.getCode());
+                return leaves > 0 ? leaves : 1;
+            } catch (Exception ex) {
+                return 1;
+            }
+        }
+        return 1;
+    }
+
+    private int countLeafUnits(String code) {
+        int total = 0;
+        for (TracePackRelation rel : listChildren(code)) {
+            String childLevel = rel.getChildLevel();
+            if (childLevel != null && childLevel.contains("最小")) {
+                total++;
+            } else {
+                int sub = countLeafUnits(rel.getChildCode());
+                total += sub > 0 ? sub : 1;
+            }
+        }
+        return total;
     }
 
     private String detectKind(TraceCode code) {
@@ -600,6 +674,11 @@ public class TraceCodeServiceImpl extends ServiceImpl<TraceCodeMapper, TraceCode
             return false;
         }
         return code.startsWith("00") || code.startsWith("01") || code.startsWith("11");
+    }
+
+    /** 01 应用标识 + 14 位商品码，后面还可带效期、批号。这种是正确 GS1，不是异常码。 */
+    private boolean correctGs1(String code) {
+        return looksGs1(code) && code.matches("01\\d{14}.*");
     }
 
     private String logisticsSmallCode(String spdid, int seq) {

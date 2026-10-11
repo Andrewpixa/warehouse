@@ -3,11 +3,10 @@
     <!-- 查询卡 -->
     <view class="query-card">
       <view class="input-box">
-        <text class="input-icon">🧾</text>
         <input
           class="kw-input"
           v-model="keyword"
-          placeholder="请输入发票号（完整匹配）"
+          placeholder="正常发票仅查看；改码输入 20260918000100000099"
           placeholder-class="kw-ph"
           confirm-type="search"
           @confirm="onSearch"
@@ -22,10 +21,9 @@
     <scroll-view class="result-scroll" scroll-y>
       <!-- 未查询 -->
       <view v-if="!searched" class="hint-wrap">
-        <text class="hint-emoji">📷</text>
         <text class="hint-title">异常纠码</text>
-        <text class="hint-sub">先查发票看物流已匹配的码，再点选异常码</text>
-        <text class="hint-sub">错码才扫；异常可用 01 代替；缺码填客户说明</text>
+        <text class="hint-sub">正常发票只能查看，码保持正常药监码</text>
+        <text class="hint-sub">改码请输入异常纠码发票 {{ fixInvoiceNo }}</text>
       </view>
 
       <template v-else>
@@ -43,7 +41,6 @@
 
         <!-- 无数据 -->
         <view v-if="order == null" class="hint-wrap">
-          <text class="hint-emoji">🔍</text>
           <text class="hint-title">未查询到出库单</text>
           <text class="hint-sub">请核对发票号是否正确</text>
         </view>
@@ -85,43 +82,46 @@
     <!-- 底部采集面板 -->
     <view v-if="order != null" class="panel">
       <view v-if="selectedItem == null" class="panel-hint">
-        <text class="panel-hint-text">👆 请先点选明细，再点一条要处理的码</text>
+        <text class="panel-hint-text">{{ fixable ? '请先点选明细，再点一条要处理的码' : '请先点选明细，查看已匹配的码' }}</text>
       </view>
       <template v-else>
         <view class="panel-head">
           <text class="panel-title">{{ itemName(selectedItem) }}</text>
           <text class="panel-sub">匹配 {{ collectedOf(selectedItem) }} / 应出 {{ selectedQtyText }}</text>
         </view>
-        <scroll-view class="pending-scroll" scroll-x>
-          <view class="pending-row">
-            <view
-              v-for="(c, i) in itemTraces"
-              :key="i"
-              class="pending-chip"
-              :class="selectedTraceIndex == i ? 'pending-on' : ''"
-              @click="pickCode(i)"
-            >
-              <text class="pending-text">{{ str(c, 'code') }}</text>
-            </view>
+        <scroll-view class="pending-scroll" direction="horizontal" :show-scrollbar="false">
+          <view
+            v-for="(c, i) in itemTraces"
+            :key="i"
+            class="pending-chip"
+            :class="selectedTraceIndex == i ? 'pending-on' : ''"
+            @click="pickCode(i)"
+          >
+            <text class="pending-text">{{ str(c, 'code') }}</text>
           </view>
         </scroll-view>
         <view v-if="selectedTrace != null" class="panel-hint">
           <text class="panel-hint-text">{{ str(selectedTrace, 'status') }} · {{ str(selectedTrace, 'codeKind') }}</text>
         </view>
-        <view class="input-box" style="margin-top: 12rpx">
-          <input class="kw-input" v-model="missingNote" placeholder="缺码时填写客户问题描述" placeholder-class="kw-ph" />
+        <view v-if="!fixable" class="panel-hint">
+          <text class="panel-hint-text">这张是正常发票，只能查看。改码请查询 {{ fixInvoiceNo }}</text>
         </view>
-        <view class="panel-btns">
-          <view class="pbtn pbtn-blue" @click="scanReplace">
-            <text class="pbtn-text">📷 扫码替换</text>
+        <template v-else>
+          <view class="input-box" style="margin-top: 12rpx">
+            <input class="kw-input" v-model="missingNote" placeholder="缺码时填写客户问题描述" placeholder-class="kw-ph" />
           </view>
-          <view class="pbtn pbtn-green" @click="use01">
-            <text class="pbtn-text">01 代替</text>
+          <view class="panel-btns">
+            <view class="pbtn pbtn-blue" @click="scanReplace">
+              <text class="pbtn-text">扫码替换</text>
+            </view>
+            <view class="pbtn pbtn-green" @click="use01">
+              <text class="pbtn-text">01 代替</text>
+            </view>
+            <view class="pbtn pbtn-orange" @click="askMissing">
+              <text class="pbtn-text">缺码说明</text>
+            </view>
           </view>
-          <view class="pbtn pbtn-orange" @click="askMissing">
-            <text class="pbtn-text">缺码说明</text>
-          </view>
-        </view>
+        </template>
       </template>
     </view>
 
@@ -143,6 +143,7 @@ const selectedIndex = ref(-1)
 const selectedTraceIndex = ref(0)
 const missingNote = ref('')
 const saving = ref(false)
+const fixInvoiceNo = ref('20260918000100000099')
 
 const selectedItem = computed((): UTSJSONObject | null => {
   const i = selectedIndex.value
@@ -177,6 +178,9 @@ const customerText = computed((): string => {
   return '客户 #' + numOf(order.value, 'customerId').toString()
 })
 const invoiceNoText = computed((): string => order.value == null ? '' : str(order.value, 'invoiceNo'))
+const fixable = computed((): boolean => {
+  return invoiceNoText.value.length > 0 && invoiceNoText.value == fixInvoiceNo.value
+})
 const bizDateText = computed((): string => order.value == null ? '' : str(order.value, 'bizDate'))
 const statusText = computed((): string => order.value == null ? '' : str(order.value, 'status'))
 const selectedQtyText = computed((): string => selectedItem.value == null ? '' : str(selectedItem.value, 'qty'))
@@ -245,6 +249,8 @@ function onSearch(): void {
   loadInvoice(kw).then((res: any) => {
     const r = res as UTSJSONObject
     if ((r['code'] as number) == 200) {
+      const fixNo = str(r, 'fixInvoiceNo')
+      if (fixNo.length > 0) fixInvoiceNo.value = fixNo
       order.value = (r['data'] as UTSJSONObject | null) ?? null
       traces.value = (r['traces'] as UTSJSONObject[] | null) ?? []
       if (order.value != null) {
@@ -327,6 +333,10 @@ function use01(): void {
 }
 
 function doReplace(newCode: string, use01Code: boolean): void {
+  if (!fixable.value) {
+    uni.showToast({ title: '只有异常纠码发票可以改码', icon: 'none' })
+    return
+  }
   const t = selectedTrace.value
   if (t == null) return
   const id = numOf(t, 'id')
@@ -347,6 +357,10 @@ function doReplace(newCode: string, use01Code: boolean): void {
 }
 
 function askMissing(): void {
+  if (!fixable.value) {
+    uni.showToast({ title: '只有异常纠码发票可以改码', icon: 'none' })
+    return
+  }
   const sp = requireSpdid()
   if (sp.length == 0) return
   const note = missingNote.value.trim()
@@ -367,16 +381,16 @@ function askMissing(): void {
 </script>
 
 <style>
-.page { flex: 1; background-color: #F4F6FB; }
+.page { flex: 1; background-color: #F7F4EF; }
 
 .query-card { background-color: #FFFFFF; padding: 24rpx; }
-.input-box { height: 88rpx; background-color: #F8FAFC; border-width: 1rpx; border-style: solid; border-color: #E5E9F0; border-radius: 16rpx; flex-direction: row; align-items: center; padding: 0 24rpx; }
+.input-box { height: 88rpx; background-color: #F7F4EF; border-width: 1rpx; border-style: solid; border-color: #E7E0D6; border-radius: 16rpx; flex-direction: row; align-items: center; padding: 0 24rpx; }
 .input-icon { font-size: 32rpx; margin-right: 14rpx; }
 .kw-input { flex: 1; height: 88rpx; font-size: 29rpx; color: #111827; }
 .kw-ph { color: #9AA4B2; }
 .kw-clear { font-size: 24rpx; color: #9AA4B2; padding: 8rpx; }
 
-.query-btn { margin-top: 20rpx; height: 92rpx; border-radius: 16rpx; background: linear-gradient(135deg, #3B82F6, #1D4ED8); align-items: center; justify-content: center; }
+.query-btn { margin-top: 20rpx; height: 92rpx; border-radius: 16rpx; background: #1C1917; align-items: center; justify-content: center; }
 .btn-disabled { opacity: 0.6; }
 .query-btn-text { color: #FFFFFF; font-size: 31rpx; font-weight: 600; letter-spacing: 4rpx; }
 
@@ -387,7 +401,7 @@ function askMissing(): void {
 .hint-title { font-size: 32rpx; color: #1F2937; font-weight: 700; margin-top: 24rpx; }
 .hint-sub { font-size: 25rpx; color: #9AA4B2; margin-top: 12rpx; }
 
-.order-card { margin: 24rpx 24rpx 0; background-color: #FFFFFF; border-radius: 20rpx; padding: 24rpx; border-width: 1rpx; border-style: solid; border-color: #EEF1F6; }
+.order-card { margin: 24rpx 24rpx 0; background-color: #FFFFFF; border-radius: 20rpx; padding: 24rpx; border-width: 1rpx; border-style: solid; border-color: #E7E0D6; }
 .order-title-row { flex-direction: row; }
 .order-title { font-size: 30rpx; font-weight: 700; color: #111827; }
 .order-meta { margin-top: 12rpx; }
@@ -400,12 +414,12 @@ function askMissing(): void {
 .section-count { font-size: 24rpx; color: #9AA4B2; }
 
 .item-list { padding: 0 24rpx; }
-.item-card { background-color: #FFFFFF; border-radius: 18rpx; padding: 24rpx; margin-bottom: 16rpx; border-width: 2rpx; border-style: solid; border-color: #EEF1F6; }
-.item-on { border-color: #1D4ED8; background-color: #F5F8FF; }
+.item-card { background-color: #FFFFFF; border-radius: 18rpx; padding: 24rpx; margin-bottom: 16rpx; border-width: 2rpx; border-style: solid; border-color: #E7E0D6; }
+.item-on { border-color: #1C1917; background-color: #F7F4EF; }
 .item-top { flex-direction: row; justify-content: space-between; align-items: center; }
 .item-name { flex: 1; font-size: 29rpx; font-weight: 700; color: #111827; padding-right: 16rpx; }
 .radio { width: 40rpx; height: 40rpx; border-radius: 20rpx; border-width: 2rpx; border-style: solid; border-color: #C9D2E0; align-items: center; justify-content: center; }
-.radio-on { border-color: #1D4ED8; background-color: #1D4ED8; }
+.radio-on { border-color: #1C1917; background-color: #1C1917; }
 .radio-tick { font-size: 24rpx; color: #FFFFFF; font-weight: 700; }
 
 .item-meta { flex-direction: row; flex-wrap: wrap; margin-top: 14rpx; }
@@ -414,31 +428,30 @@ function askMissing(): void {
 .chip-warn { color: #C2410C; background-color: #FEF3E2; }
 .chip-over { color: #DC2626; background-color: #FDECEC; }
 
-.item-spdid { margin-top: 6rpx; background-color: #F8FAFC; border-radius: 12rpx; padding: 12rpx 16rpx; flex-direction: row; align-items: center; }
+.item-spdid { margin-top: 6rpx; background-color: #F7F4EF; border-radius: 12rpx; padding: 12rpx 16rpx; flex-direction: row; align-items: center; }
 .spdid-label { font-size: 21rpx; color: #9AA4B2; margin-right: 16rpx; }
-.spdid-value { flex: 1; font-size: 25rpx; color: #1D4ED8; font-weight: 600; }
+.spdid-value { flex: 1; font-size: 25rpx; color: #1C1917; font-weight: 600; }
 
 .bottom-space { height: 40rpx; }
 
 /* 底部采集面板 */
-.panel { background-color: #FFFFFF; border-top-width: 1rpx; border-top-style: solid; border-top-color: #EEF1F6; padding: 20rpx 24rpx 28rpx; }
+.panel { background-color: #FFFFFF; border-top-width: 1rpx; border-top-style: solid; border-top-color: #E7E0D6; padding: 20rpx 24rpx 28rpx; }
 .panel-hint { align-items: center; padding: 16rpx 0; }
-.panel-hint-text { font-size: 26rpx; color: #9AA4B2; }
+.panel-hint-text { width: 640rpx; font-size: 26rpx; color: #9AA4B2; text-align: center; }
 .panel-head { flex-direction: row; justify-content: space-between; align-items: center; }
 .panel-title { flex: 1; font-size: 28rpx; font-weight: 700; color: #111827; padding-right: 16rpx; }
 .panel-sub { font-size: 24rpx; color: #6B7280; }
 
-.pending-scroll { margin-top: 14rpx; }
-.pending-row { flex-direction: row; }
-.pending-chip { flex-direction: row; align-items: center; background-color: #EAF1FE; border-radius: 10rpx; padding: 10rpx 16rpx; margin-right: 12rpx; }
-.pending-on { background-color: #1D4ED8; }
+.pending-scroll { margin-top: 14rpx; width: 100%; height: 72rpx; flex-direction: row; }
+.pending-chip { flex-shrink: 0; flex-direction: row; align-items: center; height: 72rpx; background-color: #F3EFE8; border-radius: 10rpx; padding: 0 16rpx; margin-right: 12rpx; }
+.pending-on { background-color: #1C1917; }
 .pending-on .pending-text { color: #FFFFFF; }
-.pending-text { font-size: 23rpx; color: #1D4ED8; }
+.pending-text { font-size: 23rpx; color: #1C1917; }
 .pending-del { font-size: 22rpx; color: #9AA4B2; margin-left: 10rpx; }
 
 .panel-btns { flex-direction: row; margin-top: 18rpx; gap: 16rpx; }
 .pbtn { flex: 1; height: 88rpx; border-radius: 14rpx; align-items: center; justify-content: center; }
-.pbtn-blue { background-color: #1D4ED8; }
+.pbtn-blue { background-color: #1C1917; }
 .pbtn-green { background-color: #16A34A; }
 .pbtn-orange { background-color: #EA580C; }
 .pbtn-text { color: #FFFFFF; font-size: 27rpx; font-weight: 600; }
@@ -451,11 +464,11 @@ function askMissing(): void {
 .dialog-scroll { max-height: 480rpx; margin-top: 16rpx; }
 .dialog-row { flex-direction: row; align-items: center; padding: 14rpx 0; border-bottom-width: 1rpx; border-bottom-style: solid; border-bottom-color: #F1F3F6; }
 .dialog-level { width: 130rpx; font-size: 24rpx; color: #6B7280; }
-.dialog-code { flex: 1; font-size: 24rpx; color: #1D4ED8; }
+.dialog-code { flex: 1; font-size: 24rpx; color: #1C1917; }
 .dialog-btns { flex-direction: row; margin-top: 24rpx; gap: 16rpx; }
 .dbtn { flex: 1; height: 80rpx; border-radius: 12rpx; align-items: center; justify-content: center; }
 .dbtn-cancel { background-color: #F1F3F6; }
 .dbtn-cancel-text { color: #6B7280; font-size: 27rpx; }
-.dbtn-ok { background-color: #1D4ED8; }
+.dbtn-ok { background-color: #1C1917; }
 .dbtn-ok-text { color: #FFFFFF; font-size: 27rpx; font-weight: 600; }
 </style>

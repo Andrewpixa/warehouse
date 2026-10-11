@@ -2,7 +2,7 @@
   <div class="page-container">
     <div class="page-header animate-fade-in-up">
       <h1 class="page-header-title">追溯码查询</h1>
-      <p class="page-header-desc">查发票即可看到物流已匹配的追溯码和状态。业务员只在错码/异常时扫码或用 01 码代替；缺码由客户描述，不现场采集。</p>
+      <p class="page-header-desc">正常发票只能查看物流已匹配的码。改码请查异常纠码发票 20260918000100000099，错码可扫或用 01 码代替，缺码填写客户说明。</p>
     </div>
 
     <el-card>
@@ -64,14 +64,20 @@
         :data="lineItems"
         border
         highlight-current-row
+        :row-class-name="lineRowClass"
         @row-click="openLine"
       >
         <el-table-column prop="drugName" label="药品" min-width="160" />
         <el-table-column prop="batchNo" label="批号" width="130" />
         <el-table-column prop="qty" label="数量" width="90" />
         <el-table-column prop="spdid" label="流水号 SPDID" min-width="180" />
-        <el-table-column label="匹配码" width="90">
-          <template #default="{ row }">{{ countBySpdid(row.spdid) }}</template>
+        <el-table-column label="匹配码" width="130">
+          <template #default="{ row }">{{ countBySpdid(row.spdid) }} 条 / {{ unitsBySpdid(row.spdid) }} 盒</template>
+        </el-table-column>
+        <el-table-column label="错误信息" min-width="320">
+          <template #default="{ row }">
+            <span class="err-text" :class="lineIssue(row).bad ? 'err-bad' : 'err-ok'">{{ lineIssue(row).text }}</span>
+          </template>
         </el-table-column>
         <el-table-column label="" width="120">
           <template #default="{ row }">
@@ -89,6 +95,14 @@
         <el-button v-if="canParse" @click="openParse">解析包装写入本行</el-button>
         <el-button @click="$router.push({ path: '/business/trace-pack', query: { code: firstBig } })" :disabled="!firstBig">用大码看履历</el-button>
       </div>
+      <el-alert
+        v-if="currentIssue.bad"
+        class="mb16"
+        type="error"
+        show-icon
+        :closable="false"
+        :title="currentIssue.text"
+      />
       <p class="hint">点选一条码再纠错。正常票的码来自物流匹配，不必采集。</p>
       <div class="pack-grid">
         <section class="pack-col pack-big">
@@ -175,18 +189,23 @@ interface TraceRow {
   status?: string
   codeKind?: string
   remark?: string
+  unitQty?: number
 }
 
 const route = useRoute()
 const router = useRouter()
 const { hasPermission } = usePermission()
-const canFix = computed(() => hasPermission('sales:view') || hasPermission('trace:collect'))
+const FIX_INVOICE = '20260918000100000099'
 const canParse = computed(() => hasPermission('trace:parse'))
 
 const keyword = ref('')
 const searching = ref(false)
 const purchase = ref<any>(null)
 const outbound = ref<any>(null)
+const canFix = computed(() =>
+  (hasPermission('sales:view') || hasPermission('trace:collect'))
+  && outbound.value?.invoiceNo === FIX_INVOICE
+)
 const traces = ref<TraceRow[]>([])
 const lineTraces = ref<TraceRow[]>([])
 const candidates = ref<any[]>([])
@@ -227,7 +246,65 @@ const lineItems = computed(() => {
   return []
 })
 
-const countBySpdid = (spdid: string) => traces.value.filter((t) => t.spdid === spdid).length
+const realCodes = (spdid?: string) => {
+  if (!spdid) return []
+  return traces.value.filter((t) => t.spdid === spdid && t.status !== '缺码' && t.status !== '作废')
+}
+
+const countBySpdid = (spdid: string) => realCodes(spdid).length
+
+const unitOf = (row: TraceRow) => {
+  const n = Number(row.unitQty)
+  return Number.isFinite(n) && n > 0 ? n : 1
+}
+
+const unitsBySpdid = (spdid: string) => realCodes(spdid).reduce((sum, row) => sum + unitOf(row), 0)
+
+const isGs1 = (row: TraceRow) => {
+  if (row.codeKind === 'GS1') return true
+  const code = row.code || ''
+  return code.length > 20 && (code.startsWith('00') || code.startsWith('01') || code.startsWith('11'))
+}
+
+const lineIssue = (row: any) => {
+  const qty = Number(row?.qty ?? 0)
+  const remain = row?.remainingQty
+  const expect = remain === null || remain === undefined || remain === '' ? qty : Number(remain)
+  const codes = realCodes(row?.spdid)
+  const units = codes.reduce((sum, item) => sum + unitOf(item), 0)
+  const verb = purchase.value?.items ? '应收' : '应出'
+  const ok = (text: string) => ({ bad: false, text })
+  const bad = (text: string) => ({ bad: true, text })
+  const aligned = (text?: string) => {
+    if (Number.isFinite(qty) && Number.isFinite(expect) && expect !== qty) {
+      return ok(`无异常：出库 ${qty}，红冲 ${qty - expect}，包装展开 ${units}`)
+    }
+    return ok(text || '无异常')
+  }
+  if (!row?.spdid) return bad('未生成流水号，无法对码')
+  if (!Number.isFinite(qty)) return ok('无异常')
+
+  const big = codes.filter((t) => (t.packLevel || '').includes('大'))
+  const mid = codes.filter((t) => (t.packLevel || '').includes('中'))
+  const small = codes.filter((t) => !(t.packLevel || '').includes('大') && !(t.packLevel || '').includes('中'))
+  const bigSet = new Set(big.map((t) => t.code))
+  const onlyBig = big.length > 0 && small.length === 0 && mid.length === 0
+  const smallEqualsBig = small.length > 0 && small.every((t) => bigSet.has(t.code) || (!!t.parentCode && t.code === t.parentCode))
+  if ((onlyBig || smallEqualsBig) && units !== expect) return bad('整件/无小包装，勿按缺小码处理')
+  if (units === expect) return aligned()
+  if (big.length > 0 && small.length > 0 && units < expect) {
+    return bad(`大码未完全解析到最小包装，应有 ${expect} 实有 ${units}`)
+  }
+  if (big.length > 0 && small.length > 0) return bad('同一批次大小码混存')
+  if (codes.length > 0 && codes.every(isGs1)) return bad('GS1 码，数量未对齐')
+  if (units > expect) return bad(`疑似重复上传，${verb} ${expect}，匹配 ${units}`)
+  const gap = expect - units
+  return bad(`数量不符：${verb} ${expect}，包装展开 ${units} 盒，缺 ${gap}。流水号 ${row.spdid} 需按包装层级补齐后再推。`)
+}
+
+const lineRowClass = ({ row }: { row: any }) => (lineIssue(row).bad ? 'trace-row-bad' : '')
+
+const currentIssue = computed(() => (currentLine.value ? lineIssue(currentLine.value) : { bad: false, text: '' }))
 
 const packKind = (level?: string) => {
   if (level && level.includes('大')) return 'big'
@@ -457,6 +534,10 @@ const handleParse = async () => {
 
 <style scoped>
 .mb16 { margin-bottom: 16px; }
+.err-text { white-space: normal; line-height: 1.45; }
+.err-bad { color: #cf1322; }
+.err-ok { color: #98a2b3; }
+:deep(.trace-row-bad td.el-table__cell) { background-color: #fff1f0 !important; }
 .hint { color: #667085; margin-bottom: 12px; }
 .hint code { color: #1d4ed8; }
 .scan-list {
