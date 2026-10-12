@@ -1,7 +1,5 @@
 <template>
-  <!-- #ifdef APP -->
-  <scroll-view style="flex:1">
-  <!-- #endif -->
+  <scroll-view class="page-scroll" scroll-y="true">
   <view class="container">
     <view v-if="notices.length > 0" class="notice-list">
       <view
@@ -18,13 +16,11 @@
       </view>
     </view>
     <view v-else class="empty-state">
-      <text class="empty-icon">📭</text>
+      <text class="empty-mark">—</text>
       <text class="empty-text">暂无公告</text>
     </view>
   </view>
-  <!-- #ifdef APP -->
   </scroll-view>
-  <!-- #endif -->
 </template>
 
 <script setup lang="uts">
@@ -72,16 +68,18 @@ onShow(() => {
 
 <style>
 .container {
-  flex: 1;
-  background-color: #F5F7FA;
+  background-color: #F7F4EF;
   padding: 24rpx;
 }
 
 .notice-list {
   flex-direction: column;
-  background-color: #FFFFFF;
-  border-radius: 16rpx;
+  background-color: #FFFCF8;
+  border-radius: 28rpx;
   overflow: hidden;
+  border-width: 1rpx;
+  border-style: solid;
+  border-color: #E7E0D6;
 }
 
 .notice-item {
@@ -89,7 +87,7 @@ onShow(() => {
   align-items: center;
   padding: 32rpx;
   border-bottom-width: 1rpx;
-  border-bottom-color: #F0F0F0;
+  border-bottom-color: #F3EFE8;
   border-bottom-style: solid;
 }
 
@@ -101,18 +99,18 @@ onShow(() => {
 
 .notice-title {
   font-size: 30rpx;
-  color: #333333;
+  color: #1C1917;
   font-weight: bold;
 }
 
 .notice-meta {
   font-size: 24rpx;
-  color: #909399;
+  color: #78716C;
 }
 
 .notice-arrow {
   font-size: 28rpx;
-  color: #C0C4CC;
+  color: #D6D3D1;
   margin-left: 16rpx;
 }
 
@@ -124,12 +122,13 @@ onShow(() => {
   gap: 16rpx;
 }
 
-.empty-icon {
-  font-size: 64rpx;
+.empty-mark {
+  font-size: 40rpx;
+  color: #D6D3D1;
 }
 
 .empty-text {
   font-size: 28rpx;
-  color: #909399;
+  color: #A8A29E;
 }
 </style>

@@ -1,6 +1,6 @@
 <template>
   <view class="empty-state">
-    <text class="empty-icon">📭</text>
+    <text class="empty-mark">—</text>
     <text class="empty-text">{{ text }}</text>
   </view>
 </template>
@@ -24,12 +24,13 @@ defineProps({
   gap: 24rpx;
 }
 
-.empty-icon {
-  font-size: 100rpx;
+.empty-mark {
+  font-size: 40rpx;
+  color: #D6D3D1;
 }
 
 .empty-text {
   font-size: 28rpx;
-  color: #999999;
+  color: #A8A29E;
 }
 </style>

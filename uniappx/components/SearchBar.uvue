@@ -1,6 +1,5 @@
 <template>
   <view class="search-bar">
-    <text class="search-icon">🔍</text>
     <input
       class="search-input"
       type="text"
@@ -51,23 +50,21 @@ const onConfirm = () => {
 .search-bar {
   flex-direction: row;
   align-items: center;
-  background-color: #FFFFFF;
-  border-radius: 16rpx;
-  padding: 16rpx 24rpx;
-  gap: 12rpx;
-}
-
-.search-icon {
-  font-size: 32rpx;
+  background-color: #FFFCF8;
+  border-radius: 20rpx;
+  padding: 12rpx 16rpx;
+  border-width: 1rpx;
+  border-style: solid;
+  border-color: #E7E0D6;
 }
 
 .search-input {
   flex: 1;
-  height: 64rpx;
-  background-color: #F5F7FA;
-  border-radius: 12rpx;
-  padding: 0 20rpx;
+  height: 72rpx;
+  background-color: #F7F4EF;
+  border-radius: 14rpx;
+  padding: 0 24rpx;
   font-size: 28rpx;
-  color: #333333;
+  color: #1C1917;
 }
 </style>

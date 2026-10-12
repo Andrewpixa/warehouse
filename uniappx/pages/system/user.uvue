@@ -76,7 +76,7 @@
           </view>
         </view>
 
-        <scroll-view style="flex:1" class="form-body">
+        <scroll-view style="flex:1" class="form-body" scroll-y="true">
           <view v-if="roleLoading" class="role-loading">
             <text class="loading-text">加载角色中...</text>
           </view>
@@ -350,7 +350,7 @@ onShow(() => {
 <style>
 .container {
   flex: 1;
-  background-color: #F5F7FA;
+  background-color: #F7F4EF;
 }
 
 /* 用户信息 */
@@ -406,11 +406,11 @@ onShow(() => {
 }
 
 .action-edit {
-  background-color: #E6F7FF;
+  background-color: #F3EFE8;
 }
 
 .edit-text {
-  color: #409EFF;
+  color: #1C1917;
 }
 
 .action-reset {
@@ -521,7 +521,7 @@ onShow(() => {
   height: 80rpx;
   align-items: center;
   justify-content: center;
-  background-color: #409EFF;
+  background-color: #1C1917;
   border-radius: 8rpx;
 }
 
@@ -556,7 +556,7 @@ onShow(() => {
   align-items: center;
   gap: 16rpx;
   padding: 16rpx;
-  background-color: #F5F7FA;
+  background-color: #F7F4EF;
   border-radius: 12rpx;
 }
 
@@ -577,8 +577,8 @@ onShow(() => {
 }
 
 .checkbox-checked {
-  background-color: #409EFF;
-  border-color: #409EFF;
+  background-color: #1C1917;
+  border-color: #1C1917;
 }
 
 .check-mark {

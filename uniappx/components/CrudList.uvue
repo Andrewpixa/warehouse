@@ -20,7 +20,7 @@
       refresher-enabled
       :refresher-triggered="refreshing"
       @refresherrefresh="onRefresh"
-    >
+     scroll-y="true">
       <view v-if="items.length > 0" class="list-container">
         <view
           v-for="(item, index) in items"
@@ -51,7 +51,7 @@
       </view>
 
       <view v-if="!loading && items.length === 0" class="empty-state">
-        <text class="empty-icon">📭</text>
+        <text class="empty-mark">—</text>
         <text class="empty-text">{{ emptyText }}</text>
       </view>
     </scroll-view>
@@ -222,29 +222,29 @@ defineExpose({ reload })
 </script>
 
 <style>
-.crud-list { flex: 1; background-color: #F5F7FA; }
-.search-bar { flex-direction: row; padding: 16rpx 24rpx; background-color: #FFFFFF; gap: 16rpx; align-items: center; }
-.search-input { flex: 1; height: 72rpx; background-color: #F5F7FA; border-radius: 36rpx; padding: 0 24rpx; font-size: 28rpx; }
-.search-btn { background-color: #409EFF; border-radius: 36rpx; padding: 0 32rpx; height: 72rpx; align-items: center; justify-content: center; }
-.search-btn-text { color: #FFFFFF; font-size: 28rpx; }
+.crud-list { flex: 1; background-color: #F7F4EF; }
+.search-bar { flex-direction: row; padding: 16rpx 24rpx; background-color: #FFFCF8; gap: 16rpx; align-items: center; border-bottom-width: 1rpx; border-bottom-style: solid; border-bottom-color: #E7E0D6; }
+.search-input { flex: 1; height: 72rpx; background-color: #F7F4EF; border-radius: 16rpx; padding: 0 24rpx; font-size: 28rpx; color: #1C1917; }
+.search-btn { background-color: #1C1917; border-radius: 16rpx; padding: 0 32rpx; height: 72rpx; align-items: center; justify-content: center; }
+.search-btn-text { color: #FAFAF9; font-size: 28rpx; }
 .list-container { padding: 16rpx 24rpx; gap: 16rpx; }
-.list-item { background-color: #FFFFFF; border-radius: 16rpx; padding: 24rpx; flex-direction: column; gap: 16rpx; }
+.list-item { background-color: #FFFCF8; border-radius: 24rpx; padding: 24rpx; flex-direction: column; gap: 16rpx; border-width: 1rpx; border-style: solid; border-color: #E7E0D6; }
 .item-content { flex-direction: column; gap: 8rpx; }
 .item-field { flex-direction: row; align-items: center; }
-.field-label { font-size: 26rpx; color: #909399; width: 160rpx; }
-.field-value { font-size: 28rpx; color: #333333; flex: 1; }
-.item-actions { flex-direction: row; justify-content: flex-end; gap: 16rpx; border-top-width: 1rpx; border-top-color: #F0F0F0; border-top-style: solid; padding-top: 16rpx; }
+.field-label { font-size: 26rpx; color: #A8A29E; width: 160rpx; }
+.field-value { font-size: 28rpx; color: #1C1917; flex: 1; }
+.item-actions { flex-direction: row; justify-content: flex-end; gap: 16rpx; border-top-width: 1rpx; border-top-color: #F3EFE8; border-top-style: solid; padding-top: 16rpx; }
 .action-btn { padding: 8rpx 24rpx; border-radius: 8rpx; }
-.action-edit { background-color: #E6F7FF; }
-.action-delete { background-color: #FFF1F0; }
+.action-edit { background-color: #F3EFE8; }
+.action-delete { background-color: #FEF2F2; }
 .action-text { font-size: 24rpx; }
-.action-edit .action-text { color: #409EFF; }
-.action-delete .action-text { color: #F56C6C; }
+.action-edit .action-text { color: #1C1917; }
+.action-delete .action-text { color: #B91C1C; }
 .loading-row { flex-direction: row; justify-content: center; padding: 24rpx; }
-.loading-text { font-size: 26rpx; color: #999999; }
+.loading-text { font-size: 26rpx; color: #A8A29E; }
 .empty-state { align-items: center; justify-content: center; padding: 120rpx 0; gap: 16rpx; }
-.empty-icon { font-size: 80rpx; }
-.empty-text { font-size: 28rpx; color: #909399; }
-.fab-btn { position: fixed; right: 40rpx; bottom: 120rpx; width: 100rpx; height: 100rpx; border-radius: 50rpx; background-color: #409EFF; align-items: center; justify-content: center; box-shadow: 0 4rpx 16rpx rgba(64, 158, 255, 0.4); }
+.empty-mark { font-size: 40rpx; color: #D6D3D1; }
+.empty-text { font-size: 28rpx; color: #A8A29E; }
+.fab-btn { position: fixed; right: 40rpx; bottom: 120rpx; width: 100rpx; height: 100rpx; border-radius: 50rpx; background-color: #1C1917; align-items: center; justify-content: center; }
 .fab-icon { font-size: 48rpx; color: #FFFFFF; font-weight: bold; }
 </style>

@@ -1,7 +1,4 @@
 <template>
-  <!-- #ifdef APP -->
-  <scroll-view style="flex:1">
-  <!-- #endif -->
   <view class="container">
     <!-- 搜索栏 -->
     <view class="search-bar">
@@ -23,7 +20,7 @@
       refresher-enabled
       :refresher-triggered="refreshing"
       @refresherrefresh="onRefresh"
-    >
+     scroll-y="true">
       <view v-if="noticeList.length > 0" class="list-container">
         <view v-for="(item, index) in noticeList" :key="index" class="notice-card">
           <view class="notice-info">
@@ -58,7 +55,6 @@
       </view>
 
       <view v-if="!loading && noticeList.length === 0" class="empty-state">
-        <text class="empty-icon">📭</text>
         <text class="empty-text">暂无公告数据</text>
       </view>
     </scroll-view>
@@ -77,7 +73,7 @@
             <text class="close-icon">✕</text>
           </view>
         </view>
-        <scroll-view style="flex:1" class="form-body">
+        <scroll-view style="flex:1" class="form-body" scroll-y="true">
           <view class="view-section">
             <text class="view-label">标题</text>
             <text class="view-value view-title">{{ viewData['title'] ?? '' }}</text>
@@ -108,7 +104,7 @@
           </view>
         </view>
 
-        <scroll-view style="flex:1" class="form-body">
+        <scroll-view style="flex:1" class="form-body" scroll-y="true">
           <view class="form-fields">
             <view class="form-item">
               <text class="form-label">标题 <text class="required-mark">*</text></text>
@@ -132,9 +128,6 @@
       </view>
     </view>
   </view>
-  <!-- #ifdef APP -->
-  </scroll-view>
-  <!-- #endif -->
 </template>
 
 <script setup lang="uts">
@@ -363,7 +356,7 @@ onShow(() => {
 <style>
 .container {
   flex: 1;
-  background-color: #F5F7FA;
+  background-color: #F7F4EF;
 }
 
 /* 搜索栏 */
@@ -378,14 +371,14 @@ onShow(() => {
 .search-input {
   flex: 1;
   height: 72rpx;
-  background-color: #F5F7FA;
+  background-color: #F7F4EF;
   border-radius: 36rpx;
   padding: 0 24rpx;
   font-size: 28rpx;
 }
 
 .search-btn {
-  background-color: #409EFF;
+  background-color: #1C1917;
   border-radius: 36rpx;
   padding: 0 32rpx;
   height: 72rpx;
@@ -466,11 +459,11 @@ onShow(() => {
 }
 
 .action-edit {
-  background-color: #E6F7FF;
+  background-color: #F3EFE8;
 }
 
 .edit-text {
-  color: #409EFF;
+  color: #1C1917;
 }
 
 .action-delete {
@@ -516,7 +509,7 @@ onShow(() => {
   width: 100rpx;
   height: 100rpx;
   border-radius: 50rpx;
-  background-color: #409EFF;
+  background-color: #1C1917;
   align-items: center;
   justify-content: center;
   box-shadow: 0 4rpx 16rpx rgba(64, 158, 255, 0.4);
@@ -648,7 +641,7 @@ onShow(() => {
   height: 80rpx;
   align-items: center;
   justify-content: center;
-  background-color: #409EFF;
+  background-color: #1C1917;
   border-radius: 8rpx;
 }
 

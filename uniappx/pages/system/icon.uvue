@@ -1,7 +1,4 @@
 <template>
-  <!-- #ifdef APP -->
-  <scroll-view style="flex:1">
-  <!-- #endif -->
   <view class="container">
     <!-- 搜索栏 -->
     <view class="search-bar">
@@ -17,7 +14,7 @@
     </view>
 
     <!-- 图标网格 -->
-    <scroll-view style="flex:1">
+    <scroll-view style="flex:1" scroll-y="true">
       <view class="icon-grid">
         <view
           v-for="(icon, index) in filteredIcons"
@@ -30,7 +27,7 @@
       </view>
 
       <view v-if="filteredIcons.length === 0" class="empty-state">
-        <text class="empty-icon">🔍</text>
+        <text class="empty-mark">—</text>
         <text class="empty-text">没有匹配的图标</text>
       </view>
 
@@ -39,9 +36,6 @@
       </view>
     </scroll-view>
   </view>
-  <!-- #ifdef APP -->
-  </scroll-view>
-  <!-- #endif -->
 </template>
 
 <script setup lang="uts">
@@ -88,7 +82,7 @@ function onIconTap(icon: string): void {
 <style>
 .container {
   flex: 1;
-  background-color: #F5F7FA;
+  background-color: #F7F4EF;
 }
 
 /* 搜索栏 */
@@ -103,14 +97,14 @@ function onIconTap(icon: string): void {
 .search-input {
   flex: 1;
   height: 72rpx;
-  background-color: #F5F7FA;
+  background-color: #F7F4EF;
   border-radius: 36rpx;
   padding: 0 24rpx;
   font-size: 28rpx;
 }
 
 .search-btn {
-  background-color: #409EFF;
+  background-color: #1C1917;
   border-radius: 36rpx;
   padding: 0 32rpx;
   height: 72rpx;
@@ -154,13 +148,14 @@ function onIconTap(icon: string): void {
   gap: 16rpx;
 }
 
-.empty-icon {
-  font-size: 80rpx;
+.empty-mark {
+  font-size: 40rpx;
+  color: #D6D3D1;
 }
 
 .empty-text {
   font-size: 28rpx;
-  color: #909399;
+  color: #A8A29E;
 }
 
 .tip-section {

@@ -8,7 +8,7 @@
         </view>
       </view>
 
-      <scroll-view style="flex:1" class="form-body">
+      <scroll-view style="flex:1" class="form-body" scroll-y="true">
         <view class="form-fields">
           <view v-for="(field, index) in fields" :key="index" class="form-item">
             <text class="form-label">
@@ -194,24 +194,24 @@ defineExpose({ open, close })
 
 <style>
 .form-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0, 0, 0, 0.5); z-index: 999; }
-.form-popup { position: fixed; left: 0; right: 0; bottom: 0; max-height: 80vh; background-color: #FFFFFF; border-top-left-radius: 24rpx; border-top-right-radius: 24rpx; flex-direction: column; }
-.form-header { flex-direction: row; justify-content: space-between; align-items: center; padding: 24rpx 32rpx; border-bottom-width: 1rpx; border-bottom-color: #F0F0F0; border-bottom-style: solid; }
-.form-title { font-size: 32rpx; font-weight: bold; color: #333333; }
+.form-popup { position: fixed; left: 0; right: 0; bottom: 0; max-height: 80vh; background-color: #FFFCF8; border-top-left-radius: 28rpx; border-top-right-radius: 28rpx; flex-direction: column; }
+.form-header { flex-direction: row; justify-content: space-between; align-items: center; padding: 24rpx 32rpx; border-bottom-width: 1rpx; border-bottom-color: #E7E0D6; border-bottom-style: solid; }
+.form-title { font-size: 32rpx; font-weight: bold; color: #1C1917; }
 .form-close { width: 48rpx; height: 48rpx; align-items: center; justify-content: center; }
 .close-icon { font-size: 32rpx; color: #909399; }
 .form-body { padding: 24rpx 32rpx; }
 .form-fields { flex-direction: column; gap: 24rpx; }
 .form-item { flex-direction: column; gap: 8rpx; }
-.form-label { font-size: 28rpx; color: #606266; font-weight: 500; }
+.form-label { font-size: 28rpx; color: #78716C; font-weight: 500; }
 .required-mark { color: #F56C6C; }
-.form-input { height: 80rpx; border-width: 1rpx; border-color: #DCDFE6; border-style: solid; border-radius: 8rpx; padding: 0 24rpx; font-size: 28rpx; }
-.form-textarea { height: 160rpx; border-width: 1rpx; border-color: #DCDFE6; border-style: solid; border-radius: 8rpx; padding: 16rpx 24rpx; font-size: 28rpx; }
-.form-picker { flex-direction: row; align-items: center; justify-content: space-between; height: 80rpx; border-width: 1rpx; border-color: #DCDFE6; border-style: solid; border-radius: 8rpx; padding: 0 24rpx; }
+.form-input { height: 80rpx; border-width: 1rpx; border-color: #E7E0D6; border-style: solid; border-radius: 14rpx; padding: 0 24rpx; font-size: 28rpx; background-color: #F7F4EF; color: #1C1917; }
+.form-textarea { height: 160rpx; border-width: 1rpx; border-color: #E7E0D6; border-style: solid; border-radius: 14rpx; padding: 16rpx 24rpx; font-size: 28rpx; background-color: #F7F4EF; color: #1C1917; }
+.form-picker { flex-direction: row; align-items: center; justify-content: space-between; height: 80rpx; border-width: 1rpx; border-color: #E7E0D6; border-style: solid; border-radius: 14rpx; padding: 0 24rpx; background-color: #F7F4EF; }
 .picker-text { font-size: 28rpx; color: #333333; }
 .picker-arrow { font-size: 24rpx; color: #C0C4CC; }
 .form-footer { flex-direction: row; padding: 24rpx 32rpx; gap: 24rpx; border-top-width: 1rpx; border-top-color: #F0F0F0; border-top-style: solid; }
-.btn-cancel { flex: 1; height: 80rpx; align-items: center; justify-content: center; border-width: 1rpx; border-color: #DCDFE6; border-style: solid; border-radius: 8rpx; }
-.btn-submit { flex: 2; height: 80rpx; align-items: center; justify-content: center; background-color: #409EFF; border-radius: 8rpx; }
+.btn-cancel { flex: 1; height: 88rpx; align-items: center; justify-content: center; border-width: 1rpx; border-color: #E7E0D6; border-style: solid; border-radius: 14rpx; }
+.btn-submit { flex: 2; height: 88rpx; align-items: center; justify-content: center; background-color: #1C1917; border-radius: 14rpx; }
 .btn-text { font-size: 30rpx; color: #606266; }
 .btn-text-white { color: #FFFFFF; }
 </style>

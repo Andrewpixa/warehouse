@@ -37,10 +37,25 @@ class AdaptiveCardGrid extends StatelessWidget {
   final double rowHeight;
   final EdgeInsets? padding;
 
+  static int columnsForWidth(double width, {int max = 3}) {
+    if (width >= 980) return max.clamp(1, 3);
+    if (width >= 640) return 2.clamp(1, max);
+    return 1;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final cols = AppLayout.columns(context);
-    final pad = padding ?? const EdgeInsets.all(12);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : MediaQuery.sizeOf(context).width;
+        return _build(context, columnsForWidth(width), padding ?? const EdgeInsets.all(12));
+      },
+    );
+  }
+
+  Widget _build(BuildContext context, int cols, EdgeInsets pad) {
     if (cols <= 1) {
       return ListView.builder(
         controller: controller,

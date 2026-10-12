@@ -2,7 +2,7 @@
   <view class="goods-card" @click="onClick">
     <!-- 左侧图标 -->
     <view class="goods-icon-box">
-      <text class="goods-icon">📦</text>
+      <text class="goods-icon">药</text>
     </view>
 
     <!-- 中间商品信息 -->
@@ -83,8 +83,11 @@ const onClick = () => {
 .goods-card {
   flex-direction: row;
   align-items: center;
-  background-color: #FFFFFF;
-  border-radius: 16rpx;
+  background-color: #FFFCF8;
+  border-radius: 24rpx;
+  border-width: 1rpx;
+  border-style: solid;
+  border-color: #E7E0D6;
   padding: 24rpx;
   gap: 20rpx;
 }
@@ -92,14 +95,16 @@ const onClick = () => {
 .goods-icon-box {
   width: 80rpx;
   height: 80rpx;
-  background-color: #F5F7FA;
-  border-radius: 12rpx;
+  background-color: #F3EFE8;
+  border-radius: 16rpx;
   align-items: center;
   justify-content: center;
 }
 
 .goods-icon {
-  font-size: 40rpx;
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #1C1917;
 }
 
 .goods-info {
@@ -111,12 +116,12 @@ const onClick = () => {
 .goods-name {
   font-size: 30rpx;
   font-weight: bold;
-  color: #333333;
+  color: #1C1917;
 }
 
 .goods-meta {
   font-size: 24rpx;
-  color: #999999;
+  color: #78716C;
 }
 
 .goods-status-box {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../api/pharma_api.dart';
+import '../scan/barcode_image.dart';
 import '../ui/layout.dart';
 import 'scan_page.dart';
 
@@ -31,6 +32,13 @@ class _TraceQueryPageState extends State<TraceQueryPage> {
       MaterialPageRoute(builder: (_) => const ScanPage()),
     );
     if (code == null || code.isEmpty) return;
+    _inputCtrl.text = code;
+    await _query();
+  }
+
+  Future<void> _scanPhoto() async {
+    final code = await pickBarcodeFromPhoto(context);
+    if (!mounted || code == null || code.isEmpty) return;
     _inputCtrl.text = code;
     await _query();
   }
@@ -73,14 +81,30 @@ class _TraceQueryPageState extends State<TraceQueryPage> {
       child: Column(
         children: [
           if (wide)
-            SizedBox(
-              width: double.infinity,
-              height: 56,
-              child: FilledButton.icon(
-                onPressed: _loading ? null : _scan,
-                icon: const Icon(Icons.qr_code_scanner, size: 28),
-                label: const Text('扫描追溯码 / 批号', style: TextStyle(fontSize: 16)),
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: SizedBox(
+                    height: 56,
+                    child: FilledButton.icon(
+                      onPressed: _loading ? null : _scan,
+                      icon: const Icon(Icons.qr_code_scanner, size: 26),
+                      label: const Text('相机扫描', style: TextStyle(fontSize: 16)),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: SizedBox(
+                    height: 56,
+                    child: FilledButton.tonalIcon(
+                      onPressed: _loading ? null : _scanPhoto,
+                      icon: const Icon(Icons.photo_outlined, size: 26),
+                      label: const Text('从照片识别', style: TextStyle(fontSize: 16)),
+                    ),
+                  ),
+                ),
+              ],
             ),
           if (wide) const SizedBox(height: 12),
           Row(
@@ -101,7 +125,15 @@ class _TraceQueryPageState extends State<TraceQueryPage> {
                 IconButton.filled(
                   onPressed: _loading ? null : _scan,
                   icon: const Icon(Icons.qr_code_scanner),
-                  tooltip: '扫码',
+                  tooltip: '相机扫描',
+                  style: IconButton.styleFrom(minimumSize: const Size(48, 48)),
+                ),
+              if (!wide) const SizedBox(width: 4),
+              if (!wide)
+                IconButton.filledTonal(
+                  onPressed: _loading ? null : _scanPhoto,
+                  icon: const Icon(Icons.photo_outlined),
+                  tooltip: '从照片识别',
                   style: IconButton.styleFrom(minimumSize: const Size(48, 48)),
                 ),
               if (!wide) const SizedBox(width: 4),
@@ -136,7 +168,7 @@ class _TraceQueryPageState extends State<TraceQueryPage> {
               ),
               const Expanded(
                 child: Text(
-                  '扫码可查该批货属于哪张入库单或出库单。',
+                  '可相机扫描，或从文件选择照片识别追溯码。',
                   style: TextStyle(color: Color(0xFF8A8F99), fontSize: 12),
                 ),
               ),

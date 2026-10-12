@@ -4,8 +4,8 @@
 			"path": "pages/intro/index",
 			"style": {
 				"navigationBarTitleText": "业务员工作台",
-				"navigationBarBackgroundColor": "#0F766E",
-				"navigationBarTextStyle": "white",
+				"navigationBarBackgroundColor": "#F7F4EF",
+				"navigationBarTextStyle": "black",
 				"enablePullDownRefresh": true,
 				"backgroundTextStyle": "dark"
 			}
@@ -21,8 +21,8 @@
 			"path": "pages/workbench/index",
 			"style": {
 				"navigationBarTitleText": "工作台",
-				"navigationBarBackgroundColor": "#0F766E",
-				"navigationBarTextStyle": "white"
+				"navigationBarBackgroundColor": "#F7F4EF",
+				"navigationBarTextStyle": "black"
 			}
 		},
 		{
@@ -136,13 +136,13 @@
 	"globalStyle": {
 		"navigationBarTextStyle": "black",
 		"navigationBarTitleText": "业务员工作台",
-		"navigationBarBackgroundColor": "#FFFFFF",
-		"backgroundColor": "#F3F6F8"
+		"navigationBarBackgroundColor": "#F7F4EF",
+		"backgroundColor": "#F7F4EF"
 	},
 	"tabBar": {
-		"color": "#94A3B8",
-		"selectedColor": "#0F766E",
-		"backgroundColor": "#FFFFFF",
+		"color": "#A8A29E",
+		"selectedColor": "#1C1917",
+		"backgroundColor": "#FFFCF8",
 		"borderStyle": "white",
 		"list": [
 			{

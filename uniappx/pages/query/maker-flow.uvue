@@ -9,7 +9,7 @@
       <input class="inp" v-model="password" password placeholder="密码" />
       <view class="btn" @click="query"><text class="btn-t">查询</text></view>
     </view>
-    <scroll-view class="list">
+    <scroll-view class="list" scroll-y="true">
       <view v-for="(row, i) in flows" :key="i" class="card">
         <text class="ttl">{{ str(row, 'drugName') }} × {{ str(row, 'qty') }}</text>
         <text class="meta">{{ str(row, 'customerName') }}</text>
@@ -45,7 +45,7 @@ function query(): void {
 </script>
 
 <style>
-.page { flex: 1; background-color: #FAF7F5; }
+.page { flex: 1; background-color: #F7F4EF; }
 .hero { padding: 20px 16px 8px; }
 .title { font-size: 22px; font-weight: 700; color: #9F1239; }
 .sub { font-size: 12px; color: #78716C; margin-top: 4px; }

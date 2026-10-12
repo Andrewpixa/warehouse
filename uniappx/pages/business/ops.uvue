@@ -4,7 +4,7 @@
       <text class="title">{{ pageTitle }}</text>
       <text class="sub">与公司流程图同岗位、同状态</text>
     </view>
-    <scroll-view class="list" @scrolltolower="loadMore">
+    <scroll-view class="list" @scrolltolower="loadMore" scroll-y="true">
       <view v-for="(row, i) in rows" :key="i" class="card">
         <view class="row-top">
           <text class="no">{{ str(row, 'docNo') }}</text>
@@ -90,7 +90,7 @@ onLoad((q: UTSJSONObject) => {
 </script>
 
 <style>
-.page { flex: 1; background-color: #FAF7F5; }
+.page { flex: 1; background-color: #F7F4EF; }
 .hero { padding: 20px 16px 8px; }
 .title { font-size: 22px; font-weight: 700; color: #9F1239; }
 .sub { font-size: 12px; color: #78716C; margin-top: 4px; }

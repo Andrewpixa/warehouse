@@ -119,16 +119,54 @@ class _OpsPageState extends State<OpsPage> {
                             final status = '${r['status'] ?? ''}';
                             final done = _cfg.done.contains(status);
                             return Card(
-                              child: ListTile(
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                title: Text('${r['title'] ?? ''}'),
-                                subtitle: Text('${r['docNo'] ?? ''}  $status'),
-                                trailing: done
-                                    ? Text(status, style: const TextStyle(color: Color(0xFF16A34A), fontSize: 13))
-                                    : FilledButton.tonal(
-                                        onPressed: () => _confirm(r['id'] as num),
-                                        child: Text(_cfg.action),
+                              child: Padding(
+                                padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '${r['title'] ?? ''}',
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, height: 1.35),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            '${r['docNo'] ?? ''}',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          status,
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            color: done ? const Color(0xFF16A34A) : const Color(0xFF6B7280),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    if (!done) ...[
+                                      const SizedBox(height: 10),
+                                      SizedBox(
+                                        width: double.infinity,
+                                        child: FilledButton.tonal(
+                                          onPressed: () => _confirm(r['id'] as num),
+                                          style: FilledButton.styleFrom(
+                                            visualDensity: VisualDensity.compact,
+                                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                          ),
+                                          child: Text(_cfg.action, maxLines: 1, overflow: TextOverflow.ellipsis),
+                                        ),
                                       ),
+                                    ],
+                                  ],
+                                ),
                               ),
                             );
                           },

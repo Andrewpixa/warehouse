@@ -16,7 +16,7 @@
         <view class="select-search">
           <input class="search-input" placeholder="搜索..." v-model="keyword" @confirm="onSearch" />
         </view>
-        <scroll-view style="flex:1; max-height: 600rpx;">
+        <scroll-view style="flex:1; max-height: 600rpx;" scroll-y="true">
           <view class="option-list">
             <view
               v-for="(opt, index) in filteredOptions"
@@ -101,12 +101,12 @@ function onSearch(): void {}
 .select-title { font-size: 32rpx; font-weight: bold; color: #333333; }
 .close-icon { font-size: 32rpx; color: #909399; }
 .select-search { padding: 16rpx 32rpx; }
-.search-input { height: 72rpx; background-color: #F5F7FA; border-radius: 36rpx; padding: 0 24rpx; font-size: 28rpx; }
+.search-input { height: 72rpx; background-color: #F7F4EF; border-radius: 36rpx; padding: 0 24rpx; font-size: 28rpx; }
 .option-list { flex-direction: column; padding: 0 32rpx; }
 .option-item { flex-direction: row; justify-content: space-between; align-items: center; padding: 24rpx 0; border-bottom-width: 1rpx; border-bottom-color: #F0F0F0; border-bottom-style: solid; }
-.option-selected { background-color: #F0F9FF; }
+.option-selected { background-color: #F3EFE8; }
 .option-text { font-size: 30rpx; color: #333333; }
-.option-check { font-size: 30rpx; color: #409EFF; }
+.option-check { font-size: 30rpx; color: #1C1917; }
 .empty-options { align-items: center; padding: 48rpx; }
 .empty-text { font-size: 28rpx; color: #909399; }
 </style>

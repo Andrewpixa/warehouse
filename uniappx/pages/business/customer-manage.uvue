@@ -1,7 +1,4 @@
 <template>
-  <!-- #ifdef APP -->
-  <scroll-view style="flex:1">
-  <!-- #endif -->
   <view class="container">
     <CrudList
       ref="listRef"
@@ -22,9 +19,6 @@
       @success="onFormSuccess"
     />
   </view>
-  <!-- #ifdef APP -->
-  </scroll-view>
-  <!-- #endif -->
 </template>
 
 <script setup lang="uts">
@@ -80,6 +74,6 @@ function onFormSuccess(): void {
 <style>
 .container {
   flex: 1;
-  background-color: #F5F7FA;
+  background-color: #F7F4EF;
 }
 </style>

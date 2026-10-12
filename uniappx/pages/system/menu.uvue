@@ -1,7 +1,4 @@
 <template>
-  <!-- #ifdef APP -->
-  <scroll-view style="flex:1">
-  <!-- #endif -->
   <view class="container">
     <!-- 菜单树（左侧） -->
     <view class="tree-section">
@@ -11,7 +8,7 @@
           <text class="tree-refresh-text">刷新</text>
         </view>
       </view>
-      <scroll-view style="flex:1">
+      <scroll-view style="flex:1" scroll-y="true">
         <view class="tree-container">
           <view class="tree-item-root" @click="selectRootMenu">
             <text class="tree-item-text" :class="{ 'tree-item-active': selectedMenuId == null }">全部菜单</text>
@@ -49,7 +46,7 @@
         refresher-enabled
         :refresher-triggered="refreshing"
         @refresherrefresh="onRefresh"
-      >
+       scroll-y="true">
         <view v-if="menuList.length > 0" class="list-container">
           <view v-for="(item, index) in menuList" :key="index" class="menu-card">
             <view class="menu-info">
@@ -91,7 +88,6 @@
         </view>
 
         <view v-if="!loading && menuList.length === 0" class="empty-state">
-          <text class="empty-icon">📭</text>
           <text class="empty-text">暂无菜单数据</text>
         </view>
       </scroll-view>
@@ -107,7 +103,7 @@
           </view>
         </view>
 
-        <scroll-view style="flex:1" class="form-body">
+        <scroll-view style="flex:1" class="form-body" scroll-y="true">
           <view class="form-fields">
             <view class="form-item">
               <text class="form-label">上级菜单</text>
@@ -156,9 +152,6 @@
       </view>
     </view>
   </view>
-  <!-- #ifdef APP -->
-  </scroll-view>
-  <!-- #endif -->
 </template>
 
 <script setup lang="uts">
@@ -492,7 +485,7 @@ onShow(() => {
 .container {
   flex: 1;
   flex-direction: row;
-  background-color: #F5F7FA;
+  background-color: #F7F4EF;
 }
 
 /* 左侧树 */
@@ -523,13 +516,13 @@ onShow(() => {
 
 .tree-refresh-btn {
   padding: 4rpx 12rpx;
-  background-color: #F0F9FF;
+  background-color: #F3EFE8;
   border-radius: 6rpx;
 }
 
 .tree-refresh-text {
   font-size: 22rpx;
-  color: #409EFF;
+  color: #1C1917;
 }
 
 .tree-container {
@@ -550,7 +543,7 @@ onShow(() => {
 }
 
 .tree-item-active {
-  color: #409EFF;
+  color: #1C1917;
   font-weight: 600;
 }
 
@@ -591,7 +584,7 @@ onShow(() => {
 }
 
 .add-btn {
-  background-color: #409EFF;
+  background-color: #1C1917;
   border-radius: 8rpx;
   padding: 10rpx 24rpx;
 }
@@ -665,11 +658,11 @@ onShow(() => {
 }
 
 .action-edit {
-  background-color: #E6F7FF;
+  background-color: #F3EFE8;
 }
 
 .edit-text {
-  color: #409EFF;
+  color: #1C1917;
 }
 
 .action-delete {
@@ -839,7 +832,7 @@ onShow(() => {
   height: 80rpx;
   align-items: center;
   justify-content: center;
-  background-color: #409EFF;
+  background-color: #1C1917;
   border-radius: 8rpx;
 }
 

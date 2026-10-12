@@ -1,5 +1,5 @@
 <template>
-  <scroll-view style="flex:1">
+  <scroll-view class="page-scroll" scroll-y="true">
   <view class="container">
     <!-- 顶部操作栏 -->
     <view class="top-bar">
@@ -136,8 +136,7 @@ onShow(() => {
 
 <style>
 .container {
-  flex: 1;
-  background-color: #F5F7FA;
+  background-color: #F7F4EF;
   padding: 24rpx;
 }
 
@@ -156,7 +155,7 @@ onShow(() => {
 }
 
 .create-btn {
-  background-color: #409EFF;
+  background-color: #1C1917;
   color: #FFFFFF;
   font-size: 28rpx;
   border-radius: 8rpx;
@@ -222,6 +221,6 @@ onShow(() => {
 
 .item-action-text {
   font-size: 26rpx;
-  color: #409EFF;
+  color: #1C1917;
 }
 </style>

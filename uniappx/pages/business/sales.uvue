@@ -1,7 +1,5 @@
 <template>
-  <!-- #ifdef APP -->
-  <scroll-view style="flex:1">
-  <!-- #endif -->
+  <scroll-view class="page-scroll" scroll-y="true">
   <view class="page">
     <!-- 状态筛选 -->
     <view class="filter-bar">
@@ -60,13 +58,10 @@
 
     <!-- 空状态 -->
     <view v-else-if="!loading" class="empty-state">
-      <text class="empty-emoji">📤</text>
       <text class="empty-text">暂无出库单数据</text>
     </view>
   </view>
-  <!-- #ifdef APP -->
   </scroll-view>
-  <!-- #endif -->
 </template>
 
 <script setup lang="uts">
@@ -130,7 +125,7 @@ onShow(() => {
 </script>
 
 <style>
-.page { flex: 1; background-color: #F4F6FB; }
+.page { background-color: #F7F4EF; }
 
 .filter-bar {
   flex-direction: row;
@@ -144,10 +139,10 @@ onShow(() => {
   align-items: center;
   padding: 14rpx 0;
   border-radius: 12rpx;
-  background-color: #F4F6FB;
+  background-color: #F7F4EF;
 }
 .tab-item.active {
-  background-color: #2E6BE6;
+  background-color: #1C1917;
 }
 .tab-text { font-size: 26rpx; color: #6B7280; font-weight: 500; }
 .tab-item.active .tab-text { color: #FFFFFF; font-weight: 600; }
@@ -186,7 +181,7 @@ onShow(() => {
 .row-value { font-size: 26rpx; color: #374151; }
 .row-value.paid { color: #C2410C; font-weight: 500; }
 .order-row.total { margin-top: 12rpx; padding-top: 12rpx; border-top-width: 1rpx; border-top-style: solid; border-top-color: #F1F3F6; }
-.amount { color: #1D4ED8; font-weight: 700; font-size: 30rpx; }
+.amount { color: #1C1917; font-weight: 700; font-size: 30rpx; }
 
 .empty-state {
   align-items: center;

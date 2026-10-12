@@ -1,7 +1,5 @@
 <template>
-  <!-- #ifdef APP -->
-  <scroll-view style="flex:1">
-  <!-- #endif -->
+  <scroll-view class="page-scroll" scroll-y="true">
   <view class="container">
     <view class="user-card">
       <view class="avatar">
@@ -57,9 +55,7 @@
       <button class="logout-btn" @click="handleLogout">退出登录</button>
     </view>
   </view>
-  <!-- #ifdef APP -->
   </scroll-view>
-  <!-- #endif -->
 </template>
 
 <script setup lang="uts">
@@ -124,24 +120,26 @@ function handleLogout() : void {
 
 <style>
 .container {
-  flex: 1;
-  background-color: #F3F6F8;
+  background-color: #F7F4EF;
   padding: 24rpx;
 }
 
 .user-card {
   flex-direction: row;
   align-items: center;
-  background-color: #0F766E;
-  border-radius: 20rpx;
+  background-color: #FFFCF8;
+  border-radius: 28rpx;
   padding: 40rpx 32rpx;
+  border-width: 1rpx;
+  border-style: solid;
+  border-color: #E7E0D6;
 }
 
 .avatar {
   width: 104rpx;
   height: 104rpx;
   border-radius: 52rpx;
-  background-color: rgba(255,255,255,0.18);
+  background-color: #1C1917;
   align-items: center;
   justify-content: center;
   margin-right: 24rpx;
@@ -149,7 +147,7 @@ function handleLogout() : void {
 
 .avatar-text {
   font-size: 40rpx;
-  color: #FFFFFF;
+  color: #F7F4EF;
   font-weight: 700;
 }
 
@@ -161,32 +159,35 @@ function handleLogout() : void {
 .user-name {
   font-size: 36rpx;
   font-weight: 700;
-  color: #FFFFFF;
+  color: #1C1917;
 }
 
 .user-detail {
   font-size: 24rpx;
-  color: rgba(255,255,255,0.78);
+  color: #78716C;
   margin-top: 8rpx;
 }
 
 .user-tag {
   font-size: 22rpx;
-  color: #D1FAE5;
+  color: #9A3412;
   margin-top: 10rpx;
 }
 
 .menu-card {
   flex-direction: column;
-  background-color: #FFFFFF;
-  border-radius: 18rpx;
+  background-color: #FFFCF8;
+  border-radius: 28rpx;
   margin-top: 24rpx;
   overflow: hidden;
+  border-width: 1rpx;
+  border-style: solid;
+  border-color: #E7E0D6;
 }
 
 .group-title {
   font-size: 22rpx;
-  color: #94A3B8;
+  color: #A8A29E;
   padding: 24rpx 32rpx 0;
 }
 
@@ -195,7 +196,7 @@ function handleLogout() : void {
   align-items: center;
   padding: 32rpx;
   border-bottom-width: 1rpx;
-  border-bottom-color: #F1F5F9;
+  border-bottom-color: #F3EFE8;
   border-bottom-style: solid;
 }
 
@@ -206,12 +207,12 @@ function handleLogout() : void {
 .menu-label {
   flex: 1;
   font-size: 30rpx;
-  color: #1E293B;
+  color: #1C1917;
 }
 
 .menu-arrow {
   font-size: 28rpx;
-  color: #CBD5E1;
+  color: #D6D3D1;
 }
 
 .btn-wrap {
@@ -221,9 +222,12 @@ function handleLogout() : void {
 .logout-btn {
   width: 100%;
   height: 88rpx;
-  background-color: #FFFFFF;
-  color: #DC2626;
+  background-color: #FFFCF8;
+  color: #B91C1C;
   font-size: 30rpx;
   border-radius: 16rpx;
+  border-width: 1rpx;
+  border-style: solid;
+  border-color: #E7E0D6;
 }
 </style>

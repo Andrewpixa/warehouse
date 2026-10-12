@@ -1,7 +1,5 @@
 <template>
-  <!-- #ifdef APP -->
-  <scroll-view style="flex:1">
-  <!-- #endif -->
+  <scroll-view class="page-scroll" scroll-y="true">
   <view class="container">
     <view v-if="logs.length > 0" class="log-list">
       <view v-for="(item, index) in logs" :key="index" class="log-item">
@@ -13,13 +11,10 @@
       </view>
     </view>
     <view v-else class="empty-state">
-      <text class="empty-icon">📋</text>
       <text class="empty-text">暂无操作日志</text>
     </view>
   </view>
-  <!-- #ifdef APP -->
   </scroll-view>
-  <!-- #endif -->
 </template>
 
 <script setup lang="uts">
@@ -67,8 +62,7 @@ onShow(() => {
 
 <style>
 .container {
-  flex: 1;
-  background-color: #F5F7FA;
+  background-color: #F7F4EF;
   padding: 24rpx;
 }
 

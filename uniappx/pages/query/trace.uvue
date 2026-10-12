@@ -11,7 +11,6 @@
         </view>
       </view>
       <view class="input-box">
-        <text class="input-icon">{{ mode == 'invoice' ? '🧾' : '🔖' }}</text>
         <input
           class="kw-input"
           v-model="keyword"
@@ -30,7 +29,6 @@
     <scroll-view class="result-scroll" scroll-y>
       <!-- 未查询 -->
       <view v-if="!searched" class="hint-wrap">
-        <text class="hint-emoji">💊</text>
         <text class="hint-title">药品追溯查询</text>
         <text class="hint-sub">输入发票号查看该票状态、明细和物流已匹配的追溯码</text>
         <text class="hint-sub">或输入 SPDID 查看单品流转记录</text>
@@ -72,12 +70,10 @@
 
         <!-- 无数据 -->
         <view v-if="hasNoData" class="hint-wrap">
-          <text class="hint-emoji">🔍</text>
           <text class="hint-title">未查询到相关记录</text>
           <text class="hint-sub">请核对{{ mode == 'invoice' ? '发票号' : '追溯码' }}是否正确</text>
         </view>
         <view v-else-if="mode == 'invoice' && order != null && traceRows.length == 0" class="hint-wrap">
-          <text class="hint-emoji">🚚</text>
           <text class="hint-title">物流侧暂无匹配码</text>
           <text class="hint-sub">缺码由客户描述问题，不由业务员采集</text>
         </view>
@@ -228,23 +224,23 @@ function onSearch(): void {
 </script>
 
 <style>
-.page { flex: 1; background-color: #F4F6FB; }
+.page { flex: 1; background-color: #F7F4EF; }
 
 .query-card { background-color: #FFFFFF; padding: 24rpx; }
-.seg-row { flex-direction: row; background-color: #F1F4F9; border-radius: 16rpx; padding: 6rpx; }
+.seg-row { flex-direction: row; background-color: #F3EFE8; border-radius: 16rpx; padding: 6rpx; }
 .seg { flex: 1; height: 68rpx; align-items: center; justify-content: center; border-radius: 12rpx; }
-.seg-on-l { background-color: #1D4ED8; }
-.seg-on-r { background-color: #1D4ED8; }
+.seg-on-l { background-color: #1C1917; }
+.seg-on-r { background-color: #1C1917; }
 .seg-text { font-size: 27rpx; color: #5B6572; }
 .seg-text-on { color: #FFFFFF; font-weight: 600; }
 
-.input-box { margin-top: 20rpx; height: 88rpx; background-color: #F8FAFC; border-width: 1rpx; border-style: solid; border-color: #E5E9F0; border-radius: 16rpx; flex-direction: row; align-items: center; padding: 0 24rpx; }
+.input-box { margin-top: 20rpx; height: 88rpx; background-color: #F7F4EF; border-width: 1rpx; border-style: solid; border-color: #E7E0D6; border-radius: 16rpx; flex-direction: row; align-items: center; padding: 0 24rpx; }
 .input-icon { font-size: 32rpx; margin-right: 14rpx; }
 .kw-input { flex: 1; height: 88rpx; font-size: 29rpx; color: #111827; }
 .kw-ph { color: #9AA4B2; }
 .kw-clear { font-size: 24rpx; color: #9AA4B2; padding: 8rpx; }
 
-.query-btn { margin-top: 20rpx; height: 92rpx; border-radius: 16rpx; background: linear-gradient(135deg, #3B82F6, #1D4ED8); align-items: center; justify-content: center; }
+.query-btn { margin-top: 20rpx; height: 92rpx; border-radius: 16rpx; background: #1C1917; align-items: center; justify-content: center; }
 .btn-disabled { opacity: 0.6; }
 .query-btn-text { color: #FFFFFF; font-size: 31rpx; font-weight: 600; letter-spacing: 4rpx; }
 
@@ -255,10 +251,10 @@ function onSearch(): void {
 .hint-title { font-size: 32rpx; color: #1F2937; font-weight: 700; margin-top: 24rpx; }
 .hint-sub { font-size: 25rpx; color: #9AA4B2; margin-top: 12rpx; }
 
-.order-card { margin: 24rpx; background-color: #FFFFFF; border-radius: 20rpx; padding: 26rpx; border-width: 1rpx; border-style: solid; border-color: #EEF1F6; }
+.order-card { margin: 24rpx; background-color: #FFFFFF; border-radius: 20rpx; padding: 26rpx; border-width: 1rpx; border-style: solid; border-color: #E7E0D6; }
 .order-head { flex-direction: row; justify-content: space-between; align-items: center; }
-.order-badge { padding: 6rpx 18rpx; border-radius: 8rpx; background-color: #EAF1FE; }
-.badge-text { font-size: 22rpx; color: #1D4ED8; font-weight: 600; }
+.order-badge { padding: 6rpx 18rpx; border-radius: 8rpx; background-color: #F3EFE8; }
+.badge-text { font-size: 22rpx; color: #1C1917; font-weight: 600; }
 .order-status { padding: 6rpx 18rpx; border-radius: 8rpx; background-color: #E8F5EE; }
 .status-text { font-size: 22rpx; color: #16A34A; font-weight: 600; }
 .order-title-row { margin-top: 16rpx; }
@@ -269,7 +265,7 @@ function onSearch(): void {
 .meta-value { flex: 1; font-size: 25rpx; color: #374151; }
 .meta-mono { color: #4B5563; }
 
-.amount-row { flex-direction: row; margin-top: 20rpx; background-color: #F8FAFC; border-radius: 14rpx; padding: 20rpx 0; }
+.amount-row { flex-direction: row; margin-top: 20rpx; background-color: #F7F4EF; border-radius: 14rpx; padding: 20rpx 0; }
 .amount-box { flex: 1; align-items: center; }
 .amount-num { font-size: 32rpx; font-weight: 700; color: #111827; }
 .price { color: #C2410C; }
@@ -280,19 +276,19 @@ function onSearch(): void {
 .section-count { font-size: 24rpx; color: #9AA4B2; }
 
 .trace-list { padding: 0 24rpx 24rpx; }
-.trace-card { background-color: #FFFFFF; border-radius: 18rpx; padding: 24rpx; margin-bottom: 16rpx; border-width: 1rpx; border-style: solid; border-color: #EEF1F6; }
+.trace-card { background-color: #FFFFFF; border-radius: 18rpx; padding: 24rpx; margin-bottom: 16rpx; border-width: 1rpx; border-style: solid; border-color: #E7E0D6; }
 .trace-top { flex-direction: row; justify-content: space-between; align-items: center; }
 .trace-name { flex: 1; font-size: 29rpx; font-weight: 700; color: #111827; padding-right: 16rpx; }
 .tag { padding: 5rpx 16rpx; border-radius: 8rpx; }
-.tag-blue { background-color: #EAF1FE; }
+.tag-blue { background-color: #F3EFE8; }
 .tag-green { background-color: #E8F5EE; }
 .tag-text { font-size: 21rpx; }
-.tag-text-blue { color: #1D4ED8; }
+.tag-text-blue { color: #1C1917; }
 .tag-text-green { color: #16A34A; }
 
-.trace-code { margin-top: 14rpx; background-color: #F8FAFC; border-radius: 12rpx; padding: 16rpx 20rpx; flex-direction: row; align-items: center; }
+.trace-code { margin-top: 14rpx; background-color: #F7F4EF; border-radius: 12rpx; padding: 16rpx 20rpx; flex-direction: row; align-items: center; }
 .code-label { font-size: 21rpx; color: #9AA4B2; margin-right: 16rpx; }
-.code-value { flex: 1; font-size: 27rpx; color: #1D4ED8; font-weight: 600; }
+.code-value { flex: 1; font-size: 27rpx; color: #1C1917; font-weight: 600; }
 
 .trace-meta { flex-direction: row; flex-wrap: wrap; margin-top: 14rpx; }
 .meta-chip { font-size: 22rpx; color: #6B7280; background-color: #F1F3F6; border-radius: 8rpx; padding: 6rpx 14rpx; margin-right: 12rpx; margin-bottom: 8rpx; }

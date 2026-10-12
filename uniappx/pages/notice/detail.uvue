@@ -1,7 +1,5 @@
 <template>
-  <!-- #ifdef APP -->
-  <scroll-view style="flex:1">
-  <!-- #endif -->
+  <scroll-view class="page-scroll" scroll-y="true">
   <view class="container">
     <view class="detail-card">
       <text class="detail-title">{{ notice.title }}</text>
@@ -13,9 +11,7 @@
       <text class="detail-content">{{ notice.content }}</text>
     </view>
   </view>
-  <!-- #ifdef APP -->
   </scroll-view>
-  <!-- #endif -->
 </template>
 
 <script setup lang="uts">
@@ -68,8 +64,7 @@ onLoad((options : Record<string, string>) => {
 
 <style>
 .container {
-  flex: 1;
-  background-color: #F5F7FA;
+  background-color: #F7F4EF;
   padding: 24rpx;
 }
 

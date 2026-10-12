@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
+import '../scan/barcode_image.dart';
 import '../ui/layout.dart';
 
 class ScanPage extends StatefulWidget {
@@ -23,6 +24,7 @@ class _ScanPageState extends State<ScanPage> {
     ],
   );
   bool _done = false;
+  bool _picking = false;
 
   @override
   void dispose() {
@@ -30,14 +32,39 @@ class _ScanPageState extends State<ScanPage> {
     super.dispose();
   }
 
+  void _finish(String value) {
+    if (_done || value.trim().isEmpty) return;
+    _done = true;
+    Navigator.of(context).pop(value.trim());
+  }
+
   void _onDetect(BarcodeCapture capture) {
-    if (_done) return;
+    if (_done || _picking) return;
     for (final b in capture.barcodes) {
       final v = b.rawValue?.trim() ?? '';
       if (v.isEmpty) continue;
-      _done = true;
-      Navigator.of(context).pop(v);
+      _finish(v);
       return;
+    }
+  }
+
+  Future<void> _pickPhoto() async {
+    if (_done || _picking) return;
+    setState(() => _picking = true);
+    await _controller.stop();
+    if (!mounted) return;
+    try {
+      final code = await pickBarcodeFromPhoto(context);
+      if (!mounted) return;
+      if (code != null && code.isNotEmpty) {
+        _finish(code);
+        return;
+      }
+    } finally {
+      if (mounted && !_done) {
+        setState(() => _picking = false);
+        await _controller.start();
+      }
     }
   }
 
@@ -74,18 +101,31 @@ class _ScanPageState extends State<ScanPage> {
           ),
           Align(
             alignment: Alignment.bottomCenter,
-            child: Container(
-              width: tablet ? 520 : double.infinity,
-              margin: const EdgeInsets.only(bottom: 28),
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
-              decoration: BoxDecoration(
-                color: const Color(0xCC000000),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Text(
-                '对准药盒上的追溯码、GS1 条码或批号。识别后自动查询该批入库 / 出库单据。',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white70, height: 1.45, fontSize: 15),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  FilledButton.icon(
+                    onPressed: _picking ? null : _pickPhoto,
+                    icon: const Icon(Icons.photo_outlined),
+                    label: Text(_picking ? '正在识别照片…' : '从照片识别'),
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    width: tablet ? 520 : double.infinity,
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xCC000000),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Text(
+                      '对准药盒上的追溯码、GS1 条码或批号，也可以从文件里选一张照片识别。',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.white70, height: 1.45, fontSize: 15),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),

@@ -4,7 +4,6 @@
     <view class="search-panel">
       <view class="search-row">
         <view class="search-box">
-          <text class="search-icon">🔍</text>
           <input
             class="search-input"
             v-model="drugName"
@@ -51,7 +50,7 @@
       refresher-enabled
       :refresher-triggered="refreshing"
       @refresherrefresh="onRefresh"
-    >
+     scroll-y="true">
       <view v-if="rows.length > 0" class="list-wrap">
         <view v-for="(s, idx) in rows" :key="idx" class="stock-card">
           <view class="card-top">
@@ -84,12 +83,10 @@
       </view>
 
       <view v-else-if="!loading && !failed" class="empty-wrap">
-        <text class="empty-emoji">📦</text>
         <text class="empty-title">暂无批号库存</text>
         <text class="empty-sub">调整筛选条件后再试试</text>
       </view>
       <view v-else-if="failed" class="empty-wrap">
-        <text class="empty-emoji">⚠️</text>
         <text class="empty-title">加载失败</text>
         <view class="retry-btn" @click="onRefresh"><text class="retry-text">点击重试</text></view>
       </view>
@@ -216,21 +213,21 @@ onMounted(() => { fetchList(true) })
 </script>
 
 <style>
-.page { flex: 1; background-color: #F4F6FB; }
+.page { flex: 1; background-color: #F7F4EF; }
 
 .search-panel { background-color: #FFFFFF; padding: 20rpx 24rpx 18rpx; }
 .search-row { flex-direction: row; align-items: center; }
-.search-box { flex: 1; height: 76rpx; background-color: #F1F4F9; border-radius: 38rpx; flex-direction: row; align-items: center; padding: 0 24rpx; }
+.search-box { flex: 1; height: 76rpx; background-color: #F3EFE8; border-radius: 38rpx; flex-direction: row; align-items: center; padding: 0 24rpx; }
 .box-small { margin-left: 14rpx; width: 200rpx; flex: 0; }
 .search-icon { font-size: 28rpx; margin-right: 12rpx; }
 .search-input { flex: 1; height: 76rpx; font-size: 28rpx; color: #1F2937; }
 .search-ph { color: #9AA4B2; }
-.search-btn { margin-left: 14rpx; height: 76rpx; padding: 0 32rpx; border-radius: 38rpx; background: linear-gradient(135deg, #3B82F6, #1D4ED8); align-items: center; justify-content: center; }
+.search-btn { margin-left: 14rpx; height: 76rpx; padding: 0 32rpx; border-radius: 38rpx; background: #1C1917; align-items: center; justify-content: center; }
 .search-btn-text { color: #FFFFFF; font-size: 28rpx; font-weight: 600; }
 
 .chip-row { flex-direction: row; margin-top: 16rpx; }
-.chip { padding: 10rpx 28rpx; border-radius: 30rpx; background-color: #F1F4F9; margin-right: 14rpx; }
-.chip-on { background-color: #1D4ED8; }
+.chip { padding: 10rpx 28rpx; border-radius: 30rpx; background-color: #F3EFE8; margin-right: 14rpx; }
+.chip-on { background-color: #1C1917; }
 .chip-text { font-size: 25rpx; color: #5B6562; }
 .chip-text-on { color: #FFFFFF; font-weight: 600; }
 
@@ -240,7 +237,7 @@ onMounted(() => { fetchList(true) })
 
 .list-scroll { flex: 1; }
 .list-wrap { padding: 8rpx 24rpx 24rpx; }
-.stock-card { background-color: #FFFFFF; border-radius: 20rpx; padding: 26rpx; margin-bottom: 18rpx; border-width: 1rpx; border-style: solid; border-color: #EEF1F6; }
+.stock-card { background-color: #FFFFFF; border-radius: 20rpx; padding: 26rpx; margin-bottom: 18rpx; border-width: 1rpx; border-style: solid; border-color: #E7E0D6; }
 .card-top { flex-direction: row; justify-content: space-between; align-items: center; }
 .drug-name { flex: 1; font-size: 31rpx; font-weight: 700; color: #111827; padding-right: 16rpx; }
 .tag { padding: 5rpx 16rpx; border-radius: 8rpx; }
@@ -248,9 +245,9 @@ onMounted(() => { fetchList(true) })
 .tag-text { font-size: 21rpx; }
 .tag-text-gray { color: #6B7280; }
 .batch-line { flex-direction: row; align-items: center; margin-top: 12rpx; }
-.batch-no { font-size: 26rpx; color: #1D4ED8; font-weight: 600; margin-right: 14rpx; }
+.batch-no { font-size: 26rpx; color: #1C1917; font-weight: 600; margin-right: 14rpx; }
 
-.meta-grid { flex-direction: row; margin-top: 18rpx; background-color: #F8FAFC; border-radius: 14rpx; padding: 18rpx 0; }
+.meta-grid { flex-direction: row; margin-top: 18rpx; background-color: #F7F4EF; border-radius: 14rpx; padding: 18rpx 0; }
 .meta-box { flex: 1; align-items: center; }
 .meta-num { font-size: 30rpx; font-weight: 700; color: #111827; }
 .num-danger { color: #DC2626; }
@@ -267,6 +264,6 @@ onMounted(() => { fetchList(true) })
 .empty-emoji { font-size: 88rpx; }
 .empty-title { font-size: 30rpx; color: #4B5563; margin-top: 20rpx; font-weight: 600; }
 .empty-sub { font-size: 25rpx; color: #9AA4B2; margin-top: 10rpx; }
-.retry-btn { margin-top: 24rpx; padding: 16rpx 48rpx; border-radius: 36rpx; background-color: #1D4ED8; }
+.retry-btn { margin-top: 24rpx; padding: 16rpx 48rpx; border-radius: 36rpx; background-color: #1C1917; }
 .retry-text { color: #FFFFFF; font-size: 27rpx; }
 </style>

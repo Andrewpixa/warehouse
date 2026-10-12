@@ -1,7 +1,4 @@
 <template>
-  <!-- #ifdef APP -->
-  <scroll-view style="flex:1">
-  <!-- #endif -->
   <view class="container">
     <!-- 搜索栏 -->
     <view class="search-bar">
@@ -23,7 +20,7 @@
       refresher-enabled
       :refresher-triggered="refreshing"
       @refresherrefresh="onRefresh"
-    >
+     scroll-y="true">
       <view v-if="logList.length > 0" class="list-container">
         <view v-for="(item, index) in logList" :key="index" class="log-card">
           <view class="log-info">
@@ -52,14 +49,10 @@
       </view>
 
       <view v-if="!loading && logList.length === 0" class="empty-state">
-        <text class="empty-icon">📭</text>
         <text class="empty-text">暂无登录日志</text>
       </view>
     </scroll-view>
   </view>
-  <!-- #ifdef APP -->
-  </scroll-view>
-  <!-- #endif -->
 </template>
 
 <script setup lang="uts">
@@ -183,7 +176,7 @@ onShow(() => {
 <style>
 .container {
   flex: 1;
-  background-color: #F5F7FA;
+  background-color: #F7F4EF;
 }
 
 /* 搜索栏 */
@@ -198,14 +191,14 @@ onShow(() => {
 .search-input {
   flex: 1;
   height: 72rpx;
-  background-color: #F5F7FA;
+  background-color: #F7F4EF;
   border-radius: 36rpx;
   padding: 0 24rpx;
   font-size: 28rpx;
 }
 
 .search-btn {
-  background-color: #409EFF;
+  background-color: #1C1917;
   border-radius: 36rpx;
   padding: 0 32rpx;
   height: 72rpx;
@@ -255,7 +248,7 @@ onShow(() => {
 }
 
 .log-ip {
-  color: #409EFF;
+  color: #1C1917;
   font-weight: 500;
 }
 

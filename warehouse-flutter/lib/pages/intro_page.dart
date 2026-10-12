@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui';
 
@@ -1204,18 +1205,65 @@ class _CapCard extends StatelessWidget {
   }
 }
 
-class _TraceFlow extends StatelessWidget {
+class _Slide {
+  const _Slide({
+    required this.assets,
+    required this.kicker,
+    required this.title,
+    required this.body,
+  });
+
+  final List<String> assets;
+  final String kicker;
+  final String title;
+  final String body;
+}
+
+class _TraceFlow extends StatefulWidget {
   const _TraceFlow();
 
   @override
+  State<_TraceFlow> createState() => _TraceFlowState();
+}
+
+class _TraceFlowState extends State<_TraceFlow> {
+  static const _steps = [
+    _Slide(
+      assets: ['assets/intro/cap-io.png', 'assets/intro/cap-warehouse.png'],
+      kicker: '01',
+      title: '采购入库',
+      body: '供应商到货，批号入账',
+    ),
+    _Slide(
+      assets: ['assets/intro/cap-lot.png'],
+      kicker: '02',
+      title: '在库管理',
+      body: '效期、升益、盘点',
+    ),
+    _Slide(
+      assets: ['assets/intro/cap-trace.png', 'assets/intro/cap-io.png'],
+      kicker: '03',
+      title: '销售出库',
+      body: '开单出库，码随货走',
+    ),
+    _Slide(
+      assets: ['assets/intro/cap-hospital.png'],
+      kicker: '04',
+      title: '医院收货',
+      body: '下游确认流向',
+    ),
+    _Slide(
+      assets: ['assets/intro/cap-trace.png'],
+      kicker: '05',
+      title: '码上放心',
+      body: '追溯链路闭环',
+    ),
+  ];
+
+  int _index = 0;
+
+  @override
   Widget build(BuildContext context) {
-    const steps = [
-      ('采购入库', '供应商到货，批号入账'),
-      ('在库管理', '效期、升益、盘点'),
-      ('销售出库', '开单出库，码随货走'),
-      ('医院收货', '下游确认流向'),
-      ('码上放心', '追溯链路闭环'),
-    ];
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
       child: Column(
@@ -1226,36 +1274,56 @@ class _TraceFlow extends StatelessWidget {
           const Text('药品流向，像时间线一样可读', style: TextStyle(color: _ink, fontSize: 24, fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
           const Text('从供应商入库到医院收货，每一步都留下可核验的痕迹。', style: TextStyle(color: _muted, height: 1.5)),
-          const SizedBox(height: 20),
-          for (var i = 0; i < steps.length; i++)
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Column(
-                  children: [
-                    Container(
-                      width: 10,
-                      height: 10,
-                      decoration: const BoxDecoration(color: _rose, shape: BoxShape.circle),
-                    ),
-                    if (i < steps.length - 1)
-                      Container(width: 1, height: 44, color: _line),
-                  ],
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(bottom: 18),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('0${i + 1}  ${steps[i].$1}', style: const TextStyle(color: _ink, fontWeight: FontWeight.w600)),
-                        Text(steps[i].$2, style: const TextStyle(color: _muted, fontSize: 13)),
-                      ],
+          const SizedBox(height: 18),
+          _DepthTunnel(
+            slides: _steps,
+            height: 300,
+            selected: _index,
+            onChanged: (i) => setState(() => _index = i),
+          ),
+          const SizedBox(height: 18),
+          for (var i = 0; i < _steps.length; i++)
+            GestureDetector(
+              onTap: () => setState(() => _index = i),
+              behavior: HitTestBehavior.opaque,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Column(
+                    children: [
+                      Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          color: i == _index ? _rose : _faint,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      if (i < _steps.length - 1)
+                        Container(width: 1, height: 44, color: _line),
+                    ],
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 18),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${_steps[i].kicker}  ${_steps[i].title}',
+                            style: TextStyle(
+                              color: i == _index ? _ink : _muted,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          Text(_steps[i].body, style: const TextStyle(color: _muted, fontSize: 13)),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
         ],
       ),
@@ -1266,40 +1334,500 @@ class _TraceFlow extends StatelessWidget {
 class _Trust extends StatelessWidget {
   const _Trust();
 
+  static const _items = [
+    _Slide(
+      assets: ['assets/intro/cap-lot.png', 'assets/intro/cap-warehouse.png'],
+      kicker: '01',
+      title: '批号库存可核对',
+      body: '库存落到批号：数量、效期、仓位都能逐批核对，不再只看到品种合计。',
+    ),
+    _Slide(
+      assets: ['assets/intro/cap-trace.png'],
+      kicker: '02',
+      title: 'GS1 / 01 码可查来源去向',
+      body: '扫码即可看到入库来源与出库流向，对接码上放心的业务节奏。',
+    ),
+    _Slide(
+      assets: ['assets/intro/cap-io.png', 'assets/intro/cap-hospital.png', 'assets/intro/cap-settle.png'],
+      kicker: '03',
+      title: '入出库、收货、日清月结留痕',
+      body: '采购入库、销售出库、医院收货、日清月结都留下操作记录，对账与检查有据可依。',
+    ),
+    _Slide(
+      assets: ['assets/intro/cap-settle.png', 'assets/intro/cap-lot.png'],
+      kicker: '04',
+      title: '近效期预警、红冲可追溯',
+      body: '近效期批号提前告警；红冲单关联原发票，冲减数量与库存回补可完整回溯。',
+    ),
+  ];
+
   @override
   Widget build(BuildContext context) {
-    const items = [
-      ('01', '批号库存可核对', '库存落到批号：数量、效期、仓位都能逐批核对，不再只看到品种合计。'),
-      ('02', 'GS1 / 01 码可查来源去向', '扫码即可看到入库来源与出库流向，对接码上放心的业务节奏。'),
-      ('03', '入出库、收货、日清月结留痕', '采购入库、销售出库、医院收货、日清月结都留下操作记录，对账与检查有据可依。'),
-      ('04', '近效期预警、红冲可追溯', '近效期批号提前告警；红冲单关联原发票，冲减数量与库存回补可完整回溯。'),
-    ];
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
-      child: Column(
-        children: [
-          for (final t in items)
-            Container(
-              width: double.infinity,
-              margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.all(18),
+    return const Padding(
+      padding: EdgeInsets.fromLTRB(24, 8, 24, 16),
+      child: _FlipDeck(slides: _items, height: 400),
+    );
+  }
+}
+
+class _DepthTunnel extends StatefulWidget {
+  const _DepthTunnel({
+    required this.slides,
+    required this.height,
+    this.selected,
+    this.onChanged,
+  });
+
+  final List<_Slide> slides;
+  final double height;
+  final int? selected;
+  final ValueChanged<int>? onChanged;
+
+  @override
+  State<_DepthTunnel> createState() => _DepthTunnelState();
+}
+
+class _DepthTunnelState extends State<_DepthTunnel> {
+  late final int _n = widget.slides.length;
+  late final PageController _pages = PageController(viewportFraction: 0.8, initialPage: _n * 40);
+  Timer? _auto;
+  int _index = 0;
+
+  int _real(int page) => ((page % _n) + _n) % _n;
+
+  @override
+  void initState() {
+    super.initState();
+    _auto = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (!mounted || !_pages.hasClients || _pages.position.isScrollingNotifier.value) return;
+      final current = _pages.page?.round() ?? _n * 40;
+      _pages.animateToPage(current + 1, duration: const Duration(milliseconds: 650), curve: Curves.easeOutCubic);
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant _DepthTunnel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final target = widget.selected;
+    if (target == null || target == _index || !_pages.hasClients) return;
+    if (_pages.position.isScrollingNotifier.value) return;
+    _go(target);
+  }
+
+  @override
+  void dispose() {
+    _auto?.cancel();
+    _pages.dispose();
+    super.dispose();
+  }
+
+  void _go(int target) {
+    final current = _pages.page?.round() ?? _n * 40;
+    var delta = target - _real(current);
+    if (delta > _n / 2) delta -= _n;
+    if (delta < -_n / 2) delta += _n;
+    _pages.animateToPage(current + delta, duration: const Duration(milliseconds: 650), curve: Curves.easeOutCubic);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final slide = widget.slides[_index];
+    return Column(
+      children: [
+        SizedBox(
+          height: widget.height,
+          child: PageView.builder(
+            controller: _pages,
+            itemBuilder: (context, i) {
+              final real = _real(i);
+              return AnimatedBuilder(
+                animation: _pages,
+                builder: (context, child) {
+                  final page = _pages.hasClients ? (_pages.page ?? i.toDouble()) : i.toDouble();
+                  final delta = (i - page).clamp(-1.0, 1.0);
+                  final focus = (1 - delta.abs()).clamp(0.0, 1.0);
+                  return Transform(
+                    alignment: Alignment.center,
+                    transform: Matrix4.identity()
+                      ..setEntry(3, 2, 0.0016)
+                      ..rotateY(-delta * 0.55)
+                      ..scaleByDouble(0.88 + 0.12 * focus, 0.88 + 0.12 * focus, 1, 1),
+                    child: Opacity(opacity: 0.62 + 0.38 * focus, child: child),
+                  );
+                },
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(10, 16, 10, 20),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(18),
+                      boxShadow: [
+                        BoxShadow(
+                          color: _roseDeep.withValues(alpha: 0.28),
+                          blurRadius: 24,
+                          offset: const Offset(0, 12),
+                        ),
+                      ],
+                    ),
+                    child: _SlideFrame(slide: widget.slides[real], showCaption: false),
+                  ),
+                ),
+              );
+            },
+            onPageChanged: (i) {
+              final real = _real(i);
+              if (real == _index) return;
+              setState(() => _index = real);
+              widget.onChanged?.call(real);
+            },
+          ),
+        ),
+        _Dots(
+          count: _n,
+          index: _index,
+          label: '${slide.kicker}  ${slide.title}',
+          onTap: (page) => _go(page.round()),
+        ),
+      ],
+    );
+  }
+}
+
+class _FlipDeck extends StatefulWidget {
+  const _FlipDeck({required this.slides, required this.height});
+
+  final List<_Slide> slides;
+  final double height;
+
+  @override
+  State<_FlipDeck> createState() => _FlipDeckState();
+}
+
+class _FlipDeckState extends State<_FlipDeck> with SingleTickerProviderStateMixin {
+  late final AnimationController _motion = AnimationController(vsync: this, duration: const Duration(milliseconds: 560));
+  Animation<double>? _tween;
+  VoidCallback? _after;
+  Timer? _auto;
+  int _index = 0;
+  double _turn = 0;
+  bool _dragging = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _motion.addListener(() {
+      final tween = _tween;
+      if (tween == null || !mounted) return;
+      setState(() => _turn = tween.value);
+    });
+    _motion.addStatusListener((status) {
+      if (status != AnimationStatus.completed) return;
+      final done = _after;
+      _after = null;
+      done?.call();
+    });
+    _auto = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (!mounted || _dragging || _motion.isAnimating || _turn > 0.02) return;
+      _finish();
+    });
+  }
+
+  @override
+  void dispose() {
+    _auto?.cancel();
+    _motion.dispose();
+    super.dispose();
+  }
+
+  void _animateTurn(double target, {VoidCallback? done}) {
+    _after = done;
+    _tween = Tween<double>(begin: _turn, end: target).animate(CurvedAnimation(parent: _motion, curve: Curves.easeInOutCubic));
+    _motion.forward(from: 0);
+  }
+
+  void _finish() {
+    _animateTurn(1, done: () {
+      if (!mounted) return;
+      setState(() {
+        _index = (_index + 1) % widget.slides.length;
+        _turn = 0;
+      });
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final n = widget.slides.length;
+    return Column(
+      children: [
+        SizedBox(
+          height: widget.height,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onHorizontalDragStart: (_) {
+              _dragging = true;
+              _motion.stop();
+              _after = null;
+            },
+            onHorizontalDragUpdate: (d) {
+              setState(() => _turn = (_turn - d.delta.dx / 260).clamp(0.0, 1.0));
+            },
+            onHorizontalDragEnd: (d) {
+              _dragging = false;
+              final v = d.primaryVelocity ?? 0;
+              if (_turn > 0.32 || v < -500) {
+                _finish();
+              } else {
+                _animateTurn(0);
+              }
+            },
+            onHorizontalDragCancel: () {
+              _dragging = false;
+              _animateTurn(0);
+            },
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final layers = <int>[2, 1, 0];
+                return Stack(
+                  alignment: Alignment.center,
+                  clipBehavior: Clip.none,
+                  children: [
+                    for (final layer in layers) _deckCard(layer, constraints.maxWidth),
+                  ],
+                );
+              },
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        _Dots(
+          count: n,
+          index: _index,
+          label: '${widget.slides[_index].kicker}  ${widget.slides[_index].title}',
+          onTap: (page) {
+            if (_motion.isAnimating) return;
+            setState(() {
+              _index = page.round() % n;
+              _turn = 0;
+            });
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _deckCard(int layer, double width) {
+    final slot = layer - _turn;
+    if (slot > 2.2 || slot < -1.05) return const SizedBox.shrink();
+    final slide = widget.slides[(_index + layer) % widget.slides.length];
+    final depth = slot.clamp(0.0, 2.2);
+    final leaving = slot < 0;
+    final y = leaving ? 0.0 : -14.0 * depth;
+    final sc = leaving ? 1.0 : 1 - depth * 0.05;
+    final fade = leaving ? (1 + slot).clamp(0.0, 1.0) : (1 - depth * 0.12).clamp(0.7, 1.0);
+    return Transform(
+      alignment: Alignment.center,
+      transform: Matrix4.identity()
+        ..setEntry(3, 2, 0.0014)
+        ..translateByDouble(leaving ? slot * width * 1.08 : 0, y, leaving ? 12 : -24.0 * depth, 1)
+        ..rotateY(leaving ? -slot * 0.42 : 0)
+        ..scaleByDouble(sc, sc, 1, 1),
+      child: Opacity(
+        opacity: fade,
+        child: SizedBox(
+          width: width,
+          height: widget.height - 28,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.45),
+                  blurRadius: 24,
+                  offset: const Offset(0, 16),
+                ),
+                if (layer == 0)
+                  BoxShadow(
+                    color: _gold.withValues(alpha: 0.22 * (1 - _turn)),
+                    blurRadius: 22,
+                  ),
+              ],
+            ),
+            child: _SlideFrame(slide: slide, showCaption: true),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Dots extends StatelessWidget {
+  const _Dots({
+    required this.count,
+    required this.index,
+    required this.label,
+    required this.onTap,
+  });
+
+  final int count;
+  final int index;
+  final String label;
+  final void Function(double page) onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        for (var i = 0; i < count; i++)
+          GestureDetector(
+            onTap: () => onTap(i.toDouble()),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 220),
+              width: i == index ? 18 : 6,
+              height: 6,
+              margin: const EdgeInsets.only(right: 6),
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: _line),
+                color: i == index ? _rose : _faint,
+                borderRadius: BorderRadius.circular(6),
               ),
+            ),
+          ),
+        const Spacer(),
+        Text(label, style: const TextStyle(color: _faint, fontSize: 11)),
+      ],
+    );
+  }
+}
+
+
+class _SlideFrame extends StatelessWidget {
+  const _SlideFrame({required this.slide, required this.showCaption});
+
+  final _Slide slide;
+  final bool showCaption;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _line),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(child: _AssetReel(key: ValueKey(slide.assets.join('|')), assets: slide.assets)),
+          if (showCaption)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(t.$1, style: const TextStyle(color: _rose, fontSize: 22, fontWeight: FontWeight.w700)),
+                  Text(slide.kicker, style: const TextStyle(color: _rose, fontSize: 22, fontWeight: FontWeight.w700)),
                   const SizedBox(height: 6),
-                  Text(t.$2, style: const TextStyle(color: _ink, fontSize: 16, fontWeight: FontWeight.w600)),
+                  Text(slide.title, style: const TextStyle(color: _ink, fontSize: 16, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 6),
-                  Text(t.$3, style: const TextStyle(color: _muted, fontSize: 13, height: 1.5)),
+                  Text(slide.body, style: const TextStyle(color: _muted, fontSize: 13, height: 1.5)),
                 ],
               ),
             ),
         ],
       ),
+    );
+  }
+}
+
+class _AssetReel extends StatefulWidget {
+  const _AssetReel({super.key, required this.assets});
+
+  final List<String> assets;
+
+  @override
+  State<_AssetReel> createState() => _AssetReelState();
+}
+
+class _AssetReelState extends State<_AssetReel> {
+  late final int _n = widget.assets.length;
+  late final PageController _pages = PageController(initialPage: _n > 1 ? _n * 30 : 0);
+  int _index = 0;
+  Timer? _timer;
+
+  int _real(int page) {
+    final n = widget.assets.length;
+    if (n <= 0) return 0;
+    return ((page % n) + n) % n;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    if (_n > 1) {
+      _timer = Timer.periodic(const Duration(seconds: 4), (_) {
+        if (!mounted || !_pages.hasClients || _pages.position.isScrollingNotifier.value) return;
+        final current = _pages.page?.round() ?? _n * 30;
+        _pages.animateToPage(current + 1, duration: const Duration(milliseconds: 480), curve: Curves.easeOutCubic);
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _pages.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final photo = widget.assets.length == 1
+        ? Image.asset(
+            widget.assets.first,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => const ColoredBox(color: Color(0xFF141418)),
+          )
+        : PageView.builder(
+            controller: _pages,
+            onPageChanged: (i) => setState(() => _index = _real(i)),
+            itemBuilder: (_, i) => Image.asset(
+              widget.assets[_real(i)],
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => const ColoredBox(color: Color(0xFF141418)),
+            ),
+          );
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        photo,
+        const DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0x0007070A), Color(0x9907070A)],
+              stops: [0.45, 1],
+            ),
+          ),
+        ),
+        if (widget.assets.length > 1)
+          Positioned(
+            right: 12,
+            bottom: 10,
+            child: Row(
+              children: [
+                for (var i = 0; i < widget.assets.length; i++)
+                  Container(
+                    width: i == _index ? 14 : 5,
+                    height: 5,
+                    margin: const EdgeInsets.only(left: 4),
+                    decoration: BoxDecoration(
+                      color: i == _index ? _ink : _faint,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+      ],
     );
   }
 }
