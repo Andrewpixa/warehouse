@@ -128,6 +128,8 @@ type Pack = {
   steps: string[]
 }
 
+const releaseBase = 'https://github.com/Andrewpixa/warehouse/releases/download/client-1.0.0'
+
 const pcItems: Pack[] = [
   {
     id: 'windows',
@@ -139,7 +141,7 @@ const pcItems: Pack[] = [
     format: 'ZIP',
     updated: '2026-10-06',
     file: 'pharma-pc-windows-x64.zip',
-    href: '/downloads/pharma-pc-windows-x64.zip',
+    href: `${releaseBase}/pharma-pc-windows-x64.zip`,
     steps: [
       '下载 zip 到电脑。',
       '解压整个文件夹，不要只抽出 exe。',
@@ -156,7 +158,7 @@ const pcItems: Pack[] = [
     format: 'ZIP',
     updated: '2026-10-06',
     file: 'pharma-pc-macos-x64.zip',
-    href: '/downloads/pharma-pc-macos-x64.zip',
+    href: `${releaseBase}/pharma-pc-macos-x64.zip`,
     steps: [
       '下载 zip 并解压。',
       '打开「药企进销存」。',
@@ -175,7 +177,7 @@ const android: Pack = {
   format: 'APK',
   updated: '2026-10-06',
   file: 'pharma-android.apk',
-  href: '/downloads/pharma-android.apk',
+  href: `${releaseBase}/pharma-android.apk`,
   steps: [
     '把 apk 传到安卓手机。',
     '安装时若提示未知来源，允许这一次。',
